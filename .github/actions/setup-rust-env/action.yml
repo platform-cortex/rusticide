@@ -1,0 +1,112 @@
+name: "Setup Rust Environment"
+description: "Setup Rust toolchain, cache, and cargo tools in one action"
+inputs:
+  toolchain:
+    description: >
+      Rust toolchain channel. Leave empty (the default) to use the channel
+      pinned in rust-toolchain.toml, which is the project's single source of
+      truth; pass a channel only to deliberately override it, as nightly.yml
+      does.
+    required: false
+    default: ""
+  components:
+    description: "Additional rustup components (e.g., clippy, rustfmt, miri)"
+    required: false
+    default: ""
+  targets:
+    description: "Additional rustup targets (e.g., wasm32-unknown-unknown)"
+    required: false
+    default: ""
+  cargo-tools:
+    description: "Space-separated list of cargo tools to install"
+    required: false
+    default: >
+      cargo-audit cargo-crap cargo-criterion cargo-deny cargo-edit cargo-fuzz
+      cargo-machete cargo-mutants cargo-nextest cargo-pgo cargo-semver-checks
+      cargo-sort cargo-tarpaulin cargo-wizard committed flamegraph
+      rumdl taplo-cli
+  cache-key-suffix:
+    description: "Additional suffix for cache key specificity"
+    required: false
+    default: ""
+  cache-target:
+    description: "Whether to cache target directory"
+    required: false
+    default: "true"
+  rust-cache-shared-key:
+    description: "Shared key for rust-cache (e.g., 'perf' for benchmarks)"
+    required: false
+    default: ""
+  rust-cache-save-if:
+    description: >
+      Set to the string "false" to skip saving the cache. Must be an ALREADY
+      EVALUATED value, e.g. ${{ github.ref == 'refs/heads/main' }} -- an
+      unevaluated expression string would be truthy and always save.
+    required: false
+    default: ""
+
+outputs:
+  cache-hit:
+    description: "Whether the Rust cache was restored (exact match)"
+    value: ${{ steps.rust-cache.outputs.cache-hit }}
+  cache-key:
+    description: "The computed cache key passed to Swatinem/rust-cache"
+    value: ${{ steps.cache-names.outputs.cache-key }}
+  cache-shared-key:
+    description: "The computed shared key passed to Swatinem/rust-cache"
+    value: ${{ steps.cache-names.outputs.cache-shared-key }}
+  rust-version:
+    description: "The installed Rust toolchain version (e.g. 'rustc 1.88.0 (a1b2c3d4e 2025-07-14)')"
+    value: ${{ steps.rust-version.outputs.version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Rust toolchain
+      id: rust-toolchain
+      uses: elioseverojunior/rust-toolchain@390bda4ae160490a30a5a7d61e076fc096e2c4f8 # v0.0.1-1
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        components: ${{ inputs.components }}
+        targets: ${{ inputs.targets }}
+
+    - name: Get Rust version
+      id: rust-version
+      shell: bash
+      run: echo "version=$(rustc --version)" >> "$GITHUB_OUTPUT"
+
+    # Computed once here and consumed by the cache step below, so the key
+    # definition lives in exactly one place. Inputs arrive via env rather than
+    # ${{ }} interpolation so a value containing shell metacharacters cannot
+    # break out of the assignment.
+    - name: Compute cache key
+      id: cache-names
+      shell: bash
+      env:
+        CACHE_KEY_SUFFIX: ${{ inputs.cache-key-suffix }}
+        LOCK_HASH: ${{ hashFiles('**/Cargo.lock') }}
+        SHARED_KEY: ${{ inputs.rust-cache-shared-key || inputs.toolchain || 'default' }}
+        OS: ${{ runner.os }}
+        ARCH: ${{ runner.arch }}
+      run: |
+        echo "cache-key=cargo-${OS}-${ARCH}-${CACHE_KEY_SUFFIX}-${LOCK_HASH}" >> "$GITHUB_OUTPUT"
+        echo "cache-shared-key=${SHARED_KEY}" >> "$GITHUB_OUTPUT"
+
+    - name: Setup Rust cache
+      id: rust-cache
+      uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      with:
+        cache-on-failure: true
+        # rust-cache-save-if is compared against the literal "false" rather than
+        # used as a truthy value: any non-empty string, including an
+        # unevaluated expression, would otherwise always be true.
+        save-if: ${{ inputs.cache-target == 'true' && inputs.rust-cache-save-if != 'false' }}
+        shared-key: ${{ steps.cache-names.outputs.cache-shared-key }}
+        key: ${{ steps.cache-names.outputs.cache-key }}
+
+    - name: Install cargo tools
+      if: ${{ inputs.cargo-tools != '' }}
+      uses: taiki-e/install-action@7572810d7dd469b651bb7793945692cf78da5dd7 # v2.85.0
+      with:
+        tool: |
+          ${{ inputs.cargo-tools }}

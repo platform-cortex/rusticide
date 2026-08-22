@@ -1,0 +1,122 @@
+# Configuration for actions/labeler, applied by .github/workflows/labeler.yml.
+# https://github.com/actions/labeler
+#
+# Uses the changed-files match syntax introduced in v5 and unchanged through
+# the pinned v7.
+#
+# Areas mirror the layering documented in docs/ARCHITECTURE.md: a foundation
+# crate (tensor), a compute backend (ggml), domain crates on top, and the CLI
+# at the app layer. Sibling crates whose changes almost always travel together
+# share one label rather than getting one each.
+#
+# NOTE: actions/labeler does not create labels. Every key below must exist in
+# the repository before the action runs, or the run fails.
+
+# --- Cross-cutting -----------------------------------------------------------
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "docs/**/*"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - ".act/**/*"
+          - "mise.toml"
+          - "mise.lock"
+          - "hk.pkl"
+          - "cliff.toml"
+          - "committed.toml"
+          - "commit-types.toml"
+          - "scripts/**/*"
+
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".cargo/**/*"
+          - "build.rs"
+          - "rust-toolchain.toml"
+          - "rustfmt.toml"
+          - ".clippy.toml"
+          - ".taplo.toml"
+          - "tomlfmt.toml"
+          - "tarpaulin.toml"
+          - "Criterion.toml"
+          - ".rumdl.toml"
+          - ".yamllint"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Cargo.toml"
+          - "Cargo.lock"
+          - "crates/*/Cargo.toml"
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "SECURITY.md"
+          - "deny.toml"
+          - ".gitleaks.toml"
+          - ".cargo/audit.toml"
+          - "supply-chain/**/*"
+          - "REUSE.toml"
+          - "LICENSES/**/*"
+          - ".github/workflows/codeql.yml"
+          - ".github/workflows/scorecards.yml"
+
+# --- Crates ------------------------------------------------------------------
+
+cli:
+  - changed-files:
+      - any-glob-to-any-file: "crates/xllm-cli/**/*"
+
+tensor:
+  - changed-files:
+      - any-glob-to-any-file: "crates/xllm-tensor/**/*"
+
+ggml:
+  - changed-files:
+      - any-glob-to-any-file: "crates/xllm-ggml/**/*"
+
+model:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/xllm-model/**/*"
+          - "crates/xllm-tokenizer/**/*"
+
+inference:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/xllm-context/**/*"
+          - "crates/xllm-sampling/**/*"
+          - "crates/xllm/**/*"
+
+quantization:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/xllm-quantize/**/*"
+          - "crates/xllm-bitnet/**/*"
+
+training:
+  - changed-files:
+      - any-glob-to-any-file: "crates/xllm-train/**/*"
+
+# --- Test and scaffolding crates ---------------------------------------------
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/*/tests/**/*"
+          - "crates/xllm-integration-tests/**/*"
+
+fuzzing:
+  - changed-files:
+      - any-glob-to-any-file: "crates/xllm-fuzz/**/*"
+
+examples:
+  - changed-files:
+      - any-glob-to-any-file: "crates/xllm-examples/**/*"

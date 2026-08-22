@@ -1,0 +1,38 @@
+### Ignored
+/**/target/
+/**/node_modules/
+/**/worktree/
+/**/.worktree/
+/**/worktrees/
+/**/.worktrees/
+/**/__pycache__/
+/**/undefined/
+/**/.act/
+
+# Editor artifacts
+/**/cobertura.xml
+/**/lcov.info
+/**/build_rs_cov.profraw
+/**/results.sarif
+
+# Scorecard Scans
+/SCORECARD.md
+/scorecard.json
+
+# Local model files fetched by scripts/fetch-stories15m.sh
+/models/
+
+# cargo-fuzz working data. Only Cargo.toml and fuzz_targets/ are tracked;
+# corpora and crash artifacts are local and can be large.
+/crates/xllm-fuzz/corpus/
+/crates/xllm-fuzz/artifacts/
+/crates/xllm-fuzz/coverage/
+/crates/xllm-fuzz/Cargo.lock
+
+# Legacy root-level cargo-fuzz tree (superseded by crates/xllm-fuzz). Entirely
+# local working data -- corpora, crash artifacts, build output.
+/fuzz/
+
+### Always add
+!opencode.json
+!/**/.act/README.md

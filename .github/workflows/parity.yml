@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+# SPDX-License-Identifier: MIT OR Apache-2.0
+name: parity
+
+# Manual dispatch only for now. Enable a schedule trigger once the golden
+# token ids in crates/xllm-integration-tests/tests/golden/stories15M.txt are
+# captured -- until
+# then this job is expected to fail, so a scheduled run would stay red.
+on:
+  workflow_dispatch: {}
+
+permissions: read-all
+
+jobs:
+  stories15m-parity:
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-rust-env
+
+      - name: Cache converted model
+        id: model-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: models/stories15M-f32.gguf
+          key: stories15m-f32-${{ hashFiles('scripts/fetch-stories15m.sh') }}
+
+      - name: Fetch and convert model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          pip install --quiet "huggingface_hub[cli]" gguf numpy
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp "$RUNNER_TEMP/llama.cpp"
+          LLAMA_CPP="$RUNNER_TEMP/llama.cpp" OUT_DIR=models bash scripts/fetch-stories15m.sh
+
+      - name: Run parity test
+        run: cargo nextest run -p xllm-integration-tests --run-ignored all stories15m_greedy_matches_llama_cpp
+
+  llama32-parity:
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-rust-env
+
+      - name: Cache model
+        id: model-cache-llama32
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+          key: llama32-1b-q4km-${{ hashFiles('scripts/fetch-llama32-1b.sh') }}
+
+      - name: Fetch model
+        if: steps.model-cache-llama32.outputs.cache-hit != 'true'
+        run: bash scripts/fetch-llama32-1b.sh
+
+      - name: Run 1B parity
+        run: cargo nextest run -p xllm-integration-tests --run-ignored all llama32

@@ -1,0 +1,68 @@
+
+# cargo-vet config file
+
+[cargo-vet]
+version = "0.10"
+
+[imports.bytecode-alliance]
+url = "https://raw.githubusercontent.com/bytecodealliance/wasmtime/main/supply-chain/audits.toml"
+
+[imports.google]
+url = "https://raw.githubusercontent.com/google/supply-chain/main/audits.toml"
+
+[imports.isrg]
+url = "https://raw.githubusercontent.com/divviup/libprio-rs/main/supply-chain/audits.toml"
+
+[imports.mozilla]
+url = "https://raw.githubusercontent.com/mozilla/supply-chain/main/audits.toml"
+
+[imports.zcash]
+url = "https://raw.githubusercontent.com/zcash/rust-ecosystem/main/supply-chain/audits.toml"
+
+[[exemptions.crossbeam-deque]]
+criteria = "safe-to-deploy"
+version = "0.8.7"
+
+[[exemptions.crossbeam-epoch]]
+criteria = "safe-to-deploy"
+version = "0.9.20"
+
+[[exemptions.crossbeam-utils]]
+criteria = "safe-to-deploy"
+version = "0.8.22"
+
+[[exemptions.half]]
+criteria = "safe-to-deploy"
+version = "2.7.1"
+
+[[exemptions.libc]]
+criteria = "safe-to-deploy"
+version = "0.2.186"
+
+[[exemptions.memmap2]]
+criteria = "safe-to-deploy"
+version = "0.9.11"
+
+[[exemptions.quote]]
+criteria = "safe-to-deploy"
+version = "1.0.46"
+
+[[exemptions.rayon]]
+criteria = "safe-to-deploy"
+version = "1.12.0"
+
+[[exemptions.syn]]
+criteria = "safe-to-deploy"
+version = "2.0.118"
+
+[[exemptions.unicode-ident]]
+criteria = "safe-to-deploy"
+version = "1.0.24"
+
+[[exemptions.zerocopy]]
+criteria = "safe-to-deploy"
+version = "0.8.54"
+
+[[exemptions.zerocopy-derive]]
+criteria = "safe-to-deploy"
+version = "0.8.54"

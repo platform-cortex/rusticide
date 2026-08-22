@@ -1,0 +1,1280 @@
+# mise configuration ~ https://mise.jdx.dev
+#
+# mise provisions the Rust toolchain, but the VERSION stays defined once in
+# `rust-toolchain.toml` (the canonical file rustup, cargo and IDEs also read).
+# Enabling the idiomatic-version-file setting below lets mise install Rust from
+# that file, so there is a single source of truth and no drift. Node works the
+# same way: its version lives in package.json's `devEngines.runtime`. Auxiliary
+# tools (git-cliff, hk, etc.) are pinned explicitly in [tools] below.
+
+[settings]
+color = true
+experimental = true
+idiomatic_version_file = true
+idiomatic_version_file_enable_tools = []
+legacy_version_file = false
+lockfile = true
+not_found_auto_install = true
+quiet = true
+### Debug
+#verbose = true
+#log_level = "debug"
+
+[env]
+ARCH = "{{exec(command='uname -m')}}"
+GITHUB_TOKEN = "{{env.GITHUB_TOKEN | default(value='')}}"
+PROJECT_NAME = "{{exec(command='basename $PWD')}}"
+RUST_COVERAGE_THRESHOLD = "100"
+_.file = ".env"
+
+[tools]
+# rust is provisioned from rust-toolchain.toml via [settings] above — no version
+# is repeated here, keeping rust-toolchain.toml the single source of truth.
+actionlint = { version = "latest" }
+"aqua:hk" = { version = "latest", os = [
+  "linux",
+  "windows",
+  "macos/arm64",
+], arch = [
+  "arm64",
+  "x64",
+], locked = false }
+"cargo:cargo-audit" = "latest"
+"cargo:cargo-crap" = "latest"
+"cargo:cargo-criterion" = "latest"
+"cargo:cargo-deny" = "latest"
+"cargo:cargo-edit" = "latest"
+"cargo:cargo-fuzz" = "latest"
+"cargo:cargo-machete" = "latest"
+"cargo:cargo-mutants" = "latest"
+"cargo:cargo-nextest" = "latest"
+"cargo:cargo-pgo" = "latest"
+"cargo:cargo-semver-checks" = "latest"
+"cargo:cargo-sort" = "latest"
+"cargo:cargo-tarpaulin" = "latest"
+"cargo:cargo-wizard" = "latest"
+"cargo:committed" = "latest"
+"cargo:flamegraph" = "latest"
+"cargo:hk" = { version = "latest", os = [
+  "macos",
+], arch = [
+  "x64",
+], locked = false }
+"cargo:rumdl" = "latest"
+"cargo:taplo-cli" = "latest"
+"cargo:yamllint-rs" = "latest"
+gh = { version = "latest" }
+git-cliff = "latest"
+"github:azolfagharj/tmq" = "latest"
+gitleaks = { version = "latest" }
+"pipx:codecov-cli" = "latest"
+"pipx:reuse" = "latest"
+scorecard = "latest"
+taplo = "latest"
+
+[deps.cargo]
+auto = true
+
+[deps.gh]
+auto = true
+
+[tasks.act]
+description = "Run Nektos/ACT Locally"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+echo "Generating GitHub Token"
+export GITHUB_TOKEN=$(gh auth token)
+echo "GITHUB_TOKEN=$GITHUB_TOKEN" > .act/.secrets
+act -W .github/workflows/tests/act.yml
+unset GITHUB_TOKEN
+'''
+
+[tasks.secrets]
+alias = ["sec", "act:sec"]
+depends = []
+depends_post = []
+description = "Generate for authenticated user a GitHub Token"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+echo "Generating GitHub Token"
+echo "GITHUB_TOKEN=$(gh auth token)" > .act/.secrets
+'''
+shell = "bash -c"
+
+[tasks.setup]
+alias = ["install", "dev:setup", "dev:up", "dev"]
+depends = []
+depends_post = []
+description = "Install all mise-managed tools"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+export GITHUB_TOKEN=$(gh auth token)
+echo "Listing mise tools..."
+mise ls
+
+echo "Installing mise tools..."
+mise lock
+mise install
+mise deps
+echo "Done, mise tools are installed/synced...."
+unset GITHUB_TOKEN
+'''
+shell = "bash -c"
+
+[tasks.update-actions-pins]
+alias = ["update-actions", "uap"]
+depends = []
+depends_post = []
+description = "Update SHA pins for GitHub Actions to latest release"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+export GITHUB_TOKEN=$(gh auth token)
+echo "Updating All GitHub Actions workflows...."
+python3 scripts/update-actions-pins.py "${@}"
+unset GITHUB_TOKEN
+'''
+shell = "bash -c"
+
+[tasks."update-actions-pins:write"]
+alias = ["update-actions:write", "uapw"]
+depends = []
+depends_post = []
+description = "Update SHA pins for GitHub Actions and write changes"
+run = "mise run update-actions-pins --write"
+shell = "bash -c"
+
+[tasks."update-actions-pins:major"]
+alias = ["update-actions:major", "uapm"]
+depends = []
+depends_post = []
+description = "Update SHA pins and apply major version bumps"
+run = "mise run update-actions-pins --write --apply-major"
+shell = "bash -c"
+
+[tasks.hooks-install]
+description = "Install the git hooks managed by hk (global install for Git 2.54+)"
+run = "hk install --global"
+
+[tasks.doc]
+alias = "d"
+description = "Build the API docs (private items included, no deps) to catch broken intra-doc links"
+run = "cargo doc --all-features --no-deps --document-private-items"
+
+[tasks.lock-check]
+description = "Fail if Cargo.lock is out of date relative to Cargo.toml (run `cargo update` to refresh)"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# A dry-run that reports "Locking <n>" for n>=1 means the lockfile would change,
+# i.e. it is stale. (Avoids `--locked`, which conflicts with `update`.)
+if cargo update --workspace --dry-run 2>&1 | grep -q "Locking [1-9]"; then
+    echo "Cargo.lock is out of date — run 'cargo update'." >&2
+    exit 1
+fi
+'''
+shell = "bash -c"
+
+[tasks.yamllint]
+alias = "yl"
+description = "Lint YAML with yamllint-rs (Rust); pass paths (e.g. hk {staged_files}) or default to the whole repo"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "paths=(${usage_paths:-.})"
+yamllint-rs "${paths[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[paths]" var=#true help="Paths to lint; defaults to the whole repo when omitted"'
+
+[tasks."yamllint:fix"]
+alias = "ylf"
+description = "Auto-fix fixable YAML issues with yamllint-rs (Rust)"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "paths=(${usage_paths:-.})"
+yamllint-rs --fix "${paths[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[paths]" var=#true help="Paths to fix; defaults to the whole repo when omitted"'
+
+[tasks.actionlint]
+alias = "al"
+description = "Lint GitHub Actions workflows with actionlint (config in .github/actionlint.yaml); pass paths (e.g. hk {staged_files}) or default to all workflows"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# actionlint auto-discovers .github/actionlint.yaml. With no paths it lints
+# every workflow under .github/workflows; forward staged paths when given.
+# Variadic args arrive shell-escaped — eval into an array so paths survive.
+eval "paths=(${usage_paths:-})"
+actionlint "${paths[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[paths]" var=#true help="workflow files to lint; defaults to every workflow under .github/workflows when omitted"'
+
+[tasks.markdownlint]
+alias = "md"
+description = "Lint Markdown with rumdl using config in .rumdl.toml"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "paths=(${usage_paths:-})"
+rumdl check "${paths[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[paths]" var=#true help="paths/globs to lint; uses the config globs when omitted"'
+
+[tasks."markdownlint:fix"]
+alias = "mdf"
+description = "Auto-fix Markdown issues (blank lines around headings/lists, etc.) with rumdl --fix"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "paths=(${usage_paths:-})"
+rumdl fmt "${paths[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[paths]" var=#true help="paths/globs to fix; uses the config globs when omitted"'
+
+[tasks.cargo-sort]
+alias = "sort"
+description = "Sort [dependencies] tables in every Cargo.toml alphabetically with cargo-sort (writes). Run BEFORE taplo so taplo gets the final formatting pass"
+run = "cargo sort --workspace"
+
+[tasks."cargo-sort:check"]
+alias = "sortc"
+description = "Check Cargo.toml dependency ordering without writing (the CI/pre-commit gate); fails if any [dependencies] table is unsorted"
+run = "cargo sort --workspace --check --config tomlfmt.toml"
+
+[tasks.taplo]
+alias = "tf"
+description = "Format all TOML with taplo (writes; config in taplo.toml). The formatter of record for every .toml; pairs with cargo-sort, which owns Cargo.toml dependency ordering"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# taplo auto-discovers taplo.toml. With no paths it formats every .toml in the
+# repo (honouring taplo.toml's exclude); forward staged paths when given.
+eval "paths=(${usage_paths:-})"
+taplo fmt "${paths[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[paths]" var=#true help="paths/globs to format; defaults to every .toml (per taplo.toml) when omitted"'
+
+[tasks.taplo-check]
+alias = "tfc"
+description = "Check TOML formatting without writing (the CI/pre-commit gate); prints a diff of any non-conforming file. Config in taplo.toml"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "paths=(${usage_paths:-})"
+taplo fmt --check --diff "${paths[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[paths]" var=#true help="paths/globs to check; defaults to every .toml when omitted"'
+
+[tasks.reuse]
+description = "Check REUSE/SPDX license compliance (defaults to `lint`); pass a subcommand, e.g. `mise run reuse download MIT`"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Variadic args arrive as a shell-escaped string; eval into an array so flags
+# survive intact. Fall back to `lint` (the CI gate) when nothing is passed.
+eval "args=(${usage_args:-lint})"
+reuse "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="reuse subcommand + flags; defaults to `lint` when omitted"'
+
+[tasks."reuse:fix"]
+description = "Add/refresh SPDX headers on source files with `reuse annotate` (the WRITE counterpart to the lint-only `reuse` task). Requires explicit paths — it never blanket-annotates, since most files are covered aggregately by REUSE.toml's `**` rule"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# `reuse lint` only CHECKS; this is the writer. Paths are required on purpose:
+# REUSE.toml's `**` aggregate annotation already makes every file compliant, so
+# headers are an opt-in per-file convention (used on source files), not a blanket
+# operation. Pass `--copyright` WITHOUT a year — reuse prepends the current year
+# itself, so embedding one would double it ("2026 2026 …"). --merge-copyrights
+# keeps re-runs idempotent (no duplicate copyright lines).
+eval "paths=(${usage_paths:-})"
+if [ -z "${usage_paths:-}" ]; then
+    echo "reuse:fix: pass one or more files, e.g. mise run reuse:fix crates/foo/src/lib.rs" >&2
+    exit 2
+fi
+# Never annotate symlinks — the per-crate LICENSE-APACHE/LICENSE-MIT links point
+# at the shared LICENSES/ texts, so `reuse annotate` would write THROUGH the link
+# (corrupting the canonical license) or drop a `.license` sidecar. Filter them out
+# (defence-in-depth; the *.rs scope already excludes the license links).
+real=()
+for p in "${paths[@]}"; do
+    if [ -L "$p" ]; then
+        echo "reuse:fix: skipping symlink $p" >&2
+    else
+        real+=("$p")
+    fi
+done
+if [ -z "${real[*]:-}" ]; then
+    exit 0
+fi
+reuse annotate \
+    --copyright "XLLM contributors" \
+    --license "MIT OR Apache-2.0" \
+    --merge-copyrights \
+    "${real[@]}"
+# reuse emits a canonical 3-line block with a blank comment-prefix line between
+# the two SPDX tags; collapse it to the repo's tighter 2-line convention so this
+# task is IDEMPOTENT on existing headers (no 2-line -> 3-line churn when run from
+# the pre-commit hook) and every source file keeps one style. Handles `//`
+# (Rust) and `#` line comments; reads the whole file, dropping only a
+# comment-only line that sits strictly between the FileCopyrightText and
+# License-Identifier tags.
+for f in "${real[@]}"; do
+    awk '
+        { line[NR] = $0 }
+        END {
+            for (i = 1; i <= NR; i++) {
+                if (line[i] ~ /^[[:space:]]*(\/\/|#)[[:space:]]*$/ &&
+                    line[i - 1] ~ /SPDX-FileCopyrightText/ &&
+                    line[i + 1] ~ /SPDX-License-Identifier/) {
+                    continue
+                }
+                print line[i]
+            }
+        }
+    ' "$f" > "$f.reuse:fix.tmp" && mv "$f.reuse:fix.tmp" "$f"
+done
+'''
+shell = "bash -c"
+usage = 'arg "[paths]" var=#true help="files to annotate, e.g. crates/foo/src/lib.rs (required)"'
+
+[tasks."reuse:fix:all"]
+description = "Whole-project SPDX header pass: run reuse:fix over EVERY tracked Rust source file. Idempotent (existing 2-line headers are left byte-identical), so it's safe to run anytime"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Scope = tracked *.rs ONLY. That is the project's per-file-header convention and
+# it inherently excludes everything that must NOT be annotated: generated/lock
+# files, the LICENSES/ texts, and the per-crate LICENSE-APACHE/LICENSE-MIT
+# symlinks. reuse:fix additionally
+# skips any symlink defensively. (REUSE itself has no file-exclude mechanism —
+# REUSE.toml's `**` aggregate annotation is what keeps every other file
+# compliant, so they need no per-file header.) bash 3.2-safe: no mapfile, and no
+# brace-hash array-length syntax (mise renders via Tera, which treats a
+# brace-hash pair as a comment opener).
+files=()
+while IFS= read -r f; do files+=("$f"); done < <(git ls-files '*.rs')
+if [ -z "${files[*]:-}" ]; then
+    echo "reuse:fix:all: no tracked .rs files found." >&2
+    exit 0
+fi
+mise run reuse:fix "${files[@]}"
+'''
+shell = "bash -c"
+
+[tasks.audit]
+description = "Audit dependencies for known security advisories (RustSec) with cargo-audit (reads .cargo/audit.toml)"
+run = "cargo audit"
+
+[tasks.deny]
+description = "Check the supply-chain policy (licenses, advisories, bans, sources) with cargo-deny per deny.toml"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# cargo-deny auto-discovers deny.toml at the repo root. Default to `check`
+# (runs every check); forward args (e.g. `check licenses`) when provided.
+eval "args=(${usage_args:-check})"
+cargo deny "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-deny args; defaults to `check` (all checks) when omitted"'
+
+[tasks."coverage:sarif"]
+alias = ["cov:sarif", "sarif"]
+depends = ["llvm-cov"]
+depends_post = []
+description = "Measure production-code coverage with cargo-tarpaulin. All options (engine, outputs, ignores) live in tarpaulin.toml — the single source of truth — so this is a bare invocation."
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+cargo crap --lcov lcov.info --format sarif > results.sarif
+'''
+shell = "bash -c"
+
+[tasks.llvm-cov]
+alias = ["lcov"]
+depends = []
+depends_post = []
+description = "Measure workspace coverage with cargo-llvm-cov, score with cargo-crap, then gate CI on the CRAP threshold."
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+cargo llvm-cov nextest --workspace --lcov --output-path lcov.info
+
+# 2. Score every function (excluding CLI — binary, integration-tested).
+cargo crap --workspace --lcov lcov.info \
+  --allow '**/xllm-cli/**' \
+  --allow 'Model::parse_value'
+
+# 3. Gate CI on the threshold.
+cargo crap --workspace --lcov lcov.info \
+  --allow '**/xllm-cli/**' \
+  --allow 'Model::parse_value' \
+  --fail-above
+
+# 4. Quick aggregate summary (no table).
+cargo crap --workspace --lcov lcov.info \
+  --allow '**/xllm-cli/**' \
+  --allow 'Model::parse_value' \
+  --summary
+'''
+shell = "bash -c"
+usage = '''
+flag "-t --threshold <threshold>" help="Coverage threshold" default="80" env="RUST_COVERAGE_THRESHOLD"
+'''
+
+[tasks.tarpaulin]
+alias = ["tarpaulin"]
+depends = []
+depends_post = []
+description = "Measure production-code coverage with cargo-tarpaulin. All options (engine, outputs, ignores) live in tarpaulin.toml — the single source of truth — so this is a bare invocation."
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+cargo tarpaulin --workspace --engine llvm\
+ --run-types Tests --run-types Doctests\
+ --fail-under "${usage_threshold?}"\
+ --out Xml Lcov
+'''
+shell = "bash -c"
+usage = '''
+flag "-t --threshold <threshold>" help="Coverage threshold" default="80" env="RUST_COVERAGE_THRESHOLD"
+'''
+
+[tasks.coverage]
+alias = ["cov", "test:cov", "test:coverage"]
+depends = []
+depends_post = []
+description = "Run coverage (llvm-cov or tarpaulin) with a configurable threshold."
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+if [[ "${usage_tester}" == "llvm-cov" ]]
+then
+  echo "mise run llvm-cov -t ${usage_threshold?}"
+  mise run llvm-cov -t "${usage_threshold?}"
+elif [[ "${usage_tester}" == "tarpaulin" ]]
+then
+  echo "mise run tarpaulin -t ${usage_threshold?}"
+  mise run tarpaulin -t "${usage_threshold?}"
+else
+  echo "Unknown tester: ${usage_tester}" >&2
+  exit 1
+fi
+'''
+shell = "bash -c"
+usage = '''
+flag "--tester <tester>" help="Coverage tester" default="llvm-cov" env="RUST_TESTER"
+flag "-t --threshold <threshold>" help="Coverage threshold" default="80" env="RUST_COVERAGE_THRESHOLD"
+'''
+
+[tasks.codecov]
+depends = ["coverage"]
+depends_post = []
+description = "Generate fresh coverage (./cobertura.xml) then upload it to Codecov. Thin wrapper: runs the coverage task, then delegates to codecov:upload so the codecovcli invocation lives in exactly one place (DRY)"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Delegate to codecov:upload (the single source of the codecovcli command),
+# forwarding any extra args straight through.
+eval "extra=(${usage_args:-})"
+if [ -n "${usage_args:-}" ]; then
+    mise run codecov:upload -- "${extra[@]}"
+else
+    mise run codecov:upload
+fi
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="extra args forwarded through codecov:upload to codecovcli upload-coverage"'
+
+[tasks."codecov:upload"]
+description = "Upload an EXISTING ./cobertura.xml to Codecov WITHOUT regenerating it — retry a failed upload, or run after a manual `mise run coverage`. Requires CODECOV_TOKEN (repo upload token) and the repo activated on Codecov"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Codecov requires a token even for local uploads; fail with a clear hint.
+: "${CODECOV_TOKEN:?set CODECOV_TOKEN (the repo upload token) before running}"
+eval "extra=(${usage_args:-})"
+# Derive owner/repo from the origin remote (handles SSH and HTTPS forms) and pass
+# --slug/--git-service explicitly. Auto-detection breaks for local runs and for
+# org-level tokens — both surface as Codecov's "Repository not found". (That error
+# ALSO means the repo isn't activated on Codecov yet: install the Codecov GitHub
+# app on it / add it at app.codecov.io. No CLI flag can fix an un-synced repo.)
+slug="${CODECOV_SLUG:-$(git config --get remote.origin.url \
+    | awk -F'[/:]' '{print $(NF-1)"/"$NF}' | sed 's/\.git$//')}"
+# upload-coverage is the one-shot create-commit + create-report + upload.
+# --sha is required by it; we pass it (and the branch) explicitly so a local run
+# never depends on auto-detection. --disable-search uploads ONLY the explicit
+# --file (Cobertura) instead of also sweeping up tarpaulin's coverage.json, and
+# --plugin noop skips the gcov/pycoverage/swift gatherers (this is Rust, so they
+# only emit "No <x> data found" warnings).
+# --fail-on-error turns a rejected upload into a non-zero exit.
+if ! codecovcli upload-coverage \
+    --fail-on-error \
+    --token "$CODECOV_TOKEN" \
+    --git-service github \
+    --slug "$slug" \
+    --sha "$(git rev-parse HEAD)" \
+    --branch "$(git rev-parse --abbrev-ref HEAD)" \
+    --file cobertura.xml \
+    --disable-search \
+    --plugin noop \
+    --flag tarpaulin \
+    "${extra[@]}"; then
+    owner="$(printf '%s' "$slug" | cut -d/ -f1)"
+    {
+        echo ""
+        echo "codecov upload failed. If the message was \"Repository not found\","
+        echo "Codecov does not have $slug yet — no CLI flag can fix that. One-time setup:"
+        echo "  1. Install/configure the Codecov GitHub App and grant it access to"
+        echo "     $slug (the repo is INTERNAL, so the app needs explicit permission)."
+        echo "  2. Activate the repo at https://app.codecov.io/gh/$owner"
+        echo "  3. Copy that repo's upload token into CODECOV_TOKEN."
+        echo "  4. Push this branch so the uploaded commit exists on the remote."
+    } >&2
+    exit 1
+fi
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="extra args forwarded to `codecovcli upload-coverage`"'
+
+[tasks.bench]
+description = "Run Criterion benchmarks through cargo-criterion (richer reports than `cargo bench`); benches read Criterion.toml"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "args=(${usage_args:-})"
+cargo criterion "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-criterion args, e.g. --bench <name>; runs all benches when omitted"'
+
+[tasks.flame]
+description = "Profile a target with cargo-flamegraph → flamegraph.svg. macOS needs sudo/dtrace (SIP); pass a target, e.g. `mise run flame --bench parser`"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# flamegraph needs an explicit target (and dtrace/sudo on macOS); with none there
+# is nothing to profile, so print guidance and skip cleanly.
+if [ -z "${usage_args:-}" ]; then
+    echo "flame: nothing to profile — pass a target, e.g. mise run flame -- --bench parser" >&2
+    exit 0
+fi
+eval "args=(${usage_args:-})"
+# Build with the `profiling` profile (release codegen + line-table symbols, not
+# stripped) so the flamegraph can attribute samples to source. Without this,
+# cargo-flamegraph's default `--release` build is stripped and shows raw addresses.
+cargo flamegraph --profile profiling "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-flamegraph args, e.g. --bench <name> or --bin <name>"'
+
+[tasks.pgo]
+description = "Profile-Guided Optimization with cargo-pgo (Rust Performance Book: ~10%+ on real workloads). Two-pass: `pgo build` (instrument) → run representative inputs → `pgo optimize`. Uses llvm-tools (in rust-toolchain). NOT usable for crates.io-published binaries; meaningful only once the binaries have real workloads"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Passthrough to cargo-pgo. Default to `info` (prints the toolchain/PGO env) so a
+# bare `mise run pgo` is non-destructive. The instrument→profile→optimize cycle
+# is run explicitly via subcommands.
+eval "args=(${usage_args:-info})"
+cargo pgo "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-pgo args, e.g. build / run / optimize / bench; prints the PGO/BOLT environment when omitted"'
+
+[tasks.fuzz]
+description = "Run a libFuzzer target via cargo-fuzz. REQUIRES a nightly toolchain (sanitizer -Z flags) — the project's stable 1.92 channel cannot build fuzz targets; run `rustup toolchain install nightly` first. e.g. `mise run fuzz run <target>`"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# The targets live in crates/xllm-fuzz, which is its own workspace (excluded
+# from the root one), so cargo-fuzz needs an explicit --fuzz-dir. It also needs
+# a nightly toolchain (ASan/-Z flags) — the project channel stays stable — so
+# it runs via `cargo +nightly`.
+FUZZ_DIR="crates/xllm-fuzz"
+if [ ! -d "$FUZZ_DIR/fuzz_targets" ]; then
+    echo "fuzz: skipping — no $FUZZ_DIR/fuzz_targets (no targets yet)." >&2
+    exit 0
+fi
+# --fuzz-dir is a subcommand option, so it has to sit directly after the
+# subcommand: appending it would push it past any `--` separator and hand it to
+# libFuzzer instead of cargo-fuzz.
+eval "args=(${usage_args:-list})"
+subcommand="${args[0]}"
+
+# mise's usage parser consumes a literal `--`, so libFuzzer flags would arrive
+# bare and cargo-fuzz would reject them. Re-insert the separator before the
+# first one. libFuzzer flags are always single-dash `-name=value`; cargo-fuzz's
+# own short flags (-D, -O, -a, -j) never contain '=' and its long options take
+# a second dash, so the pattern below cannot misfire on them.
+# NOTE: do not use bash's array-length syntax here. mise renders this script as
+# a Tera template first, and a brace followed by a hash opens a Tera comment
+# that is never closed, so the task dies before bash ever sees it.
+rest=()
+separator_seen=""
+for arg in "${args[@]:1}"; do
+    if [ "$arg" = "--" ]; then
+        separator_seen=1
+    elif [ -z "$separator_seen" ]; then
+        case "$arg" in
+            -[!-]*=*)
+                rest+=(--)
+                separator_seen=1
+                ;;
+        esac
+    fi
+    rest+=("$arg")
+done
+
+cargo +nightly fuzz "$subcommand" --fuzz-dir "$FUZZ_DIR" "${rest[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-fuzz args; defaults to `list` when omitted"'
+
+[tasks.test]
+alias = "t"
+description = "Run the test suite with cargo-nextest (faster, clearer output than `cargo test`). NOTE: nextest cannot run doctests — use `cargo test --doc` for those"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "args=(${usage_args:-})"
+cargo nextest run "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="nextest args, e.g. -p xllm or a filter; runs all tests when omitted"'
+
+[tasks.mutants]
+description = "Mutation-test with cargo-mutants — verifies the tests actually catch regressions (coverage != effectiveness). Slow; scope with `--file <path>` or run in CI"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "args=(${usage_args:-})"
+cargo mutants "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-mutants args, e.g. --file crates/xllm-core/src/lib.rs; whole tree when omitted"'
+
+[tasks.machete]
+description = "Find unused dependencies with cargo-machete (enforces the minimal-deps goal); append `--fix` to strip them from Cargo.toml"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+eval "args=(${usage_args:-})"
+cargo machete --with-metadata "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-machete args; scans the whole workspace when omitted"'
+
+[tasks.wizard]
+description = "Tune Cargo build profiles with cargo-wizard — interactive TUI by default, or `apply <template> <profile>` / `inspect`. Templates: fast-runtime, fast-compile, min-size (the [profile.*] settings in Cargo.toml)"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Passthrough to cargo-wizard. With no args it opens the interactive profile
+# dialog; forward subcommands like `apply min-size release` or `inspect`.
+eval "args=(${usage_args:-})"
+cargo wizard "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-wizard args; launches the interactive dialog when omitted"'
+
+[tasks.semver-checks]
+description = "Detect breaking public-API changes with cargo-semver-checks before a release. Needs a baseline (a published version or `--baseline-rev <git-ref>`); will be a no-op until the first crates.io publish"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Pre-release (workspace version 0.0.0) has no published baseline for
+# check-release to compare against, so skip until the first version is cut.
+# (cargo-semver-checks also needs rustc >= 1.91 to read rustdoc JSON; revisit
+# the pin vs. MSRV at release time.)
+if grep -q 'version = "0.0.0"' Cargo.toml; then
+    echo "semver-checks: skipping — pre-release 0.0.0, no published baseline." >&2
+    exit 0
+fi
+eval "args=(${usage_args:-check-release})"
+cargo semver-checks "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="cargo-semver-checks args; defaults to `check-release`"'
+
+[tasks.gitleaks]
+alias = "gl"
+description = "Scan for hard-coded secrets with gitleaks (defaults to a working-tree scan); pass a subcommand, e.g. `mise run gitleaks git --staged`"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# gitleaks auto-discovers .gitleaks.toml at the repo root. Default to scanning
+# the working tree; forward any args (e.g. `git --staged`) when provided.
+eval "args=(${usage_args:-dir .})"
+gitleaks "${args[@]}" --no-banner
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="gitleaks args; defaults to `dir .` when omitted"'
+
+[tasks.commit-config]
+alias = "cc"
+description = "Regenerate committed.toml, cliff.toml parsers, and .gitmessage from commit-types.toml (the single source of truth for conventional-commit types)"
+run = "python3 scripts/commit-config.py generate"
+
+[tasks."commit-config:check"]
+alias = "ccc"
+description = "Drift guard: fail if any generated commit-config file is stale vs commit-types.toml (run by the pre-commit hook and safe to run in CI)"
+run = "python3 scripts/commit-config.py check"
+
+[tasks.commit-lint]
+alias = "clint"
+description = "Lint commit message(s) with committed against committed.toml; pass `--commit-file <path>` (commit-msg hook) or a commit/range, defaults to HEAD"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Variadic args arrive as a shell-escaped string; eval into an array so a path
+# with spaces survives. Default to linting HEAD when nothing is passed.
+eval "args=(${usage_args:-HEAD})"
+committed "${args[@]}"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="committed args; defaults to HEAD when omitted"'
+
+[tasks.changelog]
+description = "Regenerate the full CHANGELOG.md from the commit history"
+run = "git cliff --output CHANGELOG.md"
+
+[tasks.changelog-preview]
+description = "Print unreleased changelog entries (since the last tag) to stdout"
+run = "git cliff --unreleased"
+
+[tasks.changelog-bump]
+description = "Bump to the next version inferred from commits and write CHANGELOG.md"
+run = "git cliff --bump --output CHANGELOG.md"
+
+[tasks.changelog-release]
+description = "Generate CHANGELOG.md for an explicit tag, e.g. `mise run changelog-release v0.2.0`"
+run = "git cliff --tag {{arg(name='tag')}} --output CHANGELOG.md"
+
+# -- Setup / diagnostics --
+
+[tasks.install-nightly]
+description = "Install the nightly toolchain + rust-src (required by cargo-fuzz and miri). The project channel stays stable per rust-toolchain.toml"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+toolchain="${NIGHTLY_TOOLCHAIN:-nightly}"
+rustup toolchain install "$toolchain"
+'''
+shell = "bash -c"
+
+[tasks.rust-version]
+description = "Get Rust Version from rust-toolchain.toml"
+run = "tmq rust-toolchain.toml '.toolchain.channel'"
+
+[tasks.doctor]
+alias = "dr"
+description = "Diagnose the toolchain, EVERY mise-provisioned tool (one row per [tools] entry), and project state. Reports MISSING for anything not installed (run `mise install`)"
+# A pure report — silence mise's `[doctor] $ <first script line>` command echo so
+# the output is just the diagnostic table, not the helper-comment preview.
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# `v <label> <cmd...>` prints the first line of the tool's version output, or
+# MISSING when it is absent (empty stdout). Keeps this in lockstep with [tools] —
+# every pinned tool gets exactly one row below.
+v() {
+    label="$1"
+    shift
+    out="$("$@" 2>/dev/null | head -1)"
+    printf "  %-20s : %s\n" "$label" "${out:-MISSING}"
+}
+
+echo "=== Platform: $(uname -s) ($(uname -m)) ==="
+
+echo "-- Rust toolchain (rust-toolchain.toml) --"
+v rustc rustc --version
+v cargo cargo --version
+v rustup rustup --version
+v rustfmt rustfmt --version
+v clippy cargo clippy --version
+
+echo "-- Cargo tools (mise [tools]) --"
+v cargo-audit cargo audit --version
+v cargo-criterion cargo criterion --version
+v cargo-deny cargo deny --version
+v cargo-fuzz cargo fuzz --version
+v cargo-machete cargo machete --version
+v cargo-mutants cargo mutants --version
+v cargo-nextest cargo nextest --version
+v cargo-pgo cargo pgo --version
+v cargo-semver-checks cargo semver-checks --version
+v cargo-sort cargo sort --version
+v cargo-tarpaulin cargo tarpaulin --version
+v cargo-wizard cargo wizard --version
+v cargo-flamegraph cargo flamegraph --version
+v committed committed --version
+
+echo "-- Lint / hooks / release tools --"
+v actionlint actionlint -version
+v git-cliff git-cliff --version
+v gitleaks gitleaks version
+v hk hk --version
+v taplo taplo --version
+v yamllint-rs yamllint-rs --version
+
+echo "-- Node toolchain (package.json devEngines) --"
+v node node --version
+v pnpm pnpm --version
+
+echo "-- Python tools (pipx) --"
+v codecov-cli codecovcli --version
+v reuse reuse --version
+
+echo "-- Meta --"
+v mise mise --version
+
+echo "-- Project state --"
+RUST_VERSION=$(mise run rust-version)
+printf "  %-20s : %s\n" "rust version" "$(rustup toolchain list 2>/dev/null | grep -m1 $RUST_VERSION || echo 'MISSING (mise run $RUST_VERSION)')"
+'''
+shell = "bash -c"
+
+# -- Build --
+[tasks.build]
+alias = "b"
+description = "cargo build --workspace"
+run = "cargo build --workspace"
+
+# -- Format & lint --
+[tasks.fmt]
+description = "Format all Rust code with rustfmt (writes changes)"
+run = "cargo fmt --all"
+
+[tasks."fmt:check"]
+alias = "fc"
+description = "Check Rust formatting without writing (the CI/pre-commit gate)"
+run = "cargo fmt --all -- --check"
+
+[tasks.clippy]
+alias = "cl"
+description = "Lint all targets with clippy at the project standard (-D warnings); the canonical lint gate"
+# The explicit `-- -D warnings` looks redundant with `.cargo/config.toml`'s
+# `[build] rustflags = ["-D", "warnings"]` (which already reaches clippy-driver),
+# but it is a deliberate, env-proof backstop: the `RUSTFLAGS` env var REPLACES
+# build.rustflags rather than merging, so anything that sets RUSTFLAGS (CI tuning,
+# target-cpu, a wrapper) silently drops the config-file gate. Args after `--` go
+# straight to clippy-driver and survive that override. Keep both — do not DRY away.
+run = "cargo clippy --all-targets --all-features -- -D warnings"
+
+[tasks.check]
+alias = "ck"
+description = "Type-check all targets/features without producing binaries (cargo check)"
+run = "cargo check --all-targets --all-features"
+
+[tasks.lint]
+alias = "l"
+description = "fmt:check + clippy (read-only lint gate)"
+run = ["mise run fmt:check", "mise run clippy"]
+
+# -- Test --
+
+[tasks."test:doc"]
+alias = "td"
+description = "cargo test --doc --workspace (doctests; cargo-nextest cannot run these, so this complements `mise run test`)"
+run = "cargo test --doc --workspace"
+
+[tasks.miri]
+alias = "mi"
+description = "Miri UB/strict-provenance check of the core `xllm` crate; needs the nightly miri component (`rustup +nightly component add miri`)"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+toolchain="${NIGHTLY_TOOLCHAIN:-nightly}"
+MIRIFLAGS="-Zmiri-strict-provenance" cargo +"$toolchain" miri test -p xllm
+'''
+shell = "bash -c"
+
+# -- Security & supply chain --
+
+[tasks.vet]
+alias = "v"
+description = "cargo vet supply-chain audit (non-blocking until the dependency tree is certified)"
+run = "mkdir -p supply-chain/.cargo-vet && cargo vet --locked || cargo vet || true"
+shell = "bash -c"
+
+[tasks.scorecard]
+alias = "sco"
+description = "OpenSSF Scorecard local scan -> scorecard.json (git-tracked files at working-tree content, so .gitignore'd paths never reach the checks); pass extra flags, e.g. `mise run scorecard --checks=Binary-Artifacts`"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# `scorecard --local` walks the filesystem directly and has NO exclude/ignore
+# flag, so pointing it at the repo root scans target/ (gigabytes of build
+# output) and scores Binary-Artifacts 0/10 on compiled deps. Mirror only the
+# tracked files into a scratch tree instead: `git ls-files` IS the exclusion
+# mechanism, since a path .gitignore excludes is never tracked and so can never
+# reach the scan. Local mode runs the 11 filesystem-based checks; the
+# history/API ones are skipped either way, so the tree needs no .git.
+#
+# Copy working-tree content (not `git checkout-index`, which reads the index)
+# so an edit you have not staged yet is what actually gets scored.
+root="$(git rev-parse --show-toplevel)"
+out="${SCORECARD_OUTPUT:-$root/scorecard.json}"
+
+tree="$(mktemp -d)"
+trap 'rm -rf "$tree"' EXIT
+
+while IFS= read -r -d '' f; do
+  [ -f "$root/$f" ] || [ -L "$root/$f" ] || continue
+  mkdir -p "$tree/$(dirname "$f")"
+  cp -Pp "$root/$f" "$tree/$f"
+done < <(git -C "$root" ls-files -z)
+
+eval "args=(${usage_args:-})"
+scorecard \
+  --local="$tree" \
+  --format json \
+  --show-details \
+  --show-annotations \
+  --output "$out" \
+  "${args[@]}"
+
+echo "wrote $out"
+'''
+shell = "bash -c"
+usage = 'arg "[args]" var=#true help="extra scorecard flags, e.g. --checks=Binary-Artifacts"'
+
+[tasks.security]
+alias = "sec"
+description = "audit + deny, run in order to avoid an advisory-db clone conflict (mirrors ci.yml)"
+run = ["mise run audit", "mise run deny"]
+
+[tasks.hardening]
+description = "REUSE/SPDX compliance + Miri UB check (vet/SLSA run in CI only; scorecard has its own `mise run scorecard` task)"
+run = ["mise run reuse", "mise run miri"]
+
+# -- Coverage (HTML variants; the XML gate lives in [tasks.coverage] above) --
+
+[tasks."coverage:html"]
+depends = []
+description = "Coverage as browsable HTML. Engine/ignores come from tarpaulin.toml (the SSOT); this only adds the Html output"
+run = "cargo tarpaulin --out Html"
+
+[tasks."coverage:open"]
+depends = ["coverage:html"]
+description = "Generate HTML coverage and open it in the default browser"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+if [ "$(uname -s)" = "Darwin" ]; then
+  open tarpaulin-report.html
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open tarpaulin-report.html
+else
+  echo "Report: $(pwd)/tarpaulin-report.html"
+fi
+'''
+shell = "bash -c"
+
+# -- Benchmarks (the Criterion run lives in [tasks.bench] above) --
+
+[tasks.bench-bencher]
+description = "Benchmarks in libtest/bencher format (the perf.yml gate's output shape); skips cleanly until a benches/ target exists"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# No benches/ directory anywhere means there is nothing to measure (this repo
+# has no dedicated bench crate yet), so skip cleanly — consistent with the
+# fuzz/flame graceful-skip tasks. Once benches exist the bencher-format output
+# is asserted to contain measurements, matching .github/workflows/perf.yml.
+if ! find crates -type d -name benches 2>/dev/null | grep -q .; then
+    echo "bench-bencher: skipping — no benches/ directory found." >&2
+    exit 0
+fi
+cargo bench --workspace -- --output-format bencher | tee bench-output.txt
+grep -q "ns/iter" bench-output.txt || { echo "::error:: no ns/iter lines emitted"; exit 1; }
+echo "Parsed $(grep -c 'ns/iter' bench-output.txt) measurements."
+'''
+shell = "bash -c"
+
+# -- Fuzz (single-target run lives in [tasks.fuzz] above) --
+
+[tasks.fuzz-all]
+description = "Run every cargo-fuzz target sequentially (FUZZ_TIME seconds each, default 60). Requires nightly — see `mise run install-nightly`. Skips cleanly when no fuzz/ targets exist"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Mirror the single-target `fuzz` task's guard: no fuzz/ directory means no
+# targets, so skip cleanly. Otherwise discover targets dynamically (so this
+# never drifts from fuzz_targets/) and fuzz each for FUZZ_TIME seconds.
+if [ ! -d "crates/xllm-fuzz" ]; then
+    echo "fuzz-all: skipping — no fuzz/ directory (no targets yet)." >&2
+    exit 0
+fi
+time_budget="${FUZZ_TIME:-60}"
+for target in $(cargo +nightly fuzz list); do
+  echo "▶ fuzzing ${target} for ${time_budget}s"
+  cargo +nightly fuzz run "$target" -- -max_total_time="$time_budget"
+done
+'''
+shell = "bash -c"
+
+# -- Pre-commit hooks (hk replaces the legacy pre-commit tool) --
+
+[tasks.pre-commit]
+alias = "pc"
+description = "Run the hk pre-commit hooks on staged files"
+run = "hk run pre-commit"
+
+[tasks."pre-commit:all"]
+alias = "pca"
+description = "Run the hk pre-commit hooks across every file in the repo"
+run = "hk run pre-commit --all-files"
+
+# -- CI mirrors --
+[tasks."ci:quick"]
+alias = "ciq"
+description = "Fast check (~1 min): fmt:check + clippy + tests + doctests"
+run = [
+  "mise run fmt:check",
+  "mise run clippy",
+  "mise run test",
+  "mise run test:doc",
+]
+
+[tasks.ci]
+depends = ["ci:quick"]
+description = "Full PR pipeline (mirrors .github/workflows/ci.yml): fmt + clippy + tests + doctests + security + coverage"
+run = [
+  "mise run cargo-sort",
+  "mise run cargo-sort:check",
+  "mise run taplo",
+  "mise run taplo-check",
+  "mise run security",
+  "mise run coverage",
+]
+
+[tasks."ci:perf"]
+description = "Performance gate (mirrors .github/workflows/perf.yml). Compare against the gh-pages baseline in CI"
+run = ["mise run bench-bencher"]
+
+[tasks."ci:nightly"]
+description = "Nightly pipeline (mirrors .github/workflows/nightly.yml): fuzz-all + bench + miri"
+run = ["mise run fuzz-all", "mise run bench", "mise run miri"]
+
+[tasks."ci:full"]
+description = "ci + performance gate"
+run = ["mise run ci", "mise run ci:perf"]
+
+[tasks.pr-ready]
+description = "Auto-format then check: ready for PR (fmt + clippy + tests + doctests)"
+run = ["mise run fmt", "mise run clippy", "mise run test", "mise run test:doc"]
+
+# -- Clean --
+
+[tasks.clean]
+description = "cargo clean (removes target/)"
+run = "cargo clean"
+
+# -- Branch Protection --
+[tasks.branch-protect]
+alias = ["bp"]
+description = "Apply branch protection rules to main (force-push allowed for admins, required CI/Mise, require PR reviews)"
+hide = true
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Apply branch protection with admin bypass
+GH_PAGER= gh api -X PUT repos/elioseverojunior/xllm/branches/main/protection \
+  --input - << 'EOF'
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "CI",
+            "Mise"
+        ]
+    },
+    "enforce_admins": false,
+    "required_pull_request_reviews": {
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": true,
+        "required_approving_review_count": 1
+    },
+    "required_signatures": true,
+    "required_linear_history": true,
+    "allow_force_pushes": true,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": true,
+    "lock_branch": false,
+    "allow_fork_syncing": false,
+    "restrictions": null
+}
+EOF
+
+echo "Branch protection applied to main"
+'''
+
+[tasks."clean:cov"]
+description = "Remove coverage artifacts"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+rm -f cobertura.xml tarpaulin-report.html tarpaulin-report.json bench-output.txt
+rm -rf target/tarpaulin
+'''
+shell = "bash -c"
+
+[tasks."clean:bench"]
+description = "Remove Criterion reports"
+run = "rm -rf target/criterion"
+
+[tasks."clean:fuzz"]
+description = "Remove generated fuzz corpus, artifacts, and build output (keeps any committed corpus/seed/)"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Only the libFuzzer-generated corpus dirs (corpus/fuzz_*) are removable; a
+# committed corpus/seed/ would be tracked and must survive. nullglob keeps this
+# a no-op when no fuzz/ directory or generated corpus exists yet.
+shopt -s nullglob
+rm -rf fuzz/artifacts fuzz/target fuzz/corpus/fuzz_*
+'''
+shell = "bash -c"
+
+[tasks."clean:all"]
+description = "Full clean: target/, coverage, criterion, fuzz, and the cargo advisory-db"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+mise run clean
+mise run clean:cov
+mise run clean:bench
+mise run clean:fuzz
+rm -rf "${HOME}/.cargo/advisory-db"
+'''
+shell = "bash -c"
+
+[tasks.cancel-actions]
+alias = ["cancel-ci"]
+description = "Cancel all in-progress/queued GitHub Actions workflows for this repo"
+run = '''
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+repo=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+
+ids=$(gh run list --repo "${repo}" --limit 100 --json databaseId,status \
+  --jq '.[] | select(.status == "in_progress" or .status == "queued" or .status == "pending" or .status == "waiting") | .databaseId')
+
+if [[ -z "${ids}" ]]; then
+  echo "No running workflows to cancel."
+  exit 0
+fi
+
+echo "${ids}" | while IFS= read -r id; do
+  echo "Cancelling run ${id}..."
+  gh run cancel --repo "${repo}" "${id}"
+done
+'''

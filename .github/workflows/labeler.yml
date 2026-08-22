@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+# SPDX-License-Identifier: MIT OR Apache-2.0
+name: Labeler
+
+concurrency:
+  group: labeler-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# pull_request_target (not pull_request) so pull requests opened from forks get
+# labelled too: a fork's GITHUB_TOKEN is read-only and cannot apply a label.
+# This is only safe because the job never checks out or executes pull request
+# code -- actions/labeler works purely off the API and the config committed on
+# the base branch. Do NOT add a checkout step here.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: read-all
+
+jobs:
+  label:
+    name: Apply path labels
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      # Read the labeler config committed on the base branch.
+      contents: read
+      # Apply the labels.
+      pull-requests: write
+    steps:
+      - name: Label by changed paths
+        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        with:
+          configuration-path: .github/labeler.yml
+          # Remove labels again when a revision no longer touches their paths,
+          # so the label set always reflects the current diff.
+          sync-labels: true
