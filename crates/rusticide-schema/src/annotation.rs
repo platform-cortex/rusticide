@@ -202,4 +202,31 @@ mod tests {
             other => panic!("expected BadAnnotation, got {other:?}"),
         }
     }
+
+    /// `alias_set` and `alias_set_after` cannot both name more than one
+    /// letter -- torchgen's own second restriction, distinct from the
+    /// write-exclusivity rule. No corpus schema exercises multi-letter
+    /// sets at all, so this crate's suite is the only thing that checks
+    /// it: the rejection alone would pass even if the guard rejected
+    /// every multi-letter after-set, so `a_single_before_set_may_pair_
+    /// with_a_multi_letter_after_set` below proves the guard fires
+    /// precisely, not just that it fires.
+    #[test]
+    fn before_and_after_sets_cannot_both_be_multi_letter() {
+        let err = Annotation::parse("a|b -> c|d").expect_err("must reject");
+        match err {
+            crate::ParseError::BadAnnotation(offending) => {
+                assert_eq!(offending, "a|b -> c|d");
+            }
+            other => panic!("expected BadAnnotation, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_single_before_set_may_pair_with_a_multi_letter_after_set() {
+        let a = Annotation::parse("a -> b|c").expect("parses");
+        assert_eq!(a.alias_set, vec!['a']);
+        assert_eq!(a.alias_set_after, vec!['b', 'c']);
+        round_trip("a -> b|c");
+    }
 }
