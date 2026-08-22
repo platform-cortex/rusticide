@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+authors.workspace = true
+categories = ["parsing", "data-structures"]
+description = "Rust port of torchgen's operator schema data model"
+edition.workspace = true
+keywords = ["schema", "parser", "torchgen", "codegen", "operator"]
+license.workspace = true
+name = "rusticide-schema"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

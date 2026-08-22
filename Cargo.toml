@@ -1,9 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 [workspace]
 # rusticide-fuzz is its own workspace: libfuzzer-sys needs nightly + sanitizer -Z
 # flags and its generated entry point cannot satisfy `unsafe_code = "deny"`,
 # so it must not be pulled in by the `crates/*` glob.
 exclude = ["crates/rusticide-fuzz"]
-members = ["crates/rusticide-alloc", "crates/rusticide-core"]
+members = [
+  "crates/rusticide-alloc",
+  "crates/rusticide-core",
+  "crates/rusticide-schema",
+]
 resolver = "3"
 
 [workspace.package]
@@ -90,4 +98,5 @@ rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.1.0" }
 rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.1.0" }
 rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.1.0" }
 rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.1.0" }
+rusticide-schema = { path = "crates/rusticide-schema", version = "0.1.0" }
 rusticide-tokenizer = { path = "crates/rusticide-tokenizer", version = "0.1.0" }
