@@ -11,7 +11,7 @@ Owner: Elio Severo Junior.
 
 ## Context: what this document changes
 
-This repository began as `rusticide`, an LLM inference engine. Its roadmap
+This repository began as `xllm`, an LLM inference engine. Its roadmap
 (`docs/plan/XLLM_PLAN.md`, Layers 0-4) targeted running the models vLLM
 serves and beating vLLM on benchmarks.
 
@@ -500,7 +500,7 @@ immediately.
 
   The repository was reset on 2026-08-21: build artifacts, the crates
   coupled to the old tensor type, and the superseded planning documents
-  were deleted (all preserved in the original `rusticide` repository, which
+  were deleted (all preserved in the original `xllm` repository, which
   retains its history and remote). Five crates survive -- `rusticide-ggml`,
   `rusticide-tokenizer`, `rusticide-quantize`, `rusticide-sampling`, `rusticide-fuzz`,
   totalling 4,061 lines -- and the workspace does not currently resolve.

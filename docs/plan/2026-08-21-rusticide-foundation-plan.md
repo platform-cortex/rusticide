@@ -3230,14 +3230,27 @@ metadata and belongs with the format reader."
 
 **Steps:**
 
-- [ ] **Step 1: Rename all four**
+- [ ] **Step 1: No renames -- confirm the names are already correct**
+
+This step originally renamed four crates off an `xllm-` prefix. That
+prefix is already gone: the directories, the `[package] name` fields,
+and `[workspace.dependencies]` all say `rusticide-*`.
+
+The `-llm-` prefix this plan once proposed for the application-layer
+crates is dropped. It was cosmetic -- the layering is documented in the
+design, and renaming working crates to relabel them buys nothing.
+
+Confirm and move on:
 
 ```bash
-git mv crates/rusticide-quantize crates/rusticide-quantize
-git mv crates/rusticide-sampling crates/rusticide-llm-sampling
-git mv crates/rusticide-tokenizer crates/rusticide-llm-tokenizer
-git mv crates/rusticide-fuzz crates/rusticide-fuzz
+ls -1 crates/
+# expect: rusticide, rusticide-fuzz, rusticide-io, rusticide-quantize,
+#         rusticide-sampling, rusticide-tokenizer
 ```
+
+`rusticide-io` appears in that list only if Task 17 has run; that
+rename is real, because it changes the crate's scope rather than its
+label.
 
 - [ ] **Step 2: Rebind the five remaining imports**
 
