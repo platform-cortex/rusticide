@@ -18,6 +18,11 @@ pub(crate) struct TensorImpl {
     pub(crate) storage: Storage,
     pub(crate) shape: Shape,
     pub(crate) strides: Strides,
+    // Written by every constructor (always 0 today) but not yet read
+    // anywhere: the task that introduces true aliasing views is the first
+    // consumer, producing a tensor that shares `storage` at a nonzero
+    // offset instead of copying data.
+    #[allow(dead_code)]
     pub(crate) storage_offset: usize,
     pub(crate) version: VersionCounter,
     pub(crate) key_set: DispatchKeySet,

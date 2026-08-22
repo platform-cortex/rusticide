@@ -85,15 +85,6 @@ impl Tensor {
         &self.0.storage
     }
 
-    /// The element offset into `storage` at which this tensor's data
-    /// begins. Zero for a freshly allocated tensor; a future view/slicing
-    /// operation would produce a tensor sharing `storage` with a nonzero
-    /// offset instead of copying data.
-    #[must_use]
-    pub fn storage_offset(&self) -> usize {
-        self.0.storage_offset
-    }
-
     #[must_use]
     pub fn version(&self) -> u32 {
         self.0.version.get()
@@ -147,8 +138,14 @@ mod tests {
         assert_eq!(t.version(), 1);
     }
 
+    /// `a.clone()` clones the `Arc<TensorImpl>`, so `a` and `b` are two
+    /// handles to the identical `TensorImpl` (and thus the identical
+    /// `VersionCounter` value) rather than two counters kept in sync by
+    /// `VersionCounter::clone`. That path is pinned separately by
+    /// `version::tests::bump_increments_and_clones_share_the_count`, which
+    /// clones a `VersionCounter` directly.
     #[test]
-    fn shared_tensors_share_one_version_counter() {
+    fn two_handles_to_one_tensor_observe_the_same_version() {
         let a = Tensor::zeros(&[1], DType::F32, Device::cpu()).expect("allocation succeeds");
         let b = a.clone();
         a.bump_version();
