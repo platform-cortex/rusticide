@@ -12,6 +12,7 @@ mod layout;
 mod shape;
 mod storage;
 mod strides;
+mod tensor;
 
 pub use device::{Device, DeviceKind};
 pub use dtype::DType;
@@ -21,3 +22,4 @@ pub use layout::{Layout, MemoryFormat};
 pub use shape::Shape;
 pub use storage::Storage;
 pub use strides::Strides;
+pub use tensor::{Tensor, VersionCounter};
