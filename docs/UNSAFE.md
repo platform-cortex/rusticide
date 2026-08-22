@@ -11,6 +11,12 @@ the policy in `docs/plan/2026-08-21-rusticide-framework-design.md`:
 isolation, a safe public API, a `// SAFETY:` comment per block, a README
 justification, an entry in this file, and Miri in CI.
 
+Miri in CI is a prerequisite for landing an `unsafe` block here, not
+infrastructure that already exists: it is unavailable on the toolchain
+this workspace currently pins, and no CI task runs it yet. Wiring it up
+is part of the work of the change that introduces the first `unsafe`
+block, not a follow-up.
+
 If this list stops being short, the policy has failed.
 
 ## `rusticide-alloc`
