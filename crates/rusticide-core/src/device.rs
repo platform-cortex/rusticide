@@ -67,4 +67,9 @@ mod tests {
         assert_ne!(Device::gpu(0), Device::gpu(1));
         assert_ne!(Device::cpu(), Device::gpu(0));
     }
+
+    #[test]
+    fn the_default_device_is_the_cpu() {
+        assert_eq!(Device::default(), Device::cpu());
+    }
 }
