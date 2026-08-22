@@ -86,6 +86,7 @@ serde_json = { version = ">=1,<2.0.0" }
 thiserror = { version = ">=2,<3.0.0" }
 tokio = { version = ">=1,<2.0.0", features = ["full"] }
 ### Workspaced Crates
+rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.1.0" }
 rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.1.0" }
 rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.1.0" }
 rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.1.0" }

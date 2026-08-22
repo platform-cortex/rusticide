@@ -12,6 +12,7 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+rusticide-alloc.workspace = true
 thiserror.workspace = true
 
 [lints]
