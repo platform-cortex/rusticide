@@ -58,7 +58,8 @@ impl DType {
     ///
     /// Floating point always beats integral. F16 and BF16 have no
     /// ordering between them, so mixing them widens to F32 rather than
-    /// silently picking one.
+    /// silently picking one. Similarly, U8 and I8 have no ordering
+    /// between them, so mixing them widens to I16.
     #[must_use]
     pub const fn promote(self, other: Self) -> Self {
         if matches!(
@@ -66,6 +67,12 @@ impl DType {
             (Self::F16, Self::BF16) | (Self::BF16, Self::F16)
         ) {
             return Self::F32;
+        }
+        if matches!(
+            (self, other),
+            (Self::U8, Self::I8) | (Self::I8, Self::U8)
+        ) {
+            return Self::I16;
         }
         if self.is_floating_point() == other.is_floating_point() {
             if self.promotion_rank() >= other.promotion_rank() {
@@ -104,6 +111,35 @@ mod tests {
     #[test]
     fn promotion_of_half_widths_yields_the_wider_float() {
         assert_eq!(DType::F16.promote(DType::BF16), DType::F32);
+        assert_eq!(DType::BF16.promote(DType::F16), DType::F32);
         assert_eq!(DType::F16.promote(DType::F32), DType::F32);
+    }
+
+    #[test]
+    fn promotion_of_u8_and_i8_yields_i16() {
+        assert_eq!(DType::U8.promote(DType::I8), DType::I16);
+        assert_eq!(DType::I8.promote(DType::U8), DType::I16);
+    }
+
+    #[test]
+    fn promotion_is_commutative_for_every_pair() {
+        let all_types = [
+            DType::Bool,
+            DType::U8,
+            DType::I8,
+            DType::I16,
+            DType::I32,
+            DType::I64,
+            DType::F16,
+            DType::BF16,
+            DType::F32,
+            DType::F64,
+        ];
+
+        for a in all_types {
+            for b in all_types {
+                assert_eq!(a.promote(b), b.promote(a));
+            }
+        }
     }
 }
