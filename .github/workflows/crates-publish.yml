@@ -96,17 +96,17 @@ jobs:
       - name: Verify packages
         run: |
           for c in \
-            xllm-tensor \
-            xllm-ggml \
-            xllm-model \
-            xllm-tokenizer \
-            xllm-bitnet \
-            xllm-quantize \
-            xllm-sampling \
-            xllm-context \
-            xllm-train \
-            xllm \
-            xllm-cli; do
+            rusticide-tensor \
+            rusticide-ggml \
+            rusticide-model \
+            rusticide-tokenizer \
+            rusticide-bitnet \
+            rusticide-quantize \
+            rusticide-sampling \
+            rusticide-context \
+            rusticide-train \
+            rusticide \
+            rusticide-cli; do
             echo "Verifying $c..."
             cargo package -p "$c" --verbose
           done
@@ -117,17 +117,17 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
         run: |
           for c in \
-            xllm-tensor \
-            xllm-ggml \
-            xllm-model \
-            xllm-tokenizer \
-            xllm-bitnet \
-            xllm-quantize \
-            xllm-sampling \
-            xllm-context \
-            xllm-train \
-            xllm \
-            xllm-cli; do
+            rusticide-tensor \
+            rusticide-ggml \
+            rusticide-model \
+            rusticide-tokenizer \
+            rusticide-bitnet \
+            rusticide-quantize \
+            rusticide-sampling \
+            rusticide-context \
+            rusticide-train \
+            rusticide \
+            rusticide-cli; do
             echo "Publishing $c..."
             cargo publish -p "$c" --token "${CARGO_REGISTRY_TOKEN}" --verbose
             echo "Waiting for crates.io to index..."
@@ -167,7 +167,7 @@ jobs:
       - name: Build documentation
         run: |
           cargo doc --all-features --no-deps
-          echo '<meta http-equiv="refresh" content="0; url=xllm/index.html">' > target/doc/index.html
+          echo '<meta http-equiv="refresh" content="0; url=rusticide/index.html">' > target/doc/index.html
 
       - name: Upload artifact for GitHub Pages
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
@@ -183,9 +183,9 @@ jobs:
       - name: Documentation URLs
         run: |
           echo "Documentation URLs:"
-          echo "  - docs.rs: https://docs.rs/xllm/${{ needs.validate.outputs.version }}"
-          echo "  - Latest: https://docs.rs/xllm/latest"
-          echo "  - GitHub Pages: https://${{ github.repository_owner }}.github.io/xllm/"
+          echo "  - docs.rs: https://docs.rs/rusticide/${{ needs.validate.outputs.version }}"
+          echo "  - Latest: https://docs.rs/rusticide/latest"
+          echo "  - GitHub Pages: https://${{ github.repository_owner }}.github.io/rusticide/"
 
   summary:
     name: Publication Summary
@@ -202,7 +202,7 @@ jobs:
 
           if [ "${{ needs.publish-crates.result }}" = "success" ]; then
             echo "**crates.io:** Published" >> $GITHUB_STEP_SUMMARY
-            echo "  - View: https://crates.io/crates/xllm/${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "  - View: https://crates.io/crates/rusticide/${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ needs.publish-crates.result }}" = "skipped" ]; then
             echo "**crates.io:** Skipped (dry run)" >> $GITHUB_STEP_SUMMARY
           else
@@ -212,8 +212,8 @@ jobs:
 
           if [ "${{ needs.publish-docs.result }}" = "success" ]; then
             echo "**Documentation:** Published" >> $GITHUB_STEP_SUMMARY
-            echo "  - docs.rs: https://docs.rs/xllm/latest" >> $GITHUB_STEP_SUMMARY
-            echo "  - GitHub Pages: https://${{ github.repository_owner }}.github.io/xllm/" >> $GITHUB_STEP_SUMMARY
+            echo "  - docs.rs: https://docs.rs/rusticide/latest" >> $GITHUB_STEP_SUMMARY
+            echo "  - GitHub Pages: https://${{ github.repository_owner }}.github.io/rusticide/" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ needs.publish-docs.result }}" = "skipped" ]; then
             echo "**Documentation:** Skipped (dry run)" >> $GITHUB_STEP_SUMMARY
           else

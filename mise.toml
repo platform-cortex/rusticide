@@ -453,18 +453,18 @@ cargo llvm-cov nextest --workspace --lcov --output-path lcov.info
 
 # 2. Score every function (excluding CLI — binary, integration-tested).
 cargo crap --workspace --lcov lcov.info \
-  --allow '**/xllm-cli/**' \
+  --allow '**/rusticide-cli/**' \
   --allow 'Model::parse_value'
 
 # 3. Gate CI on the threshold.
 cargo crap --workspace --lcov lcov.info \
-  --allow '**/xllm-cli/**' \
+  --allow '**/rusticide-cli/**' \
   --allow 'Model::parse_value' \
   --fail-above
 
 # 4. Quick aggregate summary (no table).
 cargo crap --workspace --lcov lcov.info \
-  --allow '**/xllm-cli/**' \
+  --allow '**/rusticide-cli/**' \
   --allow 'Model::parse_value' \
   --summary
 '''
@@ -654,11 +654,11 @@ run = '''
 
 set -eo pipefail
 
-# The targets live in crates/xllm-fuzz, which is its own workspace (excluded
+# The targets live in crates/rusticide-fuzz, which is its own workspace (excluded
 # from the root one), so cargo-fuzz needs an explicit --fuzz-dir. It also needs
 # a nightly toolchain (ASan/-Z flags) — the project channel stays stable — so
 # it runs via `cargo +nightly`.
-FUZZ_DIR="crates/xllm-fuzz"
+FUZZ_DIR="crates/rusticide-fuzz"
 if [ ! -d "$FUZZ_DIR/fuzz_targets" ]; then
     echo "fuzz: skipping — no $FUZZ_DIR/fuzz_targets (no targets yet)." >&2
     exit 0
@@ -710,7 +710,7 @@ eval "args=(${usage_args:-})"
 cargo nextest run "${args[@]}"
 '''
 shell = "bash -c"
-usage = 'arg "[args]" var=#true help="nextest args, e.g. -p xllm or a filter; runs all tests when omitted"'
+usage = 'arg "[args]" var=#true help="nextest args, e.g. -p rusticide or a filter; runs all tests when omitted"'
 
 [tasks.mutants]
 description = "Mutation-test with cargo-mutants — verifies the tests actually catch regressions (coverage != effectiveness). Slow; scope with `--file <path>` or run in CI"
@@ -723,7 +723,7 @@ eval "args=(${usage_args:-})"
 cargo mutants "${args[@]}"
 '''
 shell = "bash -c"
-usage = 'arg "[args]" var=#true help="cargo-mutants args, e.g. --file crates/xllm-core/src/lib.rs; whole tree when omitted"'
+usage = 'arg "[args]" var=#true help="cargo-mutants args, e.g. --file crates/rusticide-core/src/lib.rs; whole tree when omitted"'
 
 [tasks.machete]
 description = "Find unused dependencies with cargo-machete (enforces the minimal-deps goal); append `--fix` to strip them from Cargo.toml"
@@ -966,14 +966,14 @@ run = "cargo test --doc --workspace"
 
 [tasks.miri]
 alias = "mi"
-description = "Miri UB/strict-provenance check of the core `xllm` crate; needs the nightly miri component (`rustup +nightly component add miri`)"
+description = "Miri UB/strict-provenance check of the core `rusticide` crate; needs the nightly miri component (`rustup +nightly component add miri`)"
 run = '''
 #!/usr/bin/env bash
 
 set -eo pipefail
 
 toolchain="${NIGHTLY_TOOLCHAIN:-nightly}"
-MIRIFLAGS="-Zmiri-strict-provenance" cargo +"$toolchain" miri test -p xllm
+MIRIFLAGS="-Zmiri-strict-provenance" cargo +"$toolchain" miri test -p rusticide
 '''
 shell = "bash -c"
 
@@ -1098,7 +1098,7 @@ set -eo pipefail
 # Mirror the single-target `fuzz` task's guard: no fuzz/ directory means no
 # targets, so skip cleanly. Otherwise discover targets dynamically (so this
 # never drifts from fuzz_targets/) and fuzz each for FUZZ_TIME seconds.
-if [ ! -d "crates/xllm-fuzz" ]; then
+if [ ! -d "crates/rusticide-fuzz" ]; then
     echo "fuzz-all: skipping — no fuzz/ directory (no targets yet)." >&2
     exit 0
 fi
@@ -1178,7 +1178,7 @@ run = '''
 set -eo pipefail
 
 # Apply branch protection with admin bypass
-GH_PAGER= gh api -X PUT repos/elioseverojunior/xllm/branches/main/protection \
+GH_PAGER= gh api -X PUT repos/elioseverojunior/rusticide/branches/main/protection \
   --input - << 'EOF'
 {
     "required_status_checks": {

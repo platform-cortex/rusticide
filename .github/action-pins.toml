@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# xllm action-pins configuration
+# rusticide action-pins configuration
 # ---------------------------------------------------------------------------
 # Place this file in .github/action-pins.toml (or .yaml / .json) to
 # customize the behaviour of scripts/update-actions-pins.py.

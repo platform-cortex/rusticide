@@ -27,9 +27,9 @@ out = ["Stdout", "Xml"]
 #                                     measured and tested. A `cargo test` cannot
 #                                     exercise `main.rs` without spawning a
 #                                     subprocess.
-#   * `crates/xllm-wasm/src/lib.rs` — `#[wasm_bindgen]` export delegates; they
+#   * `crates/rusticide-wasm/src/lib.rs` — `#[wasm_bindgen]` export delegates; they
 #                                     need a WebAssembly runtime to run. All real
 #                                     logic lives in the host-unit-tested
 #                                     `*_logic` functions. Mirrors the crate-local
 #                                     `unsafe` exception documented in CLAUDE.md.
-exclude-files = ["crates/*/src/main.rs", "crates/xllm-wasm/src/lib.rs"]
+exclude-files = ["crates/*/src/main.rs", "crates/rusticide-wasm/src/lib.rs"]

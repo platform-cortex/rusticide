@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for xllm
+about: Suggest an idea for rusticide
 title: ''
 labels: enhancement
 assignees: ''

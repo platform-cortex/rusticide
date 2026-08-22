@@ -28,17 +28,17 @@ jobs:
         run: |
           mkdir -p dist
           for c in \
-            xllm \
-            xllm-bitnet \
-            xllm-cli \
-            xllm-context \
-            xllm-ggml \
-            xllm-model \
-            xllm-quantize \
-            xllm-sampling \
-            xllm-tensor \
-            xllm-tokenizer \
-            xllm-train; do
+            rusticide \
+            rusticide-bitnet \
+            rusticide-cli \
+            rusticide-context \
+            rusticide-ggml \
+            rusticide-model \
+            rusticide-quantize \
+            rusticide-sampling \
+            rusticide-tensor \
+            rusticide-tokenizer \
+            rusticide-train; do
             cargo package -p "$c" --no-verify --allow-dirty
           done
           cp target/package/*.crate dist/ || true

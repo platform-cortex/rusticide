@@ -5,10 +5,10 @@
     "instructions.md",
     "docs/guidelines/contribution.md"
   ],
-  "default_agent": "xllm",
+  "default_agent": "rusticide",
   "agent": {
-    "xllm": {
-      "description": "Autonomous development agent for xllm - Rust LLM inference engine (llama.cpp port). TDD-first, CPU-primary, nightly Rust.",
+    "rusticide": {
+      "description": "Autonomous development agent for rusticide - Rust LLM inference engine (llama.cpp port). TDD-first, CPU-primary, nightly Rust.",
       "mode": "primary"
     }
   },

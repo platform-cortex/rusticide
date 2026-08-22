@@ -72,38 +72,38 @@ security:
 
 cli:
   - changed-files:
-      - any-glob-to-any-file: "crates/xllm-cli/**/*"
+      - any-glob-to-any-file: "crates/rusticide-cli/**/*"
 
 tensor:
   - changed-files:
-      - any-glob-to-any-file: "crates/xllm-tensor/**/*"
+      - any-glob-to-any-file: "crates/rusticide-tensor/**/*"
 
 ggml:
   - changed-files:
-      - any-glob-to-any-file: "crates/xllm-ggml/**/*"
+      - any-glob-to-any-file: "crates/rusticide-ggml/**/*"
 
 model:
   - changed-files:
       - any-glob-to-any-file:
-          - "crates/xllm-model/**/*"
-          - "crates/xllm-tokenizer/**/*"
+          - "crates/rusticide-model/**/*"
+          - "crates/rusticide-tokenizer/**/*"
 
 inference:
   - changed-files:
       - any-glob-to-any-file:
-          - "crates/xllm-context/**/*"
-          - "crates/xllm-sampling/**/*"
-          - "crates/xllm/**/*"
+          - "crates/rusticide-context/**/*"
+          - "crates/rusticide-sampling/**/*"
+          - "crates/rusticide/**/*"
 
 quantization:
   - changed-files:
       - any-glob-to-any-file:
-          - "crates/xllm-quantize/**/*"
-          - "crates/xllm-bitnet/**/*"
+          - "crates/rusticide-quantize/**/*"
+          - "crates/rusticide-bitnet/**/*"
 
 training:
   - changed-files:
-      - any-glob-to-any-file: "crates/xllm-train/**/*"
+      - any-glob-to-any-file: "crates/rusticide-train/**/*"
 
 # --- Test and scaffolding crates ---------------------------------------------
 
@@ -111,12 +111,12 @@ tests:
   - changed-files:
       - any-glob-to-any-file:
           - "crates/*/tests/**/*"
-          - "crates/xllm-integration-tests/**/*"
+          - "crates/rusticide-integration-tests/**/*"
 
 fuzzing:
   - changed-files:
-      - any-glob-to-any-file: "crates/xllm-fuzz/**/*"
+      - any-glob-to-any-file: "crates/rusticide-fuzz/**/*"
 
 examples:
   - changed-files:
-      - any-glob-to-any-file: "crates/xllm-examples/**/*"
+      - any-glob-to-any-file: "crates/rusticide-examples/**/*"

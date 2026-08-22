@@ -24,12 +24,12 @@
 
 # cargo-fuzz working data. Only Cargo.toml and fuzz_targets/ are tracked;
 # corpora and crash artifacts are local and can be large.
-/crates/xllm-fuzz/corpus/
-/crates/xllm-fuzz/artifacts/
-/crates/xllm-fuzz/coverage/
-/crates/xllm-fuzz/Cargo.lock
+/crates/rusticide-fuzz/corpus/
+/crates/rusticide-fuzz/artifacts/
+/crates/rusticide-fuzz/coverage/
+/crates/rusticide-fuzz/Cargo.lock
 
-# Legacy root-level cargo-fuzz tree (superseded by crates/xllm-fuzz). Entirely
+# Legacy root-level cargo-fuzz tree (superseded by crates/rusticide-fuzz). Entirely
 # local working data -- corpora, crash artifacts, build output.
 /fuzz/
 

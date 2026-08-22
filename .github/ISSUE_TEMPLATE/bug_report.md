@@ -19,7 +19,7 @@ A clear and concise description of what you expected to happen.
 **Environment**
 - OS: [e.g. macOS 14, Ubuntu 24.04]
 - Rust version: [output of `rustc --version`]
-- xllm version/commit: [e.g. v0.1.0 or git SHA]
+- rusticide version/commit: [e.g. v0.1.0 or git SHA]
 
 **Additional context**
 Add any other context about the problem here.

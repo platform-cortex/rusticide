@@ -3,7 +3,7 @@
 name: parity
 
 # Manual dispatch only for now. Enable a schedule trigger once the golden
-# token ids in crates/xllm-integration-tests/tests/golden/stories15M.txt are
+# token ids in crates/rusticide-integration-tests/tests/golden/stories15M.txt are
 # captured -- until
 # then this job is expected to fail, so a scheduled run would stay red.
 on:
@@ -36,7 +36,7 @@ jobs:
           LLAMA_CPP="$RUNNER_TEMP/llama.cpp" OUT_DIR=models bash scripts/fetch-stories15m.sh
 
       - name: Run parity test
-        run: cargo nextest run -p xllm-integration-tests --run-ignored all stories15m_greedy_matches_llama_cpp
+        run: cargo nextest run -p rusticide-integration-tests --run-ignored all stories15m_greedy_matches_llama_cpp
 
   llama32-parity:
     runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
@@ -59,4 +59,4 @@ jobs:
         run: bash scripts/fetch-llama32-1b.sh
 
       - name: Run 1B parity
-        run: cargo nextest run -p xllm-integration-tests --run-ignored all llama32
+        run: cargo nextest run -p rusticide-integration-tests --run-ignored all llama32

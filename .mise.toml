@@ -1,4 +1,4 @@
-# mise tasks for xllm
+# mise tasks for rusticide
 # https://mise.jdx.dev
 
 [tasks.commit-config]
