@@ -1,6 +1,7 @@
 <!--
-SPDX-FileCopyrightText: 2026 Rusticide contributors
-SPDX-License-Identifier: CC-BY-3.0+
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
 # Rusticide Foundation (SP0 + SP1) Implementation Plan
@@ -53,10 +54,15 @@ Every task's requirements implicitly include this section.
   backtick as part of the licence identifier:
 
   ```text
-  // SPDX-FileCopyrightText: 2026 Rusticide contributors
+  // SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+  //
   // SPDX-License-Identifier: MIT OR Apache-2.0
   ```
 
+  Three lines, with the bare `//` separator. This is the form `REUSE.toml`
+  declares and the form every committed source file uses; an earlier
+  version of this plan said "2026 Rusticide contributors" on two lines,
+  which is wrong on both counts.
 - **Commit messages** follow `committed.toml` and `commit-types.toml`.
   Commits are GPG-signed: use `git commit -S`.
 - **No attribution trailers of any kind.** Not `Co-authored-by:`, and
@@ -260,7 +266,8 @@ workspace = true
 `crates/rusticide-core/src/dtype.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -387,7 +394,8 @@ impl DType {
 `crates/rusticide-core/src/lib.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Rusticide core: value types and the dispatch key algebra.
@@ -438,7 +446,8 @@ between them."
 `crates/rusticide-core/src/device.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -471,7 +480,8 @@ mod tests {
 `crates/rusticide-core/src/error.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -550,7 +560,8 @@ impl Default for Device {
 `crates/rusticide-core/src/layout.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 /// How elements are arranged in storage.
@@ -649,7 +660,8 @@ git commit -S -m "feat(core): add Device, Layout and Error types"
 `crates/rusticide-core/src/shape.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -693,7 +705,8 @@ mod tests {
 `crates/rusticide-core/src/strides.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -943,7 +956,8 @@ inherit at `warn`; leaving it out creates a latent unsatisfiable pair.
 `crates/rusticide-alloc/src/buffer.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -1030,7 +1044,7 @@ impl Buffer {
 
 ```markdown
 <!--
-SPDX-FileCopyrightText: 2026 Rusticide contributors
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
 SPDX-License-Identifier: CC-BY-3.0+
 -->
 
@@ -1108,7 +1122,8 @@ Storage is where the spec's aliasing decision becomes code:
 - [ ] **Step 1: Write the failing test**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -1296,7 +1311,8 @@ update. same_buffer_as exists for the dispatcher's self-aliasing guard."
 - [ ] **Step 1: Write the failing test**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -1414,7 +1430,8 @@ halves, resolved with two leading-zero counts.
 - [ ] **Step 1: Write the failing test**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -1661,7 +1678,8 @@ c10/core/DispatchKeySet.h."
 `crates/rusticide-core/src/tensor/handle.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -1901,7 +1919,8 @@ parallel with Tasks 2-9.
 - [ ] **Step 1: Write the failing test**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -2147,7 +2166,8 @@ This is where the borrow information lives: `Tensor(a!)` means alias set
 - [ ] **Step 1: Write the failing test**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -2321,7 +2341,8 @@ the whole operator surface."
 - [ ] **Step 1: Write the failing tests**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -2634,7 +2655,8 @@ Expected: 2585 lines. Storing the extracted schema lines rather than the
 `crates/rusticide-schema/tests/corpus.rs`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Round-trip every operator schema PyTorch declares.
@@ -2781,7 +2803,8 @@ parser, and it delivers the alias annotations as a side effect."
 - [ ] **Step 1: Write the failing test**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -2917,7 +2940,8 @@ git commit -S -m "feat(dispatch): add IValue and Stack"
 - [ ] **Step 1: Write the failing test for the guard**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(test)]
@@ -3061,7 +3085,8 @@ the real table.
 - [ ] **Step 1: Write the failing end-to-end test**
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! SP1's acceptance test: `add` dispatches through the real table.
@@ -3418,7 +3443,8 @@ re-exports: PASS.
 parsed form, dogfooding `rusticide-schema`:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
