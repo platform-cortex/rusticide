@@ -7,20 +7,31 @@ use crate::{BackendComponent, DispatchKey, NUM_BACKENDS};
 /// Every `DispatchKey` variant, in discriminant order.
 ///
 /// Single source of truth for mapping a bit index back to a variant in
-/// [`DispatchKeySet::highest_functionality`]. A `match` on the raw `u8` index
-/// cannot be checked for exhaustiveness against the enum, so a variant
-/// appended to `DispatchKey` and forgotten here would silently dispatch to no
-/// kernel; walking this array instead turns that into "not registered here",
-/// caught by the round-trip test below. Update in order when `DispatchKey`
-/// gains a variant.
-const ALL_FUNCTIONALITIES: [DispatchKey; 3] = [
+/// [`DispatchKeySet::highest_functionality`], and (via `key::kernel_table`)
+/// for the kernel-table slot layout. A `match` on the raw `u8` index cannot
+/// be checked for exhaustiveness against the enum, so a variant appended to
+/// `DispatchKey` and forgotten here would silently dispatch to no kernel;
+/// walking this array instead turns that into "not registered here", caught
+/// by the round-trip test below. Update in order when `DispatchKey` gains a
+/// variant.
+pub(super) const ALL_FUNCTIONALITIES: [DispatchKey; 3] = [
     DispatchKey::Dense,
     DispatchKey::Functionalize,
     DispatchKey::Autograd,
 ];
 
-/// Kernel-table slots a per-backend functionality occupies: one per backend.
-const BACKENDS_PER_FUNCTIONALITY: usize = 2;
+/// Fails to compile if a `DispatchKey` variant is missing from
+/// `ALL_FUNCTIONALITIES`. The match is exhaustive over the *type*, so rustc
+/// (not a test) rejects it the moment a variant is added here without also
+/// being listed above -- the guarantee `ALL_FUNCTIONALITIES.into_iter().find`
+/// cannot give on its own, since a lookup miss is just `None`. Never add a
+/// `_` arm: that would silence exactly the check this exists for.
+#[allow(dead_code)]
+const fn assert_all_functionalities_registered(k: DispatchKey) {
+    match k {
+        DispatchKey::Dense | DispatchKey::Functionalize | DispatchKey::Autograd => (),
+    }
+}
 
 /// A set of dispatch keys packed into one `u64`.
 ///
@@ -108,51 +119,6 @@ impl DispatchKeySet {
         }
     }
 
-    /// The slot in an operator's kernel table this keyset resolves to.
-    ///
-    /// Per-backend functionalities occupy [`BACKENDS_PER_FUNCTIONALITY`]
-    /// consecutive slots (one per backend); others occupy one. Functionalities
-    /// are laid out in discriminant order, so a functionality's base offset is
-    /// the summed slot count of every functionality that outranks it less.
-    #[must_use]
-    pub fn table_index(self) -> usize {
-        let Some(f) = self.highest_functionality() else {
-            return 0;
-        };
-        let mut offset = 0usize;
-        for k in ALL_FUNCTIONALITIES {
-            if k as u8 >= f as u8 {
-                break;
-            }
-            offset += if k.is_per_backend() {
-                BACKENDS_PER_FUNCTIONALITY
-            } else {
-                1
-            };
-        }
-        if f.is_per_backend() {
-            offset + self.highest_backend().map_or(0, |b| b as usize - 1)
-        } else {
-            offset
-        }
-    }
-
-    /// Total slots an operator's kernel table must hold.
-    #[must_use]
-    pub const fn table_size() -> usize {
-        let mut total = 0usize;
-        let mut i = 0usize;
-        while i < ALL_FUNCTIONALITIES.len() {
-            total += if ALL_FUNCTIONALITIES[i].is_per_backend() {
-                BACKENDS_PER_FUNCTIONALITY
-            } else {
-                1
-            };
-            i += 1;
-        }
-        total
-    }
-
     /// The raw packed representation.
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -207,56 +173,19 @@ mod tests {
         assert_eq!(merged.highest_backend(), Some(BackendComponent::Cpu));
     }
 
+    /// The whole reason backends and functionalities are split into two
+    /// orthogonal halves is so multiple dispatch can carry more than one
+    /// backend bit at once; without this test, `highest_backend`'s
+    /// priority-resolution branch (as opposed to its trivial single-bit
+    /// path) is never exercised.
     #[test]
-    fn per_backend_functionalities_get_one_slot_per_backend() {
-        let cpu = DispatchKeySet::empty()
-            .with_backend(BackendComponent::Cpu)
-            .with_functionality(DispatchKey::Dense);
-        let gpu = DispatchKeySet::empty()
-            .with_backend(BackendComponent::Gpu)
-            .with_functionality(DispatchKey::Dense);
-        assert_ne!(
-            cpu.table_index(),
-            gpu.table_index(),
-            "dense-cpu and dense-gpu must not share a kernel slot"
-        );
-    }
-
-    #[test]
-    fn a_non_per_backend_functionality_uses_one_slot() {
-        let cpu = DispatchKeySet::empty()
-            .with_backend(BackendComponent::Cpu)
-            .with_functionality(DispatchKey::Functionalize);
-        let gpu = DispatchKeySet::empty()
-            .with_backend(BackendComponent::Gpu)
-            .with_functionality(DispatchKey::Functionalize);
-        assert_eq!(cpu.table_index(), gpu.table_index());
-    }
-
-    /// Pins the by-hand slot layout from the task brief: Dense (per-backend)
-    /// takes slots 0..1, Functionalize (shared) takes slot 2, Autograd
-    /// (per-backend) takes slots 3..4, for a table of size 5.
-    #[test]
-    fn table_index_matches_the_hand_computed_slot_layout() {
-        let index_of = |f: DispatchKey, b: BackendComponent| {
-            DispatchKeySet::empty()
-                .with_backend(b)
-                .with_functionality(f)
-                .table_index()
-        };
-        assert_eq!(index_of(DispatchKey::Dense, BackendComponent::Cpu), 0);
-        assert_eq!(index_of(DispatchKey::Dense, BackendComponent::Gpu), 1);
-        assert_eq!(
-            index_of(DispatchKey::Functionalize, BackendComponent::Cpu),
-            2
-        );
-        assert_eq!(
-            index_of(DispatchKey::Functionalize, BackendComponent::Gpu),
-            2
-        );
-        assert_eq!(index_of(DispatchKey::Autograd, BackendComponent::Cpu), 3);
-        assert_eq!(index_of(DispatchKey::Autograd, BackendComponent::Gpu), 4);
-        assert_eq!(DispatchKeySet::table_size(), 5);
+    fn union_resolves_the_higher_priority_backend_across_devices() {
+        let cpu = DispatchKeySet::empty().with_backend(BackendComponent::Cpu);
+        let gpu = DispatchKeySet::empty().with_backend(BackendComponent::Gpu);
+        let merged = cpu.union(gpu);
+        assert_eq!(merged.highest_backend(), Some(BackendComponent::Gpu));
+        assert!(merged.has_backend(BackendComponent::Cpu));
+        assert!(merged.has_backend(BackendComponent::Gpu));
     }
 
     /// Guards the append-a-variant hazard: this walks `ALL_FUNCTIONALITIES`
@@ -270,15 +199,19 @@ mod tests {
         }
     }
 
-    /// Catches a length bump to `ALL_FUNCTIONALITIES` that isn't matched by
-    /// filling in every discriminant `0..len` (e.g. a gap or duplicate).
+    /// Checks discriminants are `0..len` **in order**, unsorted: the kernel
+    /// table (`key::kernel_table`) accumulates offsets by walking
+    /// `ALL_FUNCTIONALITIES` and breaking on the first entry that outranks
+    /// the target, which is only correct if the array is already in
+    /// ascending discriminant order. Sorting before comparing (as an earlier
+    /// version of this test did) would pass even if the array were listed
+    /// out of order.
     #[test]
-    fn all_functionalities_covers_every_discriminant_exactly_once() {
-        let mut discriminants: Vec<u8> = super::ALL_FUNCTIONALITIES
+    fn all_functionalities_covers_every_discriminant_in_order() {
+        let discriminants: Vec<u8> = super::ALL_FUNCTIONALITIES
             .iter()
             .map(|k| *k as u8)
             .collect();
-        discriminants.sort_unstable();
         let expected: Vec<u8> =
             (0..u8::try_from(super::ALL_FUNCTIONALITIES.len()).expect("small")).collect();
         assert_eq!(discriminants, expected);
