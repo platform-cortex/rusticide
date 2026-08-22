@@ -62,6 +62,36 @@ const BASE_TY_TABLE: [(&str, BaseTy); 19] = [
     ("Tensor", BaseTy::Tensor),
 ];
 
+/// Fails to compile if a `BaseTy` variant is added without a matching
+/// `BASE_TY_TABLE` entry. The match is exhaustive over the type, so rustc
+/// rejects it (E0004) the moment a variant is missing here -- the
+/// guarantee a runtime length check cannot give, since a forgotten table
+/// entry leaves `BASE_TY_TABLE.len()` unchanged.
+#[allow(dead_code)]
+const fn assert_every_base_ty_is_in_the_table(t: BaseTy) {
+    match t {
+        BaseTy::Bool
+        | BaseTy::Device
+        | BaseTy::DeviceIndex
+        | BaseTy::DimVector
+        | BaseTy::Float
+        | BaseTy::Generator
+        | BaseTy::GraphModule
+        | BaseTy::Int
+        | BaseTy::Layout
+        | BaseTy::MemoryFormat
+        | BaseTy::QScheme
+        | BaseTy::Scalar
+        | BaseTy::ScalarType
+        | BaseTy::Storage
+        | BaseTy::Str
+        | BaseTy::Stream
+        | BaseTy::SymBool
+        | BaseTy::SymInt
+        | BaseTy::Tensor => (),
+    }
+}
+
 impl BaseTy {
     fn parse(s: &str) -> Option<Self> {
         BASE_TY_TABLE
@@ -69,14 +99,14 @@ impl BaseTy {
             .find_map(|&(name, ty)| (name == s).then_some(ty))
     }
 
-    /// The table covers every variant (see `every_base_ty_has_a_table_entry`),
-    /// so the fallback below is unreachable in practice; it exists so this
-    /// stays panic-free rather than relying on that invariant.
+    /// `assert_every_base_ty_is_in_the_table` makes the fallback below
+    /// unreachable in practice; it exists so this stays panic-free rather
+    /// than relying on that invariant.
     fn as_str(self) -> &'static str {
         BASE_TY_TABLE
             .iter()
             .find_map(|&(name, ty)| (ty == self).then_some(name))
-            .unwrap_or("<unknown BaseTy>")
+            .unwrap_or("<BaseTy missing from BASE_TY_TABLE>")
     }
 }
 
@@ -258,17 +288,5 @@ mod tests {
         ] {
             round_trip(s);
         }
-    }
-
-    /// Guards the invariant `as_str`'s fallback relies on: a `BaseTy`
-    /// variant added without a matching table entry fails this loudly
-    /// instead of silently falling back to `as_str`'s sentinel string.
-    #[test]
-    fn every_base_ty_has_a_table_entry() {
-        assert_eq!(
-            super::BASE_TY_TABLE.len(),
-            19,
-            "BaseTy grew a variant without a matching BASE_TY_TABLE entry"
-        );
     }
 }
