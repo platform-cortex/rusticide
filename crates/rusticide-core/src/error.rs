@@ -23,6 +23,9 @@ pub enum Error {
 
     #[error("allocation of {bytes} bytes failed")]
     AllocationFailed { bytes: usize },
+
+    #[error("a tensor of {numel} elements of {dtype:?} overflows the address space")]
+    AllocationSizeOverflow { numel: usize, dtype: DType },
 }
 
 /// The crate's result alias.
