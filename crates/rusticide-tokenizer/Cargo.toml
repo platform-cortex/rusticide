@@ -1,0 +1,19 @@
+[package]
+authors.workspace = true
+categories = ["text-processing"]
+description = "BPE and SentencePiece tokenizer for LLM text processing"
+edition.workspace = true
+keywords = ["tokenizer", "bpe", "sentencepiece", "tokenization", "nlp"]
+license.workspace = true
+name = "rusticide-tokenizer"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+rusticide-model.workspace = true
+
+[lints]
+workspace = true

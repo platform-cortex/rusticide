@@ -1,0 +1,39 @@
+# This crate is deliberately its OWN workspace (see [workspace] below) and is
+# listed in the root Cargo.toml `exclude`. libfuzzer-sys needs nightly and
+# sanitizer -Z flags, and its generated entry point cannot satisfy the parent
+# workspace's `unsafe_code = "deny"`, so it must not be a member.
+[package]
+authors = ["Elio Severo Junior <elioseverojunior@gmail.com>"]
+description = "libFuzzer targets for rusticide (not published)"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+name = "rusticide-fuzz"
+publish = false
+readme = "README.md"
+repository = "https://github.com/elioseverojunior/rusticide"
+rust-version = "1.92"
+version = "0.0.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+rusticide-model = { path = "../rusticide-model" }
+rusticide-tokenizer = { path = "../rusticide-tokenizer" }
+
+[workspace]
+
+[[bin]]
+bench = false
+doc = false
+name = "gguf_load"
+path = "fuzz_targets/gguf_load.rs"
+test = false
+
+[[bin]]
+bench = false
+doc = false
+name = "gguf_tokenizer"
+path = "fuzz_targets/gguf_tokenizer.rs"
+test = false

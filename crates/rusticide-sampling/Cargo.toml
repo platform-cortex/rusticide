@@ -1,0 +1,20 @@
+[package]
+authors.workspace = true
+categories = ["algorithms"]
+description = "Token sampling strategies (greedy, top-k, top-p, temperature)"
+edition.workspace = true
+keywords = ["sampling", "top-k", "top-p", "temperature", "token-selection"]
+license.workspace = true
+name = "rusticide-sampling"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+fastrand.workspace = true
+thiserror.workspace = true
+rusticide-tensor.workspace = true
+
+[lints]
+workspace = true
