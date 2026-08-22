@@ -8,102 +8,75 @@ use core::fmt;
 
 use crate::ParseError;
 
-/// An atomic type in the operator schema language.
+/// An atomic type in the operator schema language: torchgen's complete
+/// `BaseTy` vocabulary.
 ///
-/// This is the complete vocabulary of base types used across `PyTorch`'s
-/// `native_functions.yaml`. Adding a variant that the corpus never uses
-/// would go unnoticed; dropping one that it does use fails loudly the
-/// first time `Type::parse` sees it.
+/// `DimVector` and `GraphModule` see zero use in the current
+/// `native_functions.yaml` corpus but are genuine upstream members, kept
+/// regardless; `BASE_TY_TABLE` gives each variant's spelling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BaseTy {
-    /// `bool`.
     Bool,
-    /// `Device`.
     Device,
-    /// `DeviceIndex`.
     DeviceIndex,
-    /// `DimVector`.
     DimVector,
-    /// `float`.
     Float,
-    /// `Generator`.
     Generator,
-    /// `GraphModule`.
     GraphModule,
-    /// `int`.
     Int,
-    /// `Layout`.
     Layout,
-    /// `MemoryFormat`.
     MemoryFormat,
-    /// `QScheme`.
     QScheme,
-    /// `Scalar`.
     Scalar,
-    /// `ScalarType`.
     ScalarType,
-    /// `Storage`.
     Storage,
-    /// `str`.
     Str,
-    /// `Stream`.
     Stream,
-    /// `SymBool`.
     SymBool,
-    /// `SymInt`.
     SymInt,
-    /// `Tensor`.
     Tensor,
 }
 
+/// Sole source of `BaseTy`'s string spelling; `parse` and `as_str` both
+/// read it instead of each keeping their own copy, so a typo can no
+/// longer be made in one direction without the other.
+const BASE_TY_TABLE: [(&str, BaseTy); 19] = [
+    ("bool", BaseTy::Bool),
+    ("Device", BaseTy::Device),
+    ("DeviceIndex", BaseTy::DeviceIndex),
+    ("DimVector", BaseTy::DimVector),
+    ("float", BaseTy::Float),
+    ("Generator", BaseTy::Generator),
+    ("GraphModule", BaseTy::GraphModule),
+    ("int", BaseTy::Int),
+    ("Layout", BaseTy::Layout),
+    ("MemoryFormat", BaseTy::MemoryFormat),
+    ("QScheme", BaseTy::QScheme),
+    ("Scalar", BaseTy::Scalar),
+    ("ScalarType", BaseTy::ScalarType),
+    ("Storage", BaseTy::Storage),
+    ("str", BaseTy::Str),
+    ("Stream", BaseTy::Stream),
+    ("SymBool", BaseTy::SymBool),
+    ("SymInt", BaseTy::SymInt),
+    ("Tensor", BaseTy::Tensor),
+];
+
 impl BaseTy {
     fn parse(s: &str) -> Option<Self> {
-        Some(match s {
-            "bool" => Self::Bool,
-            "Device" => Self::Device,
-            "DeviceIndex" => Self::DeviceIndex,
-            "DimVector" => Self::DimVector,
-            "float" => Self::Float,
-            "Generator" => Self::Generator,
-            "GraphModule" => Self::GraphModule,
-            "int" => Self::Int,
-            "Layout" => Self::Layout,
-            "MemoryFormat" => Self::MemoryFormat,
-            "QScheme" => Self::QScheme,
-            "Scalar" => Self::Scalar,
-            "ScalarType" => Self::ScalarType,
-            "Storage" => Self::Storage,
-            "str" => Self::Str,
-            "Stream" => Self::Stream,
-            "SymBool" => Self::SymBool,
-            "SymInt" => Self::SymInt,
-            "Tensor" => Self::Tensor,
-            _ => return None,
-        })
+        BASE_TY_TABLE
+            .iter()
+            .find_map(|&(name, ty)| (name == s).then_some(ty))
     }
 
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Bool => "bool",
-            Self::Device => "Device",
-            Self::DeviceIndex => "DeviceIndex",
-            Self::DimVector => "DimVector",
-            Self::Float => "float",
-            Self::Generator => "Generator",
-            Self::GraphModule => "GraphModule",
-            Self::Int => "int",
-            Self::Layout => "Layout",
-            Self::MemoryFormat => "MemoryFormat",
-            Self::QScheme => "QScheme",
-            Self::Scalar => "Scalar",
-            Self::ScalarType => "ScalarType",
-            Self::Storage => "Storage",
-            Self::Str => "str",
-            Self::Stream => "Stream",
-            Self::SymBool => "SymBool",
-            Self::SymInt => "SymInt",
-            Self::Tensor => "Tensor",
-        }
+    /// The table covers every variant (see `every_base_ty_has_a_table_entry`),
+    /// so the fallback below is unreachable in practice; it exists so this
+    /// stays panic-free rather than relying on that invariant.
+    fn as_str(self) -> &'static str {
+        BASE_TY_TABLE
+            .iter()
+            .find_map(|&(name, ty)| (ty == self).then_some(name))
+            .unwrap_or("<unknown BaseTy>")
     }
 }
 
@@ -241,16 +214,20 @@ mod tests {
         }
     }
 
-    /// Verbatim strings pulled from `PyTorch`'s `native_functions.yaml`. Every
-    /// base type plus both nesting orders of `?` and `[]` must round-trip
-    /// byte-exact, or Task 13's 2,585-schema corpus test would fail on real
-    /// input.
+    /// Mostly verbatim from `PyTorch`'s `native_functions.yaml`, plus seven
+    /// bare types (`DeviceIndex`, `Storage`, `Stream`, `QScheme`, `SymBool`,
+    /// `DimVector`, `GraphModule`) the corpus alone does not reach, so every
+    /// `BaseTy` variant appears at least once by its literal spelling; both
+    /// nesting orders of `?`/`[]` appear too (`int[]?`, `Tensor?[]`).
+    /// Asserting on the literal string, not just round-tripping, is what
+    /// catches a typo shared by both `BASE_TY_TABLE` directions.
     #[test]
     fn corpus_samples_round_trip() {
         for s in [
             "Tensor",
             "Tensor?",
             "Tensor[]",
+            "Tensor?[]",
             "int",
             "int[]",
             "int[1]",
@@ -271,8 +248,27 @@ mod tests {
             "Device?",
             "MemoryFormat?",
             "Generator?",
+            "DeviceIndex",
+            "Storage",
+            "Stream",
+            "QScheme",
+            "SymBool",
+            "DimVector",
+            "GraphModule",
         ] {
             round_trip(s);
         }
+    }
+
+    /// Guards the invariant `as_str`'s fallback relies on: a `BaseTy`
+    /// variant added without a matching table entry fails this loudly
+    /// instead of silently falling back to `as_str`'s sentinel string.
+    #[test]
+    fn every_base_ty_has_a_table_entry() {
+        assert_eq!(
+            super::BASE_TY_TABLE.len(),
+            19,
+            "BaseTy grew a variant without a matching BASE_TY_TABLE entry"
+        );
     }
 }
