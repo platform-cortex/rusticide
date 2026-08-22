@@ -118,17 +118,20 @@ impl fmt::Display for BaseTy {
 #[cfg(test)]
 mod tests {
     use super::BaseTy;
-    use crate::Type;
 
+    /// Renamed from `base_types_parse` (which called `Type::parse`) once
+    /// direct coverage of `BaseTy::parse` closed the gap: as originally
+    /// written, `BaseTy::parse` had zero direct test coverage, only
+    /// transitive coverage through `Type::parse`'s delegation.
     #[test]
-    fn base_types_parse() {
-        assert_eq!(Type::parse("Tensor"), Ok(Type::Base(BaseTy::Tensor)));
-        assert_eq!(Type::parse("int"), Ok(Type::Base(BaseTy::Int)));
-        assert_eq!(Type::parse("SymInt"), Ok(Type::Base(BaseTy::SymInt)));
+    fn parse_recognizes_known_base_types() {
+        assert_eq!(BaseTy::parse("Tensor"), Some(BaseTy::Tensor));
+        assert_eq!(BaseTy::parse("int"), Some(BaseTy::Int));
+        assert_eq!(BaseTy::parse("SymInt"), Some(BaseTy::SymInt));
     }
 
     #[test]
-    fn unknown_base_types_are_rejected() {
-        assert!(Type::parse("Frobnicator").is_err());
+    fn parse_rejects_unknown_base_types() {
+        assert_eq!(BaseTy::parse("Frobnicator"), None);
     }
 }
