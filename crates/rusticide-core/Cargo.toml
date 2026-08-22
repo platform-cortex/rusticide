@@ -1,0 +1,18 @@
+[package]
+authors.workspace = true
+categories = ["science", "data-structures"]
+description = "Rusticide core value types and dispatch key algebra"
+edition.workspace = true
+keywords = ["tensor", "deep-learning", "dispatch", "machine-learning"]
+license.workspace = true
+name = "rusticide-core"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

@@ -3,7 +3,7 @@
 # flags and its generated entry point cannot satisfy `unsafe_code = "deny"`,
 # so it must not be pulled in by the `crates/*` glob.
 exclude = ["crates/rusticide-fuzz"]
-members = []
+members = ["crates/rusticide-core"]
 resolver = "3"
 
 [workspace.package]
