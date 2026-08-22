@@ -1,9 +1,15 @@
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 /// Number of bits at the bottom of a `DispatchKeySet` reserved for
 /// backends. Kept at 16 so 48 bits remain for functionality.
 pub const NUM_BACKENDS: u8 = 16;
+
+// This value is load-bearing for DispatchKeySet's bit split between backends
+// and functionalities. Changing it requires updating Task 8's bit masks and
+// the number of variant discriminants in DispatchKey.
+const _: () = assert!(NUM_BACKENDS == 16);
 
 /// A backend that can supply kernels.
 ///
@@ -29,7 +35,18 @@ pub enum DispatchKey {
 }
 
 impl DispatchKey {
-    /// Whether this functionality can be customised per backend.
+    /// Whether each backend must supply its own kernel for this functionality.
+    ///
+    /// Per-backend functionalities (`Dense`, `Autograd`) claim one kernel-table
+    /// slot per backend, because each backend has genuinely different logic --
+    /// CPU addition and GPU addition are different kernels.
+    ///
+    /// Cross-cutting functionalities (`Functionalize`) claim exactly one slot
+    /// regardless of backend, because they transform the computation graph
+    /// before deferring to the backend underneath.
+    ///
+    /// When adding a new `DispatchKey` variant, decide: does each backend need
+    /// its own implementation, or is there one implementation wrapping all?
     #[must_use]
     pub const fn is_per_backend(self) -> bool {
         matches!(self, Self::Dense | Self::Autograd)
@@ -38,7 +55,7 @@ impl DispatchKey {
 
 #[cfg(test)]
 mod tests {
-    use super::{BackendComponent, DispatchKey, NUM_BACKENDS};
+    use super::{BackendComponent, DispatchKey};
 
     #[test]
     fn backends_are_numbered_from_one() {
@@ -59,12 +76,6 @@ mod tests {
         assert!(DispatchKey::Dense.is_per_backend());
         assert!(DispatchKey::Autograd.is_per_backend());
         assert!(!DispatchKey::Functionalize.is_per_backend());
-    }
-
-    #[test]
-    #[allow(clippy::assertions_on_constants)]
-    fn backend_count_leaves_room_for_functionality_bits() {
-        assert!(NUM_BACKENDS <= 16);
     }
 
     #[test]
