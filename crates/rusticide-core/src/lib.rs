@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Rusticide core: value types and the dispatch key algebra.
@@ -15,7 +16,7 @@ mod strides;
 pub use device::{Device, DeviceKind};
 pub use dtype::DType;
 pub use error::{Error, Result};
-pub use key::{BackendComponent, DispatchKey, NUM_BACKENDS};
+pub use key::{BackendComponent, DispatchKey, DispatchKeySet, NUM_BACKENDS};
 pub use layout::{Layout, MemoryFormat};
 pub use shape::Shape;
 pub use storage::Storage;
