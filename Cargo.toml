@@ -2,7 +2,7 @@
 # rusticide-fuzz is its own workspace: libfuzzer-sys needs nightly + sanitizer -Z
 # flags and its generated entry point cannot satisfy `unsafe_code = "deny"`,
 # so it must not be pulled in by the `crates/*` glob.
-exclude = ["crates/xllm-fuzz"]
+exclude = ["crates/rusticide-fuzz"]
 members = []
 resolver = "3"
 
