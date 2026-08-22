@@ -4,8 +4,10 @@
 
 //! Rusticide schema: a Rust port of torchgen's operator schema data model.
 
+mod base_ty;
 mod error;
 mod ty;
 
+pub use base_ty::BaseTy;
 pub use error::ParseError;
-pub use ty::{BaseTy, Type};
+pub use ty::Type;
