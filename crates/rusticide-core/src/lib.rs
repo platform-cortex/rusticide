@@ -6,6 +6,7 @@
 mod device;
 mod dtype;
 mod error;
+mod key;
 mod layout;
 mod shape;
 mod storage;
@@ -14,6 +15,7 @@ mod strides;
 pub use device::{Device, DeviceKind};
 pub use dtype::DType;
 pub use error::{Error, Result};
+pub use key::{BackendComponent, DispatchKey, NUM_BACKENDS};
 pub use layout::{Layout, MemoryFormat};
 pub use shape::Shape;
 pub use storage::Storage;
