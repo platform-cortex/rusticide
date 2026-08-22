@@ -18,12 +18,18 @@ pub struct Device {
 impl Device {
     #[must_use]
     pub const fn cpu() -> Self {
-        Self { kind: DeviceKind::Cpu, index: 0 }
+        Self {
+            kind: DeviceKind::Cpu,
+            index: 0,
+        }
     }
 
     #[must_use]
     pub const fn gpu(index: u8) -> Self {
-        Self { kind: DeviceKind::Gpu, index }
+        Self {
+            kind: DeviceKind::Gpu,
+            index,
+        }
     }
 
     #[must_use]

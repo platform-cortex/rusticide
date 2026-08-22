@@ -68,10 +68,7 @@ impl DType {
         ) {
             return Self::F32;
         }
-        if matches!(
-            (self, other),
-            (Self::U8, Self::I8) | (Self::I8, Self::U8)
-        ) {
+        if matches!((self, other), (Self::U8, Self::I8) | (Self::I8, Self::U8)) {
             return Self::I16;
         }
         if self.is_floating_point() == other.is_floating_point() {

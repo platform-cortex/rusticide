@@ -10,7 +10,10 @@ pub enum Error {
     DTypeMismatch { expected: DType, got: DType },
 
     #[error("shape mismatch: expected {expected:?}, got {got:?}")]
-    ShapeMismatch { expected: Vec<usize>, got: Vec<usize> },
+    ShapeMismatch {
+        expected: Vec<usize>,
+        got: Vec<usize>,
+    },
 
     #[error("shapes {lhs:?} and {rhs:?} are not broadcastable")]
     NotBroadcastable { lhs: Vec<usize>, rhs: Vec<usize> },

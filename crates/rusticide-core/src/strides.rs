@@ -12,7 +12,9 @@ pub struct Strides {
 impl Strides {
     #[must_use]
     pub fn new(strides: &[usize]) -> Self {
-        Self { strides: strides.to_vec() }
+        Self {
+            strides: strides.to_vec(),
+        }
     }
 
     #[must_use]

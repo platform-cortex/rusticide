@@ -12,7 +12,9 @@ pub struct Shape {
 impl Shape {
     #[must_use]
     pub fn new(dims: &[usize]) -> Self {
-        Self { dims: dims.to_vec() }
+        Self {
+            dims: dims.to_vec(),
+        }
     }
 
     #[must_use]
