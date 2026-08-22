@@ -48,9 +48,15 @@ Every task's requirements implicitly include this section.
 - **Files under 300 lines**, tests included. Split by responsibility and
   re-export from the crate root.
 - **ASCII only** in new code comments.
-- **SPDX header** on every new file:
-  `// SPDX-FileCopyrightText: 2026 Rusticide contributors` and
-  `// SPDX-License-Identifier: MIT OR Apache-2.0`.
+- **SPDX header** on every new `.rs` file, as a fenced block below rather
+  than inline code -- `comply` scans this document and reads a trailing
+  backtick as part of the licence identifier:
+
+  ```text
+  // SPDX-FileCopyrightText: 2026 Rusticide contributors
+  // SPDX-License-Identifier: MIT OR Apache-2.0
+  ```
+
 - **Commit messages** follow `committed.toml` and `commit-types.toml`.
   Commits are GPG-signed: use `git commit -S`.
 - **No attribution trailers of any kind.** Not `Co-authored-by:`, and
@@ -58,6 +64,14 @@ Every task's requirements implicitly include this section.
   and the project owner has overridden it.
 - **Never bypass the push guard.** `.claude/settings.json` denies
   `git push` and `gh pr create`; publishing stays a human action.
+
+**Every task runs `cargo fmt` before committing, and `cargo fmt --check`
+is part of its verification.** The `hk` pre-commit hook that would
+normally enforce this is broken in the current environment and is
+bypassed with `HK=0`, so formatting has to be checked explicitly. Tasks
+2 through 4 shipped unformatted because this was missed; do not repeat
+it. Note that the code blocks in this plan are hand-written and are NOT
+rustfmt-normalized -- transcribe them, then run `cargo fmt`.
 
 Verification commands used throughout:
 
@@ -887,21 +901,39 @@ version.workspace = true
 [lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
 unexpected_cfgs = "deny"
+unnameable_types = "warn"
 unreachable_pub = "warn"
 unsafe_code = "allow"
 unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
 warnings = "deny"
 
 [lints.clippy]
 cargo = { level = "warn", priority = -1 }
 cargo_common_metadata = "allow"
+collapsible_if = "allow"
 expect_used = "warn"
 multiple_crate_versions = "allow"
 nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
+redundant_pub_crate = "allow"
 undocumented_unsafe_blocks = "deny"
 unwrap_used = "warn"
 ```
+
+**This table must be the workspace's, with `unsafe_code` flipped and
+`undocumented_unsafe_blocks` added -- nothing else.** Declaring its own
+`[lints.rust]` means the crate stops inheriting, so any workspace lint
+left out is not merely un-restated: `unnameable_types`,
+`unused_macro_rules` and `unused_qualifications` are allow-by-default in
+rustc, so omitting them switches them off, and `warnings = "deny"` does
+not rescue a lint that never fires. An `unsafe` exemption that quietly
+drops unrelated lints is the exact failure this policy exists to prevent.
+
+`redundant_pub_crate` is carried over because the workspace's own comment
+records that it contradicts `unreachable_pub`, which this crate does
+inherit at `warn`; leaving it out creates a latent unsatisfiable pair.
 
 `clippy::undocumented_unsafe_blocks` mechanically enforces the
 `// SAFETY:` requirement from the spec's policy.
