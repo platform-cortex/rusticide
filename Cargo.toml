@@ -24,7 +24,7 @@ keywords = []
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/platform-cortex/rusticide"
-rust-version = "1.92"
+rust-version = "1.88"
 version = "0.1.0"
 
 [workspace.lints.rust]
@@ -89,10 +89,6 @@ memmap2 = { version = ">=0,<1.0.0" }
 num-traits = { version = ">=0,<1" }
 rayon = { version = ">=1,<2.0.0" }
 reqwest = { version = ">=0,<1.0.0", features = ["json", "__tls"] }
-serde = { version = ">=1,<2.0.0", features = ["derive"] }
-serde_json = { version = ">=1,<2.0.0" }
-thiserror = { version = ">=2,<3.0.0" }
-tokio = { version = ">=1,<2.0.0", features = ["full"] }
 ### Workspaced Crates
 rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.1.0" }
 rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.1.0" }
@@ -100,3 +96,7 @@ rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.1.0" }
 rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.1.0" }
 rusticide-schema = { path = "crates/rusticide-schema", version = "0.1.0" }
 rusticide-tokenizer = { path = "crates/rusticide-tokenizer", version = "0.1.0" }
+serde = { version = ">=1,<2.0.0", features = ["derive"] }
+serde_json = { version = ">=1,<2.0.0" }
+thiserror = { version = ">=2,<3.0.0" }
+tokio = { version = ">=1,<2.0.0", features = ["full"] }
