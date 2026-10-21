@@ -1,0 +1,105 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Semantic version, computed once per run by GitVersion (config: GitVersion.yml)
+# and handed to every caller as outputs. cicd.yml calls this as a root job.
+name: Version
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      version:
+        description: "Release version, e.g. 0.1.0 -- the TAG on a tag ref, otherwise GitVersion's MajorMinorPatch"
+        value: ${{ jobs.semver.outputs.version }}
+      semVer:
+        description: "GitVersion's SemVer, e.g. 0.1.0-feat-x.3"
+        value: ${{ jobs.semver.outputs.semVer }}
+      preReleaseLabel:
+        description: "Pre-release label, empty on a stable version"
+        value: ${{ jobs.semver.outputs.preReleaseLabel }}
+      declared:
+        description: "The version Cargo.toml declares in [workspace.package]"
+        value: ${{ jobs.semver.outputs.declared }}
+      shortSha:
+        description: "Abbreviated commit SHA"
+        value: ${{ jobs.semver.outputs.shortSha }}
+
+permissions:
+  contents: read
+
+env:
+  GITVERSION_SPEC: ${{ vars.GITVERSION_SPEC || '6.x' }}
+
+jobs:
+  semver:
+    name: Semantic Versioning
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.resolved.outputs.version }}
+      semVer: ${{ steps.gitversion.outputs.semVer }}
+      preReleaseLabel: ${{ steps.gitversion.outputs.preReleaseLabel }}
+      declared: ${{ steps.resolved.outputs.declared }}
+      shortSha: ${{ steps.gitversion.outputs.shortSha }}
+    steps:
+      # Full history and tags: GitVersion derives the version from both.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: "true"
+          persist-credentials: false
+
+      - name: Cache GitVersion tool
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            /opt/hostedtoolcache/GitVersion.Tool
+            ~/.dotnet/tools
+          key: gitversion-${{ runner.os }}-${{ runner.arch }}-${{ env.GITVERSION_SPEC }}
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@7417b1089e2c7de93510f1901d656ddf60bb024f # v4.7.0
+        with:
+          versionSpec: ${{ env.GITVERSION_SPEC }}
+          preferLatestVersion: true
+
+      - name: Determine version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@7417b1089e2c7de93510f1901d656ddf60bb024f # v4.7.0
+
+      # On a tag ref the tag is authoritative and must agree with both the
+      # history and Cargo.toml; elsewhere GitVersion's MajorMinorPatch is.
+      - name: Resolve authoritative version
+        id: resolved
+        env:
+          DERIVED: ${{ steps.gitversion.outputs.majorMinorPatch }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -Eeuo pipefail
+          declared="$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+          if [ "${REF_TYPE}" = tag ]; then
+            version="${REF_NAME#v}"
+            if [ "${version%%[-+]*}" != "${DERIVED}" ]; then
+              echo "::error::Tag ${REF_NAME} names ${version}, but GitVersion derives ${DERIVED}; is the tag on this commit?"
+              exit 1
+            fi
+            if [ "${version}" != "${declared}" ]; then
+              echo "::error::Tag ${REF_NAME} names ${version}, but Cargo.toml declares ${declared}."
+              exit 1
+            fi
+          else
+            version="${DERIVED}"
+          fi
+          if ! printf '%s' "${version}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Refusing '${version}': not a SemVer version."
+            exit 1
+          fi
+          {
+            echo "version=${version}"
+            echo "declared=${declared}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Version ${version} (Cargo.toml declares ${declared})"

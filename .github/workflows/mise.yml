@@ -2,6 +2,10 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
+# Proves the tool manifest still installs: every [tools] entry in mise.toml,
+# resolved through mise.lock, on a clean runner. cicd.yml runs the gates with
+# MISE_TASK_RUN_AUTO_INSTALL=false, so a pin that no longer resolves would
+# otherwise surface only on a contributor's first `mise run setup`.
 name: Mise
 
 concurrency:
@@ -10,66 +14,50 @@ concurrency:
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - "mise.toml"
+      - "mise.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/mise.yml"
   push:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - "mise.toml"
+      - "mise.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/mise.yml"
   workflow_dispatch:
+  # Weekly, because `latest` pins move without any change in this repository.
+  schedule:
+    - cron: "0 6 * * 1"
 
-# Top-level read-all; jobs that upload results need additional write permissions.
-permissions: read-all
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  GITHUB_TOKEN: ${{ github.token }}
+  MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
 
 jobs:
-  setup:
+  install:
+    name: Tool manifest installs
     runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: ./.github/actions/setup-rust-env
-        id: rust-env
-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
         with:
-          cache_key: mise-${{ steps.rust-env.outputs.cache-key }}
+          persist-credentials: false
 
-  lint:
-    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
-    needs: [setup]
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: elioseverojunior/rust-toolchain@53d2299d557a901de7517771d4ce9e89b70d4439 # v0.8.0-5
 
-      - uses: ./.github/actions/setup-rust-env
-        id: rust-env
-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+      # install: true (the default) is the test: it installs every [tools]
+      # entry from mise.lock and fails on any that no longer resolves.
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
         with:
-          cache_key: mise-${{ steps.rust-env.outputs.cache-key }}
-          install: false
-      - run: |
-          mise run cargo-sort
-          mise run taplo
-          mise run fmt
+          cache: false
 
-  test:
-    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
-    needs: [setup]
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: ./.github/actions/setup-rust-env
-        id: rust-env
-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
-        with:
-          cache_key: mise-${{ steps.rust-env.outputs.cache-key }}
-          install: false
-
-      - run: |
-          mise run coverage
+      - name: Every task still parses
+        run: mise tasks ls --all >/dev/null

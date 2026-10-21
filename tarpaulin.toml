@@ -19,7 +19,7 @@
 [default]
 engine = "Llvm"
 ignore-tests = true
-out = ["Stdout", "Xml"]
+out = ["Stdout", "Xml", "Lcov"]
 
 # Exclude ONLY genuinely host-untestable entry/ABI boilerplate from the 100%
 # metric — NOT a way to dodge testing real logic (all real logic is unit-tested

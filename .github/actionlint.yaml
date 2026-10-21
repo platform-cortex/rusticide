@@ -32,7 +32,10 @@ config-variables:
   - GITVERSION_SPEC
   - RUNS_ON
   - RUNS_ON_ARM64
-  - RUST_COVERAGE_TRESHOLD
+  - RUST_COVERAGE_THRESHOLD
+  # publish.yml: sign/attest mode (auto|true|false) and the crates.io opt-in.
+  - ATTEST
+  - CRATES_IO
 
 # Path-specific configurations.
 paths:

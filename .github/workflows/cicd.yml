@@ -1,0 +1,297 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# The one pipeline for every push and pull request:
+#
+#   version -+- gates (mise run ci:quick) -+
+#            +- sast (codeql.yml) ---------+
+#            +- msrv ----------------------+
+#            +- build (release smoke) -----+- tag -- publish (publish.yml)
+#            +- markdown / yaml -----------+
+#            +- secrets / supply-chain ----+
+#
+# `tag` and `publish` run only on a push to the default branch, and `tag`
+# only creates v<version> when Cargo.toml declares exactly the version
+# GitVersion computes and that tag does not exist yet. Releasing is
+# therefore deliberate: `mise run release:prepare`, commit, merge.
+name: CICD
+
+concurrency:
+  group: cicd-${{ github.ref_name }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+  # setup-rust-env already installed every [tools] entry; stop `mise run`
+  # from re-resolving them before each task.
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+
+jobs:
+  # A root job with no `if:`: everything below needs its outputs, and GitHub
+  # skips the dependents of a skipped job.
+  version:
+    name: Version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/version.yml
+
+  # The same gate a developer runs before pushing: fmt, cargo-sort, taplo,
+  # version/lock drift, clippy and the 100% tarpaulin coverage gate.
+  gates:
+    name: Gates (mise run ci:quick)
+    needs: [version]
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      # Installs mold, the pinned toolchain, comply, ignorefile and every
+      # mise [tools] entry (it runs jdx/mise-action itself).
+      - uses: ./.github/actions/setup-rust-env
+
+      - name: mise run ci:quick
+        env:
+          RUST_COVERAGE_THRESHOLD: ${{ vars.RUST_COVERAGE_THRESHOLD || '100' }}
+        run: mise run ci:quick
+
+      # tarpaulin.toml writes cobertura.xml and lcov.info; both are absent
+      # when the gate fails before the coverage step, hence the hashFiles guard.
+      - name: Convert LCOV to SARIF
+        if: always() && hashFiles('lcov.info') != ''
+        run: cargo-crap --lcov lcov.info --format sarif > results.sarif
+
+      - name: Upload coverage artifact
+        if: always() && hashFiles('cobertura.xml') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-report
+          path: |
+            cobertura.xml
+            lcov.info
+
+      - name: Generate Summary Report
+        if: always() && hashFiles('results.sarif') != ''
+        uses: ./.github/actions/summary
+        with:
+          file-path: results.sarif
+          title: "Coverage Report"
+          tool-name: "Tarpaulin"
+
+  # No runs-on: a job that calls a reusable workflow may not set one.
+  sast:
+    name: SAST
+    needs: [version]
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    uses: ./.github/workflows/codeql.yml
+
+  # Keeps `rust-version` honest: every other job builds with the pin in
+  # rust-toolchain.toml, so without this the declared floor can only drift
+  # upward, silently.
+  msrv:
+    name: MSRV
+    needs: [version]
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Read the floor, never hardcode it, and require .clippy.toml to agree:
+      # its `msrv` is what makes clippy reject APIs newer than the floor.
+      - name: Read the declared MSRV
+        id: msrv
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^rust-version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml | head -n1)"
+          clippy="$(sed -n 's/^msrv[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' .clippy.toml | head -n1)"
+          [ -n "$version" ] || { echo "::error file=Cargo.toml::no rust-version"; exit 1; }
+          [ "$clippy" = "$version" ] || {
+            echo "::error file=.clippy.toml::msrv \"${clippy}\" disagrees with Cargo.toml rust-version \"${version}\""
+            exit 1
+          }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      # Only rustc and cargo at the floor: setup-rust-env builds dev tooling
+      # that may itself need a newer compiler, which says nothing about MSRV.
+      - name: Install the MSRV toolchain
+        env:
+          MSRV: ${{ steps.msrv.outputs.version }}
+        run: rustup toolchain install "$MSRV" --profile minimal --no-self-update
+
+      - name: Check every publishable crate at the MSRV
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.msrv.outputs.version }}
+          # Replaces .cargo/config.toml's target rustflags, dropping the mold
+          # linker this job does not install while keeping warnings denied.
+          RUSTFLAGS: "-D warnings"
+        run: |
+          set -euo pipefail
+          mapfile -t names < <(cargo metadata --format-version 1 --no-deps \
+            | jq -r '.packages[] | select(.publish != []) | .name' | sort)
+          [ "${#names[@]}" -gt 0 ] || { echo "::error::no publishable crates"; exit 1; }
+          packages=()
+          for name in "${names[@]}"; do packages+=(--package "${name}"); done
+          cargo check --locked --all-features "${packages[@]}"
+
+  # Proves the release path on every change: the same `release:build` that
+  # publish.yml runs per target, here for the runner's own, including the
+  # glibc floor check and the binary's smoke run.
+  build:
+    name: Release build
+    needs: [version]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Install clang and mold
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang mold
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: elioseverojunior/rust-toolchain@53d2299d557a901de7517771d4ce9e89b70d4439 # v0.8.0-5
+
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        with:
+          install: false
+          cache: false
+
+      - run: mise run release:build
+
+      - name: Assert the build left the tree clean
+        run: git diff --exit-code
+
+  markdown:
+    name: Markdown Lint
+    needs: [version]
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-rust-env
+
+      - run: rumdl check
+
+  yaml:
+    name: YAML & Action Lint
+    needs: [version]
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-rust-env
+
+      - run: yamllint-rs .
+
+  secrets:
+    name: Secrets Scan
+    needs: [version]
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks scans the history, not just the tree
+          persist-credentials: false
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  supply-chain:
+    name: Supply Chain
+    needs: [version]
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-rust-env
+
+      - run: mise run security
+
+      - name: REUSE / SPDX compliance
+        run: mise run comply
+
+  tag:
+    name: Tag release
+    needs: [version, gates, sast, msrv, build, markdown, yaml, secrets, supply-chain]
+    if: >-
+      github.event_name == 'push'
+      && github.ref_name == github.event.repository.default_branch
+      && needs.version.outputs.preReleaseLabel == ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      created: ${{ steps.tag.outputs.created }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: "true"
+
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        with:
+          install: false
+          cache: false
+
+      - id: tag
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mise run -q release:tag --version "$VERSION" --push >> "$GITHUB_OUTPUT"
+
+  # Called, not triggered: the tag above was pushed with GITHUB_TOKEN, which
+  # raises no workflow events. Permissions are the union publish.yml's jobs need.
+  publish:
+    name: Publish
+    needs: [version, tag]
+    if: needs.tag.outputs.created == 'true'
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      dry-run: false
