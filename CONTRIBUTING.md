@@ -1,8 +1,9 @@
 # Contributing to rusticide
 
 <!--
-SPDX-FileCopyrightText: 2026 XLLM contributors
-SPDX-License-Identifier: CC-BY-3.0+
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
 Feedback and contributions are very welcome!
@@ -40,10 +41,10 @@ It supports commands like `gh auth login` (login) and
 The `docs/` directory has information you may find helpful:
 
 - [`docs/guidelines/contribution.md`](docs/guidelines/contribution.md) - AI usage policy and contribution guidelines
-- [`docs/plan/XLLM_PLAN.md`](docs/plan/XLLM_PLAN.md) - Architecture and roadmap
+- [`docs/plan/2026-08-21-rusticide-framework-design.md`](docs/plan/2026-08-21-rusticide-framework-design.md) - Architecture and roadmap
 - [`instructions.md`](instructions.md) - Quick start and installation guide
 
-If you want to *change* the criteria (architecture decisions), see [`docs/plan/XLLM_PLAN.md`](docs/plan/XLLM_PLAN.md).
+If you want to *change* the criteria (architecture decisions), see [`docs/plan/2026-08-21-rusticide-framework-design.md`](docs/plan/2026-08-21-rusticide-framework-design.md).
 
 The [`instructions.md`](instructions.md) file explains how to install the program locally
 (highly recommended if you're going to make code changes).
@@ -297,7 +298,7 @@ cargo test --doc --workspace
 ## Governance
 
 This project is led by the project maintainer.
-See [`docs/plan/XLLM_PLAN.md`](docs/plan/XLLM_PLAN.md) for architecture decisions and roadmap.
+See [`docs/plan/2026-08-21-rusticide-framework-design.md`](docs/plan/2026-08-21-rusticide-framework-design.md) for architecture decisions and roadmap.
 
 ## License
 

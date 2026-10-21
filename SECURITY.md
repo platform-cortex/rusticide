@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # Security (Top level page)
 
 ## Vulnerability reporting (security issues)
@@ -44,4 +50,4 @@ about contributions.
 For a description in more detail about the security requirements
 of this system, and the security assurance case that explains
 why we think this system is adequately secure, see our
-[architecture notes](docs/ARCHITECTURE.md) and [contributing guidelines](CONTRIBUTING.md).
+[architecture notes](docs/plan/2026-08-21-rusticide-framework-design.md) and [contributing guidelines](CONTRIBUTING.md).

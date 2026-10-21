@@ -3,6 +3,12 @@ name: instructions.md
 created_by: elioseverojunior@gmail.com
 ---
 
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # Instructions
 
 I want to build a new project called `rusticide`, written purely in Rust. It must
@@ -42,5 +48,3 @@ Ensure these development principles:
 5. YAGNI (You Aren't Gonna Need It)
 6. TDA (Tell Don't Ask)
 7. SOLID (use the SOLID principles that make sense for the project).
-
-Write the plan into [docs/plan/XLLM_PLAN.md](docs/plan/XLLM_PLAN.md).
