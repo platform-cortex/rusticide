@@ -3,6 +3,12 @@ name: quality-gate
 description: Run the rusticide pre-PR quality gate (format, sort, TOML, version/lock drift, clippy, tarpaulin coverage with doctests). Use before requesting review, before any commit, or when the user asks to verify the workspace is clean.
 ---
 
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # Quality Gate
 
 Run the pre-PR gate for this repo and report results honestly.

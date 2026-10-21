@@ -58,7 +58,9 @@ ignore = [
   "**/docs/benchmarks/latest.md",
   "**/docs/index.md",
   "**/mutants*/",
+  "**/opencode*.json",
   "**/package*.json",
+  "**/settings*.json",
   "**/supply-chain/.cargo-vet/**",
   "**/tsconfig*.json",
 ]

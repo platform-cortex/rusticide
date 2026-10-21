@@ -4,6 +4,12 @@ description: Scaffold a new crate in the rusticide virtual workspace with the st
 disable-model-invocation: true
 ---
 
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # New Crate
 
 Scaffold a new crate under `crates/<name>` that inherits the workspace lints and
