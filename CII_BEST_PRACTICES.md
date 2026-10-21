@@ -108,11 +108,12 @@ This file records the evidence for the [OpenSSF Best Practices Badge](https://ww
 | CONTRIBUTING.md | Contribution guidelines |
 | CHANGELOG.md | Release notes with security fixes |
 | instructions.md | Quick start and installation guide |
-| docs/plan/XLLM_PLAN.md | Architecture and roadmap |
-| .github/workflows/ci.yml | CI with tests, linting, auditing |
+| docs/plan/2026-08-21-rusticide-framework-design.md | Architecture and roadmap |
+| .github/workflows/cicd.yml | CI/CD: gates, SAST, MSRV, release build, tag |
+| .github/workflows/publish.yml | Multi-platform release with SBOM, signatures and attestations |
 | .github/workflows/mise.yml | Mise tasks CI |
 | .github/workflows/codeql.yml | CodeQL SAST |
-| .github/workflows/scorecard.yml | OpenSSF Scorecard |
+| .github/workflows/scorecards.yml | OpenSSF Scorecard |
 | .github/dependabot.yml | Dependency updates |
 | .github/CODEOWNERS | Code review enforcement |
 | .gitleaks.toml | Secret scanning config |

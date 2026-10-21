@@ -23,12 +23,15 @@ file; edit here, never there.
 ## Workspace
 
 - Virtual workspace (root `Cargo.toml` is `[workspace]` only, resolver 3).
-  `members` is an **explicit list**: `rusticide-alloc`, `rusticide-core`,
-  `rusticide-schema`. A new crate must be added to it by hand.
+  `members` is an **explicit list**: `rusticide` (the binary), `rusticide-alloc`,
+  `rusticide-core`, `rusticide-schema`. A new crate must be added to it by hand.
+- `crates/rusticide` is the shipped binary: all behavior lives in its `lib.rs`
+  (unit-tested); `main.rs` only forwards `std::env::args` and is excluded from
+  coverage by `tarpaulin.toml`.
 - `crates/rusticide-fuzz` is `exclude`d and is its own workspace: libfuzzer
   needs nightly and its generated entry point cannot satisfy
   `unsafe_code = "deny"`. Do not turn `members` back into a `crates/*` glob.
-- `crates/rusticide`, `-ggml`, `-tokenizer`, `-sampling`, `-quantize` are
+- `crates/rusticide-ggml`, `-tokenizer`, `-sampling`, `-quantize` are
   pre-reset leftovers: on disk, not members, never built. They get rewired
   once the core types they import exist.
 
@@ -69,6 +72,28 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
   list per file; start there.
 - Every task runs `cargo fmt` before committing; `cargo fmt --check` is part
   of verification.
+
+## CI/CD and releases
+
+- `.github/workflows/cicd.yml` runs on every push and pull request: `version`
+  (GitVersion, `version.yml`), then `gates` (`mise run ci:quick`), SAST
+  (`codeql.yml`), MSRV, a release build, markdown/YAML/secrets/supply-chain.
+  On a push to `main` it then runs `tag` and calls `publish.yml`.
+- `tag` creates `v<version>` only when `Cargo.toml` declares exactly the
+  version GitVersion computes and that tag does not exist. Releasing is
+  deliberate: `mise run release:prepare`, commit, merge to `main`. Never move
+  or recreate a published tag -- its artifacts are signed against it.
+- `publish.yml` builds 6 targets on native runners (Linux gnu/musl x86_64 and
+  aarch64, macOS x86_64 and aarch64), writes `SHA256SUMS` and a syft SBOM,
+  signs every file keyless with cosign, attests them with `actions/attest`,
+  and publishes a GitHub release (draft first, public last).
+- Signing and attestation need a public repository (or GitHub Enterprise
+  Cloud: set the repo variable `ATTEST=true`); a private release ships
+  checksums only. crates.io publishing is off until `CRATES_IO=true`.
+- Each publish step is a `mise run release:*` task; `mise run release:snapshot`
+  reproduces the pipeline locally for this machine's target.
+- Release binaries must run on every CPU of their target: never add
+  `target-cpu=native` to committed config.
 
 ## Code rules
 
