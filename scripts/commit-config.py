@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 """Render conventional-commit tooling configs from a single source of truth.
 
 `commit-types.toml` is the only file authored by hand. This script renders the
@@ -18,7 +23,9 @@ Zero third-party dependencies: reads TOML via the stdlib `tomllib` (Python 3.11+
 from __future__ import annotations
 
 import difflib
+import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -32,7 +39,16 @@ CLIFF_END = "# <<< commit-config:parsers <<<"
 GITMSG_START = "# >>> commit-config:types (generated from commit-types.toml -- do not edit) >>>"
 GITMSG_END = "# <<< commit-config:types <<<"
 
-GEN_BANNER = "@generated from commit-types.toml by scripts/commit-config.py -- DO NOT EDIT"
+# Emitted verbatim at the head of every fully-generated file. Every line carries
+# its own `#`, because a banner that relies on the caller to comment it silently
+# produces invalid TOML the moment it grows past one line -- which is exactly how
+# an SPDX-annotation pass stamping a header in here once broke the generator.
+GEN_BANNER = """\
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# @generated from commit-types.toml by scripts/commit-config.py -- DO NOT EDIT"""
 
 
 def toml_escape(value: str) -> str:
@@ -46,7 +62,7 @@ def load_manifest() -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Renderers — each returns the exact text its target file should contain.
+# Renderers -- each returns the exact text its target file should contain.
 # --------------------------------------------------------------------------- #
 def render_committed(manifest: dict) -> str:
     """Render the entire committed.toml file."""
@@ -54,7 +70,7 @@ def render_committed(manifest: dict) -> str:
     allowed = [t["name"] for t in manifest["type"] if t.get("committed", True)]
 
     lines = [
-        f"# {GEN_BANNER}",
+        GEN_BANNER,
         "# Regenerate with `mise run commit-config`; `mise run commit-config:check` guards drift.",
         "#",
         "# committed ~ https://github.com/crate-ci/committed",
@@ -77,7 +93,7 @@ def render_committed(manifest: dict) -> str:
 def _ordered_parsers(manifest: dict) -> list[dict]:
     """Build the cliff parser list: skips first, then types+extras sorted by order."""
     parsers: list[dict] = []
-    # 1. Exclusionary skip guards — must precede the grouping parsers.
+    # 1. Exclusionary skip guards -- must precede the grouping parsers.
     for pat in manifest["cliff"]["skip_messages"]:
         parsers.append({"keys": [("message", pat)], "skip": True})
 
@@ -122,7 +138,7 @@ def render_gitmessage_block(manifest: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Splicing — replace the content between two marker lines, keeping the markers.
+# Splicing -- replace the content between two marker lines, keeping the markers.
 # --------------------------------------------------------------------------- #
 def splice(text: str, start: str, end: str, inner: str) -> str:
     lines = text.splitlines()
@@ -131,7 +147,7 @@ def splice(text: str, start: str, end: str, inner: str) -> str:
         j = lines.index(end)
     except ValueError as exc:
         raise SystemExit(
-            f"error: markers {start!r}/{end!r} not found — add them to the target file first"
+            f"error: markers {start!r}/{end!r} not found -- add them to the target file first"
         ) from exc
     if j <= i:
         raise SystemExit(f"error: end marker precedes start marker ({start!r})")
@@ -155,11 +171,34 @@ def desired_outputs(manifest: dict) -> dict[Path, str]:
     }
 
 
+def _taplo_format(path: Path) -> None:
+    """Format `path` in place with taplo, surfacing taplo's own diagnostics on failure.
+
+    `check=True` alone raises a CalledProcessError whose message is a bare exit
+    status, discarding the parse error taplo wrote to stderr -- the one thing that
+    explains what actually went wrong.
+    """
+    proc = subprocess.run(
+        ["taplo", "format", str(path)], capture_output=True, text=True, check=False
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.strip() or proc.stdout.strip() or "(no output)"
+        raise SystemExit(f"error: taplo could not format {path}:\n{detail}")
+
+
+def _normalized(text: str) -> str:
+    """Return `text` as taplo would format it, without touching any tracked file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        scratch = Path(tmpdir) / "normalize.toml"
+        scratch.write_text(text)
+        _taplo_format(scratch)
+        return scratch.read_text()
+
+
 def _format_generated() -> None:
     """Normalize generated files through taplo to match repo formatting rules."""
-    import subprocess
     for f in (ROOT / "committed.toml", ROOT / "cliff.toml"):
-        subprocess.run(["taplo", "format", str(f)], capture_output=True, check=True)
+        _taplo_format(f)
 
 
 def cmd_generate() -> int:
@@ -176,22 +215,20 @@ def cmd_check() -> int:
     for path, want in desired_outputs(manifest).items():
         have = path.read_text() if path.exists() else ""
         if have != want:
-            # The generator output may differ from the on-disk formatting;
-            # run taplo on both and compare again.
-            import subprocess, tempfile
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as tmp:
-                tmp.write(want)
-                tmp.flush()
-                fpath = tmp.name
-            subprocess.run(["taplo", "format", fpath], capture_output=True, check=True)
-            subprocess.run(["taplo", "format", str(path)], capture_output=True, check=True)
-            want_norm = Path(fpath).read_text()
-            have_norm = path.read_text()
-            Path(fpath).unlink()
+            # The on-disk file has been through taplo (key reordering, spacing), so a
+            # raw mismatch is not drift yet -- normalize both sides and compare again.
+            # Both are normalized as scratch copies: `check` must never write to the
+            # tree it audits, or it would quietly repair the drift it exists to report.
+            # .gitmessage is not TOML, so it is compared as authored.
+            if path.suffix == ".toml":
+                want_norm = _normalized(want)
+                have_norm = _normalized(have)
+            else:
+                want_norm, have_norm = want, have
             if have_norm != want_norm:
                 drifted = True
                 rel = path.relative_to(ROOT)
-                print(f"drift: {rel} is stale — run `mise run commit-config`", file=sys.stderr)
+                print(f"drift: {rel} is stale -- run `mise run commit-config`", file=sys.stderr)
                 diff = difflib.unified_diff(
                     have_norm.splitlines(keepends=True),
                     want_norm.splitlines(keepends=True),

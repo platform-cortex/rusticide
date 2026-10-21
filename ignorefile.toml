@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+version = 1
+
+[[gitignore.section]]
+level = 3
+name = "Ignored"
+
+[[gitignore.section.rule]]
+ignore = [
+  "/**/target/",
+  "/**/node_modules/",
+  "/**/worktree/",
+  "/**/.worktree/",
+  "/**/worktrees/",
+  "/**/.worktrees/",
+  "/**/__pycache__/",
+  "/**/undefined/",
+  "/**/.act/",
+]
+
+[[gitignore.section.rule]]
+ignore = [
+  "/**/cobertura.xml",
+  "/**/lcov.info",
+  "/**/build_rs_cov.profraw",
+  "/**/results.sarif",
+]
+note = "Editor artifacts"
+
+[[gitignore.section.rule]]
+ignore = ["/SCORECARD.md", "/scorecard.json"]
+note = "Scorecard Scans"
+
+[[gitignore.section.rule]]
+ignore = ["/models/"]
+note = "Local model files fetched by scripts/fetch-stories15m.sh"
+
+[[gitignore.section.rule]]
+ignore = [
+  "/crates/rusticide-fuzz/corpus/",
+  "/crates/rusticide-fuzz/artifacts/",
+  "/crates/rusticide-fuzz/coverage/",
+  "/crates/rusticide-fuzz/Cargo.lock",
+]
+note = """
+cargo-fuzz working data. Only Cargo.toml and fuzz_targets/ are tracked;
+corpora and crash artifacts are local and can be large."""
+
+[[gitignore.section.rule]]
+ignore = ["/fuzz/"]
+note = """
+Legacy root-level cargo-fuzz tree (superseded by crates/rusticide-fuzz). Entirely
+local working data -- corpora, crash artifacts, build output."""
+
+[[gitignore.section]]
+level = 3
+name = "Always add"
+
+[[gitignore.section.rule]]
+add = ["opencode.json", "/**/.act/README.md"]
+
+[[gitignore.section]]
+level = 3
+name = "Mise"
+[[gitignore.section.rule]]
+ignore = ["mise.local.toml"]

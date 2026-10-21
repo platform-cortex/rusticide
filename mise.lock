@@ -87,6 +87,10 @@ url_api = "https://api.github.com/repos/jdx/hk/releases/assets/484573026"
 version = "0.22.2"
 backend = "cargo:cargo-audit"
 
+[[tools."cargo:cargo-binstall"]]
+version = "1.21.1"
+backend = "cargo:cargo-binstall"
+
 [[tools."cargo:cargo-crap"]]
 version = "0.3.0"
 backend = "cargo:cargo-crap"
@@ -135,6 +139,10 @@ backend = "cargo:cargo-sort"
 version = "0.37.0"
 backend = "cargo:cargo-tarpaulin"
 
+[[tools."cargo:cargo-update"]]
+version = "22.1.1"
+backend = "cargo:cargo-update"
+
 [[tools."cargo:cargo-wizard"]]
 version = "0.2.3"
 backend = "cargo:cargo-wizard"
@@ -146,13 +154,6 @@ backend = "cargo:committed"
 [[tools."cargo:flamegraph"]]
 version = "0.6.13"
 backend = "cargo:flamegraph"
-
-[[tools."cargo:hk"]]
-version = "1.50.0"
-backend = "cargo:hk"
-
-[tools."cargo:hk".options]
-locked = "false"
 
 [[tools."cargo:rumdl"]]
 version = "0.2.32"
@@ -166,60 +167,14 @@ backend = "cargo:taplo-cli"
 version = "0.1.4"
 backend = "cargo:yamllint-rs"
 
-[[tools.gh]]
-version = "2.66.1"
-backend = "aqua:cli/cli"
-
-[tools.gh."platforms.linux-arm64"]
-checksum = "sha256:f11a2c3d1a2cfd97106fa6405fbb4c1254a7e91be38537148ab7d27209698a6b"
-url = "https://github.com/cli/cli/releases/download/v2.66.1/gh_2.66.1_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/225296300"
-provenance = "github-attestations"
-
-[tools.gh."platforms.linux-arm64-musl"]
-checksum = "sha256:f11a2c3d1a2cfd97106fa6405fbb4c1254a7e91be38537148ab7d27209698a6b"
-url = "https://github.com/cli/cli/releases/download/v2.66.1/gh_2.66.1_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/225296300"
-provenance = "github-attestations"
-
-[tools.gh."platforms.linux-x64"]
-checksum = "sha256:387b4e9a717ddf2efa8426a774f14463bf64e41fb7bec3463c737cf5413e5a79"
-url = "https://github.com/cli/cli/releases/download/v2.66.1/gh_2.66.1_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/225296294"
-provenance = "github-attestations"
-
-[tools.gh."platforms.linux-x64-musl"]
-checksum = "sha256:387b4e9a717ddf2efa8426a774f14463bf64e41fb7bec3463c737cf5413e5a79"
-url = "https://github.com/cli/cli/releases/download/v2.66.1/gh_2.66.1_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/225296294"
-provenance = "github-attestations"
-
-[tools.gh."platforms.macos-arm64"]
-checksum = "sha256:80bf6b20a56411ae56ffebdfef81217cb2b739674a625a85f8668153604cc4f6"
-url = "https://github.com/cli/cli/releases/download/v2.66.1/gh_2.66.1_macOS_arm64.zip"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/225296306"
-provenance = "github-attestations"
-
-[tools.gh."platforms.macos-x64"]
-checksum = "sha256:7ae1b19f5b4c46545be7c9a16a52b922b9dee4755f051c7fa6f105784632d035"
-url = "https://github.com/cli/cli/releases/download/v2.66.1/gh_2.66.1_macOS_amd64.zip"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/225296305"
-provenance = "github-attestations"
-
-[tools.gh."platforms.windows-x64"]
-checksum = "sha256:2f8cd5d8bcffc65dc4dc69bb48ca536b53f792744ba7da7e75b238bde9deb2bf"
-url = "https://github.com/cli/cli/releases/download/v2.66.1/gh_2.66.1_windows_amd64.zip"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/225296314"
-provenance = "github-attestations"
-
 [[tools.git-cliff]]
 version = "2.13.1"
 backend = "aqua:orhun/git-cliff"
 
 [tools.git-cliff."platforms.linux-arm64"]
-checksum = "sha256:4054c124b926c117f3fa048939bc8be0a954f29f3b6f367627e8cb22c1971882"
-url = "https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-aarch64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/405850720"
+checksum = "sha256:9619b7f0c584229f8a2331c1905afe88bd938bdc9102926c2073836a42f02455"
+url = "https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/405850077"
 
 [tools.git-cliff."platforms.linux-arm64-musl"]
 checksum = "sha256:4054c124b926c117f3fa048939bc8be0a954f29f3b6f367627e8cb22c1971882"
@@ -227,9 +182,9 @@ url = "https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.
 url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/405850720"
 
 [tools.git-cliff."platforms.linux-x64"]
-checksum = "sha256:200d2535da6d9703f3bcc8a4d159c3b55eacdb01cf2148c55b3eee9dd04d5249"
-url = "https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/405850671"
+checksum = "sha256:9a1263f24e59a2f508c7b3d3283c9dea94a8bf697f96dbc18cc783cac6284546"
+url = "https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/405850439"
 
 [tools.git-cliff."platforms.linux-x64-musl"]
 checksum = "sha256:200d2535da6d9703f3bcc8a4d159c3b55eacdb01cf2148c55b3eee9dd04d5249"
@@ -250,45 +205,6 @@ url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/40585019
 checksum = "sha256:3ae3a5549e85c7ad5b20192ebcfee4371269deca51255f6f2f2e051c6541f5ca"
 url = "https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/405851866"
-
-[[tools."github:azolfagharj/tmq"]]
-version = "1.0.3"
-backend = "github:azolfagharj/tmq"
-
-[tools."github:azolfagharj/tmq"."platforms.linux-arm64"]
-checksum = "sha256:48da2e4eae0fdd56c5b502c7228c0ea1fc6fb1510f931343d1dd8a203f05c9b4"
-url = "https://github.com/azolfagharj/tmq/releases/download/1.0.3/tmq-linux-arm64"
-url_api = "https://api.github.com/repos/azolfagharj/tmq/releases/assets/360237214"
-
-[tools."github:azolfagharj/tmq"."platforms.linux-arm64-musl"]
-checksum = "sha256:48da2e4eae0fdd56c5b502c7228c0ea1fc6fb1510f931343d1dd8a203f05c9b4"
-url = "https://github.com/azolfagharj/tmq/releases/download/1.0.3/tmq-linux-arm64"
-url_api = "https://api.github.com/repos/azolfagharj/tmq/releases/assets/360237214"
-
-[tools."github:azolfagharj/tmq"."platforms.linux-x64"]
-checksum = "sha256:0e1c7ea808b491bd2f92091320e2f472cb33b003fdc7fbdfec8e21cdaa5a323f"
-url = "https://github.com/azolfagharj/tmq/releases/download/1.0.3/tmq-linux-amd64"
-url_api = "https://api.github.com/repos/azolfagharj/tmq/releases/assets/360237213"
-
-[tools."github:azolfagharj/tmq"."platforms.linux-x64-musl"]
-checksum = "sha256:0e1c7ea808b491bd2f92091320e2f472cb33b003fdc7fbdfec8e21cdaa5a323f"
-url = "https://github.com/azolfagharj/tmq/releases/download/1.0.3/tmq-linux-amd64"
-url_api = "https://api.github.com/repos/azolfagharj/tmq/releases/assets/360237213"
-
-[tools."github:azolfagharj/tmq"."platforms.macos-arm64"]
-checksum = "sha256:8caae7edf6a0412b9f4311b13f01c9172b619406b4972cae72dfec34c31f7716"
-url = "https://github.com/azolfagharj/tmq/releases/download/1.0.3/tmq-darwin-arm64"
-url_api = "https://api.github.com/repos/azolfagharj/tmq/releases/assets/360237216"
-
-[tools."github:azolfagharj/tmq"."platforms.macos-x64"]
-checksum = "sha256:60207e38dd77d88cb8740cfa1be34a22366970c3531b7afe0dd7630ac34278c6"
-url = "https://github.com/azolfagharj/tmq/releases/download/1.0.3/tmq-darwin-amd64"
-url_api = "https://api.github.com/repos/azolfagharj/tmq/releases/assets/360237218"
-
-[tools."github:azolfagharj/tmq"."platforms.windows-x64"]
-checksum = "sha256:f71f27260faf8bf6903e4e35810f4356143ebaf9affd222a8d32d5fa6be0e188"
-url = "https://github.com/azolfagharj/tmq/releases/download/1.0.3/tmq-windows-amd64.exe"
-url_api = "https://api.github.com/repos/azolfagharj/tmq/releases/assets/360237215"
 
 [[tools.gitleaks]]
 version = "8.30.1"
@@ -332,10 +248,6 @@ url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378333
 [[tools."pipx:codecov-cli"]]
 version = "11.3.1"
 backend = "pipx:codecov-cli"
-
-[[tools."pipx:reuse"]]
-version = "6.2.0"
-backend = "pipx:reuse"
 
 [[tools.scorecard]]
 version = "5.5.0"

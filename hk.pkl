@@ -1,5 +1,9 @@
-amends "package://github.com/jdx/hk/releases/download/v1.55.1/hk@1.50.0#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.50.0/hk@1.50.0#/Builtins.pkl"
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+amends "package://github.com/jdx/hk/releases/download/v1.56.0/hk@1.56.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.56.0/hk@1.56.0#/Builtins.pkl"
 
 local linters = new Mapping<String, Step> {
     ["check-added-large-files"] = new Step {
@@ -29,17 +33,17 @@ local linters = new Mapping<String, Step> {
     ["trailing-whitespace-fixer"] = new Step {
         glob = "**"
         check = "hk util trailing-whitespace --diff {{ files }}"
-        fix = "hk util trailing-whitespace {{ files }}"
+        fix = "hk util trailing-whitespace --fix {{ files }}"
     }
     ["end-of-file-fixer"] = new Step {
         glob = "**"
         check = "hk util end-of-file-fixer --diff {{ files }}"
-        fix = "hk util end-of-file-fixer {{ files }}"
+        fix = "hk util end-of-file-fixer --fix {{ files }}"
     }
     ["mixed-line-ending-fixer"] = new Step {
         glob = "**"
         check = "hk util mixed-line-ending --diff {{ files }}"
-        fix = "hk util mixed-line-ending {{ files }}"
+        fix = "hk util mixed-line-ending --fix {{ files }}"
     }
 
     ["gitleaks"] = Builtins.gitleaks
@@ -57,14 +61,14 @@ local linters = new Mapping<String, Step> {
 
     ["cargo-sort"] = new Step {
         glob = "**/Cargo.toml"
-        check = "mise run cargo-sort:check"
-        fix = "mise run cargo-sort"
+        check = "mise run cargo:sort:check"
+        fix = "mise run cargo:sort"
     }
 
     ["taplo"] = new Step {
         glob = "*.toml"
-        check = "mise run taplo-check {{ files }}"
-        fix = "mise run taplo {{ files }}"
+        check = "mise run taplo:check {{ files }}"
+        fix = "mise run taplo:fmt {{ files }}"
     }
 
     ["rumdl"] = new Step {
@@ -75,11 +79,11 @@ local linters = new Mapping<String, Step> {
 
     ["reuse-fix"] = new Step {
         glob = "*.rs"
-        fix = "mise run reuse:fix {{ files }}"
+        fix = "mise run comply:fix {{ files }}"
     }
     ["reuse-lint"] = new Step {
         glob = "**"
-        check = "mise run reuse"
+        check = "mise run comply"
     }
 
     ["commit-config"] = new Step {
@@ -89,20 +93,20 @@ local linters = new Mapping<String, Step> {
 
     ["audit"] = new Step {
         glob = "{Cargo.lock,Cargo.toml,**/Cargo.toml}"
-        check = "mise run audit"
+        check = "mise run cargo:audit"
     }
     ["deny"] = new Step {
         glob = "{Cargo.lock,Cargo.toml,**/Cargo.toml,deny.toml}"
-        check = "mise run deny"
+        check = "mise run cargo:deny"
     }
 
     ["fmt-check"] = new Step {
         glob = "*.rs"
-        check = "mise run fmt:check"
+        check = "mise run cargo:fmt:check"
     }
     ["clippy"] = new Step {
         glob = "*.rs"
-        check = "mise run clippy"
+        check = "mise run cargo:clippy"
     }
 }
 
@@ -127,7 +131,7 @@ hooks {
     ["commit-msg"] {
         steps {
             ["commit-lint"] = new {
-                check = "mise run commit-lint --commit-file {{ files }}"
+                check = "mise run commit:lint --commit-file {{ files }}"
             }
         }
     }

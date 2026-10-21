@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 ### Ignored
 /**/target/
 /**/node_modules/
@@ -36,3 +40,6 @@
 ### Always add
 !opencode.json
 !/**/.act/README.md
+
+### Mise
+mise.local.toml
