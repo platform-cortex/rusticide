@@ -7,6 +7,7 @@
 use core::fmt;
 
 use crate::ParseError;
+use crate::error::ensure_round_trip;
 
 /// An alias annotation, e.g. the `a!` inside `Tensor(a!)`.
 ///
@@ -52,16 +53,7 @@ impl Annotation {
     /// value fails to print back to exactly `s` (a bug in this parser,
     /// not in the input).
     pub fn parse(s: &str) -> Result<Self, ParseError> {
-        let parsed = Self::parse_inner(s)?;
-        let printed = parsed.to_string();
-        if printed == s {
-            Ok(parsed)
-        } else {
-            Err(ParseError::RoundTrip {
-                parsed: printed,
-                expected: s.to_owned(),
-            })
-        }
+        ensure_round_trip(Self::parse_inner(s)?, s)
     }
 
     fn parse_inner(s: &str) -> Result<Self, ParseError> {

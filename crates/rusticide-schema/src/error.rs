@@ -39,3 +39,23 @@ pub enum ParseError {
         expected: String,
     },
 }
+
+/// Return `value` if it prints back to exactly `input`, else a
+/// [`ParseError::RoundTrip`] naming both spellings.
+///
+/// Shared by every parser that asserts round-tripping, so the check and
+/// the error it builds exist once.
+pub(crate) fn ensure_round_trip<T: core::fmt::Display>(
+    value: T,
+    input: &str,
+) -> Result<T, ParseError> {
+    let printed = value.to_string();
+    if printed == input {
+        Ok(value)
+    } else {
+        Err(ParseError::RoundTrip {
+            parsed: printed,
+            expected: input.to_owned(),
+        })
+    }
+}

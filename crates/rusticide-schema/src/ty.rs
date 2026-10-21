@@ -6,6 +6,7 @@
 
 use core::fmt;
 
+use crate::error::ensure_round_trip;
 use crate::{BaseTy, ParseError};
 
 /// A schema type: a base type, optionally wrapped in `?` and `[]`.
@@ -44,16 +45,7 @@ impl Type {
     /// [`ParseError::RoundTrip`] if the parsed value fails to print back
     /// to exactly `s` (a bug in this parser, not in the input).
     pub fn parse(s: &str) -> Result<Self, ParseError> {
-        let t = Self::parse_inner(s)?;
-        let printed = t.to_string();
-        if printed == s {
-            Ok(t)
-        } else {
-            Err(ParseError::RoundTrip {
-                parsed: printed,
-                expected: s.to_owned(),
-            })
-        }
+        ensure_round_trip(Self::parse_inner(s)?, s)
     }
 
     fn parse_inner(s: &str) -> Result<Self, ParseError> {
