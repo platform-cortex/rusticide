@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r \".tool_input.command\"); if printf \"%s\" \"$cmd\" | grep -Eq \"(^|[;&|[:space:]])(git[[:space:]]+push\\b|gh[[:space:]]+pr[[:space:]]+create\\b)\"; then printf \"%s\" \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"deny\\\",\\\"permissionDecisionReason\\\":\\\"Blocked by project policy: git push and gh pr create publish outside this machine and require explicit human approval (see AGENTS.md). Ask the user to run it themselves. Local commits are allowed: AGENTS.md gates them on approval, which the user grants per session.\\\"}}\"; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r \".tool_response.filePath // .tool_input.file_path\"); case \"$f\" in *.rs) rustfmt --edition 2024 \"$f\";; esac 2>/dev/null || true",
+            "statusMessage": "rustfmt"
+          }
+        ]
+      }
+    ]
+  }
+}
