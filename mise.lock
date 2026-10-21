@@ -167,6 +167,52 @@ backend = "cargo:taplo-cli"
 version = "0.1.4"
 backend = "cargo:yamllint-rs"
 
+[[tools.cosign]]
+version = "3.1.4"
+backend = "aqua:sigstore/cosign"
+
+[tools.cosign."platforms.linux-arm64"]
+checksum = "sha256:ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-arm64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660068106"
+provenance = "cosign"
+
+[tools.cosign."platforms.linux-arm64-musl"]
+checksum = "sha256:ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-arm64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660068106"
+provenance = "cosign"
+
+[tools.cosign."platforms.linux-x64"]
+checksum = "sha256:424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-amd64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660069428"
+provenance = "cosign"
+
+[tools.cosign."platforms.linux-x64-musl"]
+checksum = "sha256:424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-amd64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660069428"
+provenance = "cosign"
+
+[tools.cosign."platforms.macos-arm64"]
+checksum = "sha256:9f9b8cd557cf2e5b3df3373a00baa005a86b02391e3e06dd0ce37b3a1533d3a4"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-darwin-arm64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660069257"
+provenance = "cosign"
+
+[tools.cosign."platforms.macos-x64"]
+checksum = "sha256:9d1e4abe2b6be279ed0d2ff706fde1ccd738747c834e3e6d44039c238867334f"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-darwin-amd64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660069002"
+provenance = "cosign"
+
+[tools.cosign."platforms.windows-x64"]
+checksum = "sha256:cbe953787074611f1334cbf37dc1cf953995bb8c45398eb4fc7bb781d29c1f2a"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-windows-amd64.exe"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660070803"
+provenance = "cosign"
+
 [[tools.git-cliff]]
 version = "2.13.1"
 backend = "aqua:orhun/git-cliff"
@@ -308,6 +354,45 @@ url_api = "https://api.github.com/repos/ossf/scorecard/releases/assets/403812975
 
 [tools.scorecard."platforms.windows-x64".provenance.slsa]
 url = "https://github.com/ossf/scorecard/releases/download/v5.5.0/multiple.intoto.jsonl"
+
+[[tools.syft]]
+version = "1.55.0"
+backend = "aqua:anchore/syft"
+
+[tools.syft."platforms.linux-arm64"]
+checksum = "sha256:929bd163db2d7cd2255d3bcb8967208079813d7b46b0c952f7b794d8e2c7d304"
+url = "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/657153891"
+
+[tools.syft."platforms.linux-arm64-musl"]
+checksum = "sha256:929bd163db2d7cd2255d3bcb8967208079813d7b46b0c952f7b794d8e2c7d304"
+url = "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/657153891"
+
+[tools.syft."platforms.linux-x64"]
+checksum = "sha256:bb65249542db5fedeeb4d3f9b018b75e7264dbfbbb10486f044581a92f90490d"
+url = "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/657153873"
+
+[tools.syft."platforms.linux-x64-musl"]
+checksum = "sha256:bb65249542db5fedeeb4d3f9b018b75e7264dbfbbb10486f044581a92f90490d"
+url = "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/657153873"
+
+[tools.syft."platforms.macos-arm64"]
+checksum = "sha256:1217c258bd5eb91ef3189cf22a82e02f9cac07e4ce934350f428e93aff674625"
+url = "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/657153863"
+
+[tools.syft."platforms.macos-x64"]
+checksum = "sha256:e2e5831cbabaec9a36fe65c34755c1113982c842a685edce3ce0b54a0ded8003"
+url = "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/657153867"
+
+[tools.syft."platforms.windows-x64"]
+checksum = "sha256:ada4c9b93af575f479ce80fce6629897272a2d41f300a14bc49bace020767ca2"
+url = "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_windows_amd64.zip"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/657153857"
 
 [[tools.taplo]]
 version = "0.10.0"
