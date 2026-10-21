@@ -201,4 +201,36 @@ mod tests {
             "message must not report an unrelated sentinel byte count: {msg}"
         );
     }
+
+    #[test]
+    fn storage_remembers_the_device_it_was_allocated_for() {
+        let s = Storage::new(DType::U8, Device::gpu(0), 1).expect("allocation succeeds");
+        assert_eq!(s.device(), Device::gpu(0));
+    }
+
+    /// `read`/`write` promise to recover a poisoned lock instead of
+    /// panicking. The lock is poisoned for real -- a thread panics while
+    /// holding the write guard -- because that is the only way to reach the
+    /// recovery arm.
+    #[test]
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "the guard must still be held when the thread panics, or the lock is never poisoned"
+    )]
+    fn a_writer_panicking_mid_write_leaves_the_storage_usable() {
+        let s = Storage::new(DType::U8, Device::cpu(), 4).expect("allocation succeeds");
+        let writer = s.clone();
+        let outcome = std::thread::spawn(move || {
+            let mut guard = writer.write();
+            guard[0] = 7;
+            panic!("simulated kernel failure while holding the write guard");
+        })
+        .join();
+
+        assert!(outcome.is_err(), "the writer thread must have panicked");
+        assert!(s.buffer.is_poisoned(), "precondition: the lock is poisoned");
+        assert_eq!(s.read()[0], 7, "the partial write is still visible");
+        s.write()[1] = 3;
+        assert_eq!(s.read()[1], 3);
+    }
 }

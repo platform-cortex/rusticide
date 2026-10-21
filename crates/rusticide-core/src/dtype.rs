@@ -140,4 +140,23 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn only_bool_and_u8_are_unsigned() {
+        for t in [DType::Bool, DType::U8] {
+            assert!(!t.is_signed(), "{t:?} must be unsigned");
+        }
+        for t in [
+            DType::I8,
+            DType::I16,
+            DType::I32,
+            DType::I64,
+            DType::F16,
+            DType::BF16,
+            DType::F32,
+            DType::F64,
+        ] {
+            assert!(t.is_signed(), "{t:?} must be signed");
+        }
+    }
 }

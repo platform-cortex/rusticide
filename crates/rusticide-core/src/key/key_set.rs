@@ -216,4 +216,48 @@ mod tests {
             (0..u8::try_from(super::ALL_FUNCTIONALITIES.len()).expect("small")).collect();
         assert_eq!(discriminants, expected);
     }
+
+    /// The guard's work is done by rustc; calling it here only proves it
+    /// accepts every registered variant without panicking.
+    #[test]
+    fn the_exhaustiveness_guard_accepts_every_registered_functionality() {
+        for k in super::ALL_FUNCTIONALITIES {
+            super::assert_all_functionalities_registered(k);
+        }
+    }
+
+    #[test]
+    fn is_empty_is_false_once_any_bit_is_set() {
+        assert!(DispatchKeySet::empty().is_empty());
+        assert!(
+            !DispatchKeySet::empty()
+                .with_backend(BackendComponent::Cpu)
+                .is_empty()
+        );
+        assert!(
+            !DispatchKeySet::empty()
+                .with_functionality(DispatchKey::Dense)
+                .is_empty()
+        );
+    }
+
+    /// Pins the bit layout `raw` exposes: backends occupy the low
+    /// `NUM_BACKENDS` bits from bit 0 (`Cpu = 1` -> bit 0), functionalities
+    /// start right above them.
+    #[test]
+    fn raw_exposes_backends_low_and_functionalities_above() {
+        let s = DispatchKeySet::empty()
+            .with_backend(BackendComponent::Cpu)
+            .with_functionality(DispatchKey::Dense);
+        assert_eq!(s.raw(), 1 | (1 << crate::NUM_BACKENDS));
+    }
+
+    /// The public API can only set `Cpu`/`Gpu` bits, but `NUM_BACKENDS`
+    /// reserves 16. A bit for a backend that has no variant yet must read
+    /// back as "no backend", not be misreported as a known one.
+    #[test]
+    fn a_backend_bit_with_no_variant_reports_no_backend() {
+        let s = DispatchKeySet(1 << 5);
+        assert_eq!(s.highest_backend(), None);
+    }
 }

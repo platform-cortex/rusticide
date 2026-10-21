@@ -170,4 +170,12 @@ mod tests {
 
         assert_ne!(cpu.key_set(), gpu.key_set());
     }
+
+    #[test]
+    fn device_and_storage_reflect_how_the_tensor_was_built() {
+        let t = Tensor::zeros(&[2, 3], DType::I32, Device::gpu(0)).expect("allocation succeeds");
+        assert_eq!(t.device(), Device::gpu(0));
+        assert_eq!(t.storage().dtype(), DType::I32);
+        assert_eq!(t.storage().numel(), 6);
+    }
 }
