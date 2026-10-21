@@ -71,7 +71,7 @@ mod tests {
     fn a_zero_length_buffer_is_valid_and_empty() {
         let b = Buffer::alloc_zeroed(0).expect("allocation succeeds");
         assert_eq!(b.len(), 0);
-        assert!(b.as_slice().is_empty());
+        assert_eq!(b.as_slice(), []);
     }
 
     #[test]

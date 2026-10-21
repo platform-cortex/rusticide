@@ -82,7 +82,7 @@ redundant_pub_crate = "allow"
 ### Crates Dependencies
 byteorder = "1"
 clap = { version = ">=4,<5.0.0", features = ["derive"] }
-dirs = { version = ">=6,<7.0.0" }
+dirs = { version = ">=7,<8.0.0" }
 fastrand = { version = ">=2,<3.0.0" }
 half = { version = ">=2,<3.0.0" }
 memmap2 = { version = ">=0,<1.0.0" }
