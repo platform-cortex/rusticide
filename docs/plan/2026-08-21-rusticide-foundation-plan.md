@@ -182,7 +182,8 @@ repository = "https://github.com/platform-cortex/rusticide"
 - [ ] **Step 3: Drop dependencies on deleted crates**
 
 In `[workspace.dependencies]`, delete the `rusticide`, `rusticide-bitnet`,
-`rusticide-context`, `rusticide-model`, `rusticide-tensor`, and `rusticide-train` lines.
+`rusticide-context`, `rusticide-model`, `rusticide-tensor`, and
+`rusticide-train` lines.
 Update `exclude` to `["crates/rusticide-fuzz"]`.
 
 - [ ] **Step 4: Temporarily narrow the members list**
@@ -3219,7 +3220,7 @@ and update `[package.metadata.cargo-machete]`.
 `crates/rusticide-io/src/lib.rs` line 17 currently reads:
 
 ```rust
-use xllm_tensor::{DType, Tensor, TensorError};
+use rusticide_tensor::{DType, Tensor, TensorError};
 ```
 
 Replace with:
@@ -3315,17 +3316,17 @@ Five `use` lines are the entire coupling to the deleted crates. Change
 each one:
 
 - `rusticide-quantize/src/lib.rs:13`:
-  `use xllm_tensor::{Tensor, TensorError};` ->
+  `use rusticide_tensor::{Tensor, TensorError};` ->
   `use rusticide_core::{Error, Tensor};`
 - `rusticide-llm-sampling/src/lib.rs:4`: same substitution; the test at
   line 248 imports `DType` from the same crate.
 - `rusticide-llm-tokenizer/src/lib.rs:6`:
-  `use xllm_model::{GGUFValue, Model};` ->
+  `use rusticide_model::{GGUFValue, Model};` ->
   `use rusticide_io::GGUFValue;`. The `Model` import must go: a
   tokenizer must not depend on a model type. Change the constructor to
   take `&[(String, GGUFValue)]` metadata instead of a `&Model`.
 - `rusticide-fuzz/fuzz_targets/{gguf_load,gguf_tokenizer}.rs`: replace
-  `xllm_model::Model` with the `rusticide_io` reader.
+  `rusticide_model::Model` with the `rusticide_io` reader.
 
 After this step `cargo check` should pass for all four crates.
 
@@ -3569,6 +3570,156 @@ until SP2 brings the oracle."
 
 ---
 
+## Task 21: Squash the import commits into one
+
+**This task rewrites history and MUST run last**, after Task 20 and after
+every review is closed. It renumbers every commit on the branch, so
+running it earlier invalidates the SHAs recorded in the ledger and in
+each task's report.
+
+The four commits at the base of the branch record how the repository was
+assembled from the `xllm` reset, in an order that mattered while it was
+happening and matters to nobody afterwards:
+
+```text
+4b481f9  chore: import the engineering scaffold
+264aee6  chore: complete the scaffold import
+a750001  docs: import licensing and community documentation
+cfb98e0  chore: import the five surviving crates from xllm
+```
+
+Alongside them sits a repository-wide normalisation the human staged
+separately: REUSE/SPDX headers applied by `comply annotate`, `hk`
+upgraded from 1.50 to 1.56, TOML reformatting, and a new
+`ignorefile.toml`. It is the same baseline work, done in a second pass.
+
+Collapsing all five into one commit gives the branch a single honest
+starting point instead of four bookkeeping steps plus an afterthought.
+
+**Files:**
+
+- Rewrites: the first four commits on `feat/foundation-sp0-sp1`
+- Modify: the ledger at
+  `.superpowers/sdd/<plan-basename>/progress.md`
+
+**Interfaces:**
+
+- Consumes: a clean working tree and no running agents.
+- Produces: a branch whose first commit contains the full initial state.
+
+**Steps:**
+
+- [ ] **Step 1: Confirm nothing else is writing to the repository**
+
+A rebase moves `HEAD` underneath anything holding it. Before starting:
+
+- No implementer or reviewer subagent is running.
+- No other editor session has this repository open. During SP1 a peer
+  session named `rusticide-cd` was seen idle with it open; check for
+  that class of thing, not just that one name.
+- `git status` is clean, or whatever remains is stashed.
+
+If any of these is unmet, **stop**. This task is not urgent and a
+corrupted rebase is expensive.
+
+- [ ] **Step 2: Take a recovery ref**
+
+```bash
+git branch backup/pre-squash-$(git rev-parse --short HEAD)
+```
+
+This is the undo. `git reset --hard` onto it restores everything if the
+rebase goes wrong, and it costs nothing to leave behind.
+
+- [ ] **Step 3: Squash the four**
+
+```bash
+git rebase -i --root
+```
+
+Keep `4b481f9` as `pick`; mark the next three `squash`. The editor then
+offers the combined message -- replace it entirely with the message from
+Step 5 rather than accepting the concatenation of four.
+
+Note that `git rebase -i` is not available through the Bash tool in an
+agent session. This step is the human's to run, or the agent scripts it
+non-interactively with `git reset --soft` onto the root commit's parent
+and a fresh commit.
+
+- [ ] **Step 4: Fold in the staged normalisation**
+
+If the 106-file normalisation is still staged rather than committed:
+
+```bash
+HK=0 git commit -S --amend --no-edit
+```
+
+If it was already committed as its own commit, mark that one `squash`
+in Step 3 instead and skip this.
+
+- [ ] **Step 5: The message**
+
+```text
+init: initialise the rusticide repository
+
+Assembles the project from the xllm reset: the engineering scaffold
+(toolchain pins, lint configuration, CI workflows, supply-chain policy,
+mise tasks), dual MIT/Apache-2.0 licensing with REUSE compliance, the
+contributor and security policies, and the five crates that survived the
+reset -- GGUF reading, tokenizer, quantization, sampling, and the fuzz
+targets.
+
+Includes the repository-wide baseline applied afterwards: SPDX headers
+via comply annotate, hk 1.50 -> 1.56, TOML reformatting, and
+ignorefile.toml.
+
+The workspace does not resolve at this commit; Task 1 repairs it.
+```
+
+That last line matters. It was true of `cfb98e0` and stays true of the
+squashed commit, and a reader who checks out this commit and finds a
+broken workspace deserves to know it is expected.
+
+- [ ] **Step 6: Verify the tree is byte-identical**
+
+A squash must not change content. Compare the rewritten branch's tree
+against the recovery ref:
+
+```bash
+git diff backup/pre-squash-<sha> --stat
+```
+
+Expected: **no output**. Any difference means the rebase dropped or
+altered something, and the recovery ref is right there.
+
+- [ ] **Step 7: Re-run the gates**
+
+```bash
+mise run test
+hk check --all
+```
+
+Both must pass, as they did before the rewrite.
+
+- [ ] **Step 8: Rewrite the ledger's SHAs**
+
+Every `Task N: complete (commits X..Y)` line now names commits that no
+longer exist. Map each to its rewritten equivalent with
+`git log --format='%h %s'` and correct them, or replace the SHA ranges
+with a note that they predate the squash. Leaving them stale makes the
+ledger actively misleading -- it would point at objects git cannot
+resolve.
+
+- [ ] **Step 9: Delete the recovery ref**
+
+Only once Steps 6 and 7 have both passed:
+
+```bash
+git branch -D backup/pre-squash-<sha>
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage.** Every SP0 item maps to Tasks 1, 17-20; every SP1 item
@@ -3577,9 +3728,9 @@ executable tests: the 2,585-schema round-trip in Task 13, and `add`
 through the real table in Task 16. The `unsafe` policy from the spec is
 established in Task 5 with `docs/UNSAFE.md` and
 `clippy::undocumented_unsafe_blocks`. The aliasing decision
-(`Arc<RwLock<Storage>>`) is Task 6, and its self-aliasing guard is Task
-15. The layering inversion found during the reset is fixed in Tasks 17
-and 18.
+(`Arc<RwLock<Storage>>`) is Task 6, and its self-aliasing guard is
+Task 15. The layering inversion found during the reset is fixed in
+Tasks 17 and 18.
 
 Not covered here, by design: `rusticide-cpu`, `rusticide-gpu`,
 `rusticide-kernels`, `rusticide-simd`, `rusticide-autograd`, the oracle,
