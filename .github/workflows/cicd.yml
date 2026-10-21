@@ -226,10 +226,16 @@ jobs:
           fetch-depth: 0 # gitleaks scans the history, not just the tree
           persist-credentials: false
 
-      - name: Gitleaks
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+      # The gitleaks CLI (MIT) rather than gitleaks-action, which demands a paid
+      # GITLEAKS_LICENSE for any organization-owned repository. Same scanner,
+      # same .gitleaks.toml; mise installs the version pinned in mise.lock.
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        with:
+          install_args: gitleaks
+          cache: false
+
+      - name: Gitleaks (full history)
+        run: gitleaks git --redact --no-banner --exit-code 1 .
 
   supply-chain:
     name: Supply Chain
