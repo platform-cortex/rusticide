@@ -1944,6 +1944,13 @@ case "${usage_attest:?}" in
   *) provenance=true; [ "${usage_private:?}" != true ] || provenance=false ;;
 esac
 if [ "$publish" = true ]; then
+  # Publish only the exact commit v<version> names. Without this, a manual run
+  # from any commit on the default branch would rebuild and re-upload a
+  # release's files from code the tag never pointed at.
+  built="$(git rev-parse "${GITHUB_SHA:-HEAD}")"
+  tagged="$(git rev-parse -q --verify "refs/tags/v$version^{commit}" || true)"
+  [ -n "$tagged" ] || fail "v$version does not exist: only a tagged commit publishes"
+  [ "$tagged" = "$built" ] || fail "v$version points at $tagged, not the commit being built ($built)"
   # A tag on a commit that never merged must not release; a dry run may.
   branch="${usage_default_branch:?}"
   git merge-base --is-ancestor "${GITHUB_SHA:-HEAD}" "origin/$branch" ||
@@ -2178,7 +2185,12 @@ version="$(mise run -q release:check)"
 tag="v$version" title="rusticide $version" prerelease=false
 case "$version" in *-*) prerelease=true ;; esac
 if gh release view "$tag" >/dev/null 2>&1; then
-  # A re-run: the first attempt's release is kept and its files replaced.
+  # Only a DRAFT may be re-uploaded (a re-run of a failed publish). A public
+  # release's files are signed and attested; replacing them is refused.
+  if [ "$(gh release view "$tag" --json isDraft --jq .isDraft)" != true ]; then
+    echo "release:github:draft: $tag is already published; refusing to replace its files" >&2
+    exit 1
+  fi
   gh release upload "$tag" --clobber "$dist"/*
   gh release edit "$tag" --title "$title" --notes-file "$notes" --prerelease="$prerelease"
 else
