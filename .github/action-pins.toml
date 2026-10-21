@@ -38,11 +38,10 @@ branch_overrides = { "nightly" = "nightly" }
 # Value = tag or branch ref to resolve against (e.g. ``"v3"``).
 ref_overrides = { "github/codeql-action" = "v4" }
 
-# Paths (relative to repo root) of reusable workflow references
-# that should be treated as external dependencies.
-reusable_paths = [
-  "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml",
-]
+# Repos that must stay pinned to a release tag (``@vX.Y.Z``), never a SHA.
+# The SLSA generator verifies its own provenance against its release tag and
+# rejects a SHA ref outright, so a SHA pin there means no provenance at all.
+tag_only_repos = ["slsa-framework/slsa-github-generator"]
 
 # Max concurrent GitHub API requests.  Lower if you hit secondary
 # rate limits, raise if you have a high token bucket.

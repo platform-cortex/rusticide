@@ -109,11 +109,20 @@ _CONFIG_DIRS = [
 _CONFIG_FILES = ["action-pins.toml", "action-pins.yaml", "action-pins.yml", "action-pins.json"]
 
 _DEFAULT_CONFIG_RAW: dict[str, Any] = {
-    "branch_only_repos": {"dtolnay/rust-toolchain": ["stable", "nightly"]},
+    # Empty by design: the toolchain action is elioseverojunior/rust-toolchain,
+    # which ships release tags. dtolnay/rust-toolchain used to live here because
+    # it publishes no releases at all and is referenced by branch (@stable,
+    # @nightly) instead.
+    "branch_only_repos": {},
     "branch_overrides": {"nightly": "nightly"},
     "ref_overrides": {"github/codeql-action": "v4"},
-    "reusable_paths": [
-        "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml",
+    # Repos that MUST stay pinned to a tag, never a SHA. The SLSA generator
+    # verifies its own provenance against its release tag and refuses anything
+    # else: "Invalid ref: <sha>. Expected ref of the form refs/tags/vX.Y.Z". A SHA
+    # pin there means no provenance at all, so the tag is the correct pin and this
+    # script must not "fix" it.
+    "tag_only_repos": [
+        "slsa-framework/slsa-github-generator",
     ],
     "max_concurrent_api": 10,
 }
@@ -188,7 +197,7 @@ class PinsConfig:
     branch_only_repos: dict[str, list[str]]
     branch_overrides: dict[str, str]
     ref_overrides: dict[str, str]
-    reusable_paths: list[str]
+    tag_only_repos: list[str]
     max_concurrent_api: int
 
 
@@ -222,7 +231,7 @@ def load_config(path_hint: str | None = None) -> PinsConfig:
         branch_only_repos=raw["branch_only_repos"],
         branch_overrides=raw["branch_overrides"],
         ref_overrides=raw["ref_overrides"],
-        reusable_paths=raw["reusable_paths"],
+        tag_only_repos=raw["tag_only_repos"],
         max_concurrent_api=raw["max_concurrent_api"],
     )
 
@@ -261,6 +270,17 @@ class ActionRef:
         return s
 
 
+def _major_from_comment(line: str) -> Optional[int]:
+    """Major version named by the trailing ``# vX.Y.Z`` comment of a SHA pin.
+
+    Accepts a build suffix after the numeric part (``# v0.0.1-1``,
+    ``# v6.0.2.123``): some publishers tag that way, and rejecting it would
+    misreport a commented pin as uncommented.
+    """
+    m = re.search(r"#\s*v(\d+)(?:\.\d+)*(?:[-.][0-9A-Za-z]+)*\s*$", line)
+    return int(m.group(1)) if m else None
+
+
 def parse_uses(line: str, file: Path, line_index: int) -> Optional[ActionRef]:
     m = re.search(r'uses:\s*["\']?([^"\'#\s]+)', line)
     if not m:
@@ -284,7 +304,8 @@ def parse_uses(line: str, file: Path, line_index: int) -> Optional[ActionRef]:
         return None
 
     if re.match(r"^[0-9a-f]{40}$", ref):
-        return ActionRef(file, line_index, value, repo, path_suffix, "sha", ref)
+        major = _major_from_comment(line)
+        return ActionRef(file, line_index, value, repo, path_suffix, "sha", ref, major)
 
     if ref.startswith("v") and ref[1:].replace(".", "").isdigit():
         major = int(ref[1:].split(".")[0]) if "." in ref else int(ref[1:])
@@ -424,6 +445,43 @@ async def latest_release(client: httpx.AsyncClient, repo: str) -> Tuple[str, str
     return tag, sha
 
 
+def _version_key(tag: str) -> Tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", tag))
+
+
+async def release_in_major(
+        client: httpx.AsyncClient, repo: str, major: int,
+) -> Optional[Tuple[str, str]]:
+    """Newest public release of *repo* whose tag is in *major*, as (tag, sha)."""
+    releases = await _gh_get(client, f"{GH_API}/repos/{repo}/releases?per_page=100")
+    pattern = re.compile(rf"^v?{major}(\.\d+)*$")
+    tags = [
+        r["tag_name"]
+        for r in releases
+        if not r.get("draft") and not r.get("prerelease") and pattern.match(r["tag_name"])
+    ]
+    if not tags:
+        return None
+    tag = max(tags, key=_version_key)
+    return tag, await resolve_tag_sha(client, repo, tag)
+
+
+async def _major_bump(
+        client: httpx.AsyncClient, ar: ActionRef, tag: str, sha: str, latest_major: int,
+) -> PinResult:
+    """A major bump, carrying the newest in-major release for the safe update."""
+    in_major = await release_in_major(client, ar.repo, ar.major or 0)
+    return PinResult(
+        ar,
+        "major-bump",
+        new_sha=sha,
+        tag=tag,
+        message=f"major bump: v{ar.major} -> v{latest_major} ({tag})",
+        in_major_tag=in_major[0] if in_major else None,
+        in_major_sha=in_major[1] if in_major else None,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Per-ref logic
 # ---------------------------------------------------------------------------
@@ -436,6 +494,12 @@ class PinResult:
     new_sha: Optional[str] = None
     tag: Optional[str] = None   # display tag for the comment, e.g. "v7.0.0"
     message: str = ""
+    # True when the ref must be written as `@<tag>` rather than `@<sha> # <tag>`.
+    pin_as_tag: bool = False
+    # For a major-bump: the newest release INSIDE the pinned major, if any, so
+    # minor and patch updates keep flowing while the bump awaits --apply-major.
+    in_major_tag: Optional[str] = None
+    in_major_sha: Optional[str] = None
 
 
 def _updated(ar: ActionRef, sha: str, tag: str) -> PinResult:
@@ -472,9 +536,29 @@ async def _resolve_tag(client: httpx.AsyncClient, ar: ActionRef) -> Tuple[str, s
     return tag, sha
 
 
+def _is_tag_only(ar: ActionRef) -> bool:
+    return ar.repo in CFG.tag_only_repos
+
+
 async def check_ref(client: httpx.AsyncClient, ar: ActionRef) -> PinResult:
     try:
         tag, sha = await _resolve_tag(client, ar)
+
+        # Tag-only: compare against the tag NAME and rewrite to the tag, so a
+        # correctly tag-pinned ref is never reported stale and never SHA-pinned.
+        if _is_tag_only(ar):
+            if ar.ref_type == "tag" and ar.current_ref == tag:
+                return PinResult(ar, "uptodate", tag=tag,
+                                 message=f"already at {tag} (tag-pinned)")
+            # Same major-bump guard as every other ref: never cross a major
+            # unasked, and keep the result tag-pinned whichever way it lands.
+            latest_major = _major_of(tag)
+            if latest_major is not None and ar.major is not None and latest_major > ar.major:
+                bump = await _major_bump(client, ar, tag, sha, latest_major)
+                bump.pin_as_tag = True
+                return bump
+            return PinResult(ar, "updated", new_sha=None, tag=tag, pin_as_tag=True,
+                             message=f"{tag} (tag-pinned, not SHA)")
 
         if ar.ref_type == "branch":
             if sha == ar.current_ref:
@@ -484,15 +568,16 @@ async def check_ref(client: httpx.AsyncClient, ar: ActionRef) -> PinResult:
         if ar.ref_type == "sha":
             if sha == ar.current_ref:
                 return PinResult(ar, "uptodate", tag=tag, message=f"already at {tag}")
-            latest_major = _major_of(tag)
-            if latest_major is not None and ar.major is not None and latest_major > ar.major:
+            if ar.major is None and ar.repo not in CFG.branch_only_repos:
                 return PinResult(
                     ar,
-                    "major-bump",
-                    new_sha=sha,
-                    tag=tag,
-                    message=f"major bump: v{ar.major} -> v{latest_major} ({tag})",
+                    "error",
+                    message="SHA pin without a trailing '# vX.Y.Z' comment: "
+                            "cannot tell its major, add the comment",
                 )
+            latest_major = _major_of(tag)
+            if latest_major is not None and ar.major is not None and latest_major > ar.major:
+                return await _major_bump(client, ar, tag, sha, latest_major)
             return _updated(ar, sha, tag)
 
         # Tag ref.
@@ -501,13 +586,7 @@ async def check_ref(client: httpx.AsyncClient, ar: ActionRef) -> PinResult:
         if ar.major is not None:
             latest_major = _major_of(tag)
             if latest_major is not None and latest_major > ar.major:
-                return PinResult(
-                    ar,
-                    "major-bump",
-                    new_sha=sha,
-                    tag=tag,
-                    message=f"major bump: v{ar.major} -> v{latest_major} ({tag})",
-                )
+                return await _major_bump(client, ar, tag, sha, latest_major)
         return _updated(ar, sha, tag)
 
     except RuntimeError as exc:
@@ -554,6 +633,53 @@ def _apply_pin_sync(file: Path, ar: ActionRef, new_sha: str, tag: Optional[str] 
 
 async def apply_pin(file: Path, ar: ActionRef, new_sha: str, tag: Optional[str] = None) -> bool:
     return await asyncio.to_thread(_apply_pin_sync, file, ar, new_sha, tag)
+
+
+def _apply_tag_sync(file: Path, ar: ActionRef, tag: str) -> bool:
+    """Pin to ``@<tag>`` with no trailing comment -- the tag IS the version."""
+    lines = file.read_text().splitlines()
+    old_line = lines[ar.line_index]
+    bare = _RE_TRAILING.sub("", old_line).rstrip()
+    prefix = ar.repo
+    if ar.path_suffix:
+        prefix = f"{prefix}/{ar.path_suffix}"
+    new_line = _RE_USES.sub(f"uses: {prefix}@{tag}", bare)
+    if new_line == old_line:
+        return False
+    lines[ar.line_index] = new_line
+    file.write_text("\n".join(lines) + "\n")
+    return True
+
+
+async def apply_tag(file: Path, ar: ActionRef, tag: str) -> bool:
+    return await asyncio.to_thread(_apply_tag_sync, file, ar, tag)
+
+
+async def _write_pin(
+        ar: ActionRef, sha: Optional[str], tag: Optional[str], as_tag: bool,
+) -> bool:
+    """Write *ar* as ``@<tag>`` when *as_tag*, else as ``@<sha> # <tag>``.
+
+    The single place that picks the pin form, so a tag-only repo cannot be
+    SHA-pinned by any of the update paths.
+    """
+    if as_tag:
+        return bool(tag) and await apply_tag(ar.file, ar, tag)
+    return bool(sha) and await apply_pin(ar.file, ar, sha, tag=tag)
+
+
+def _has_in_major_update(r: PinResult) -> bool:
+    """Whether a major-bump result carries a same-major update worth applying.
+
+    A tag-only pin compares tag names and a SHA pin compares SHAs. A plain
+    tag ref (``@v4``) gets none: its name is not comparable to a SHA, and
+    rewriting it would silently turn the tag into a SHA pin.
+    """
+    if r.pin_as_tag:
+        return r.in_major_tag is not None and r.in_major_tag != r.ref.current_ref
+    if r.ref.ref_type == "sha":
+        return r.in_major_sha is not None and r.in_major_sha != r.ref.current_ref
+    return False
 
 
 def _fix_comment_sync(file: Path, ar: ActionRef, tag: str) -> bool:
@@ -615,7 +741,8 @@ async def main_async(args: argparse.Namespace) -> int:
 
         if r.status == "uptodate":
             log.info(f"  OK  {tag_display:50s}  {r.message}")
-            if args.write and r.tag:
+            # No comment on a tag-only ref: `@v2.1.0 # v2.1.0` is noise.
+            if args.write and r.tag and not _is_tag_only(r.ref):
                 if await fix_comment(r.ref.file, r.ref, r.tag):
                     comments_fixed += 1
                     log.info(
@@ -626,21 +753,26 @@ async def main_async(args: argparse.Namespace) -> int:
             major_bumps += 1
             note = " (use --apply-major)" if not args.apply_major else ""
             log.info(f" MAJOR {tag_display:50s}  {r.message}{note}")
-            if args.apply_major and r.new_sha:
-                if await apply_pin(r.ref.file, r.ref, r.new_sha, tag=r.tag):
+            if args.apply_major:
+                if await _write_pin(r.ref, r.new_sha, r.tag, r.pin_as_tag):
                     changed += 1
                     log.info(
                         f"       -> {r.ref.file.name}:{r.ref.line_index + 1}",
                     )
+            elif _has_in_major_update(r):
+                changed += 1
+                log.info(f"  UP  {tag_display:50s}  {r.in_major_tag} (same major)")
+                if args.write and await _write_pin(
+                        r.ref, r.in_major_sha, r.in_major_tag, r.pin_as_tag,
+                ):
+                    log.info(f"       -> {r.ref.file.name}:{r.ref.line_index + 1}")
         elif r.status == "updated":
             changed += 1
             log.info(f"  UP  {tag_display:50s}  {r.message}")
-            if args.write and r.new_sha:
-                if await apply_pin(r.ref.file, r.ref, r.new_sha, tag=r.tag):
-                    changed += 1
-                    log.info(
-                        f"       -> {r.ref.file.name}:{r.ref.line_index + 1}",
-                    )
+            if args.write and await _write_pin(r.ref, r.new_sha, r.tag, r.pin_as_tag):
+                log.info(
+                    f"       -> {r.ref.file.name}:{r.ref.line_index + 1}",
+                )
         elif r.status == "error":
             errors += 1
             log.error(f" ERROR  {tag_display:50s}  {r.message}")
@@ -720,7 +852,7 @@ def main() -> int:
                 "branch_only_repos": CFG.branch_only_repos,
                 "branch_overrides": CFG.branch_overrides,
                 "ref_overrides": CFG.ref_overrides,
-                "reusable_paths": CFG.reusable_paths,
+                "tag_only_repos": CFG.tag_only_repos,
                 "max_concurrent_api": CFG.max_concurrent_api,
             },
         )

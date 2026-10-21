@@ -38,7 +38,7 @@ jobs:
 
       - name: Setup Rust toolchain
         id: rust-toolchain
-        uses: elioseverojunior/rust-toolchain@390bda4ae160490a30a5a7d61e076fc096e2c4f8 # v0.0.1-1
+        uses: elioseverojunior/rust-toolchain@53d2299d557a901de7517771d4ce9e89b70d4439 # v0.8.0-5
 
       - name: Rust toolchain Cache
         id: rust-toolchain-cache
@@ -86,7 +86,7 @@ jobs:
 
       - name: Setup mise
         id: mise-setup
-        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
         with:
           cache_key_prefix: mise
           cache_key: mise-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') || hashFiles('mise.toml') }}
