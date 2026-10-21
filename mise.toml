@@ -284,8 +284,7 @@ hide = true
 run = '''
 mise lock
 mise run ci:fix
-mise run build:install
-mise run git:amend:push:force
+mise run git:commit:amend:push:force
 '''
 
 [tasks."git:ignore:check"]
@@ -353,12 +352,10 @@ if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 # submodules, and git offers no way to make it -- there is no
 # `--recurse-submodules` on `worktree add` (checked on git 2.55) and
 # `submodule.recurse` does not cover worktree creation. A bare `git worktree
-# add` therefore produces an EMPTY crates/glaucus-yaml-test-suite/data, and the
-# conformance harnesses open with `if !data_dir.exists() { return; }` -- so the
-# 735-case gate either passes having asserted nothing or dies on "0 faithful
-# cases". Controlling the creation path is the only way to prevent that;
-# `setup:submodules` self-heals a worktree made any other way, and
-# `test:conformance` refuses to run without the corpus.
+# add` therefore leaves every submodule directory EMPTY, and any test that
+# skips when its fixture data is missing then passes having asserted nothing.
+# Controlling the creation path is the only way to prevent that;
+# `setup:submodules` self-heals a worktree made any other way.
 branch="${usage_branch}"
 base="${usage_from:-HEAD}"
 
@@ -403,9 +400,9 @@ if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 # `git worktree add` does NOT initialise submodules, and git offers no way to
 # make it: there is no `--recurse-submodules` on `worktree add` (git 2.55) and
 # `submodule.recurse` does not cover worktree creation. A fresh worktree
-# therefore gets an EMPTY crates/glaucus-yaml-test-suite/data, and both
-# conformance harnesses open with `if !data_dir.exists() { return; }` -- so the
-# 735-case gate passes having asserted nothing, or dies on "0 faithful cases".
+# therefore gets EMPTY submodule directories, and any test that skips when its
+# fixture data is missing then passes having asserted nothing. With no
+# .gitmodules declared this task is a no-op.
 #
 # `git submodule status` prefixes an UNINITIALISED entry with `-`, which is the
 # only reliable signal: the directory exists either way, so a path test cannot
@@ -419,17 +416,17 @@ fi
 
 # Already initialised. Advancing to the newest upstream commit is OPT-IN, and
 # deliberately not what `setup` triggers: `--remote` moves the recorded SHA, so
-# it dirties the working tree and changes which corpus the conformance gate runs
-# against. Doing that silently on every directory change -- `[hooks] enter`
-# calls `setup`, which depends on this task -- would rewrite a pinned test
-# fixture behind your back and make the 735-case result irreproducible.
+# it dirties the working tree and changes which fixtures the tests run against.
+# Doing that silently on every directory change -- `[hooks] enter` calls
+# `setup`, which depends on this task -- would rewrite a pinned test fixture
+# behind your back and make test results irreproducible.
 if [ "${usage_latest:-false}" != "true" ]; then
     echo "submodules: already initialised (pass --latest to advance the pin)"
     exit 0
 fi
 
-# `--remote` tracks the branch named in .gitmodules (`data` for the YAML suite)
-# rather than the SHA recorded in the parent commit.
+# `--remote` tracks the branch named in .gitmodules rather than the SHA
+# recorded in the parent commit.
 echo "submodules: fetching newest commit on each tracked branch..."
 git submodule update --remote --recursive
 
@@ -801,9 +798,9 @@ gitversion /nocache /output json \
 # one place. `MajorMinorPatch`, NOT `SemVer`. SemVer appends
 # CommitsSinceVersionSource as a pre-release identifier (`0.1.0-1`), and
 # everything after the hyphen makes the whole version a SemVer PRE-RELEASE:
-# crates.io then reports max_stable_version separately, `cargo add glaucus`
-# resolved to the empty `0.0.0` placeholder instead of the real library, and
-# `cargo install` never selected it without an explicit `--version`.
+# crates.io then reports max_stable_version separately, `cargo add` skips it in
+# favour of the newest stable release, and `cargo install` never selects it
+# without an explicit `--version`.
 #
 # Losing per-commit uniqueness in the tag name is the point, not a regression: a
 # release tag should name a RELEASE, and the next release moves the number. The
@@ -896,8 +893,8 @@ set -Eeuo pipefail
 # above: what makes a scan dangerous is an unanchored PATTERN, not a discovered
 # FILE SET. Each enumerating site pins its match to a shape only a real
 # declaration can have (`^<crate> = "`), so the version-shaped strings that must
-# survive -- CHANGELOG headings, the glaucus-cst README example whose assertion
-# depends on its digits -- are never candidates in the first place.
+# survive -- CHANGELOG headings, version strings quoted in README examples --
+# are never candidates in the first place.
 anchor="$(taplo get -f Cargo.toml '.workspace.package.version')"
 checking="${usage_check:-false}"
 from_git="${usage_from_git:-false}"
@@ -939,8 +936,8 @@ stale() {
 # things that were not worth it:
 #
 #   * Everything after the hyphen makes the whole version a SemVer PRE-RELEASE.
-#     crates.io tracked max_stable_version separately, so `cargo add glaucus`
-#     resolved the empty `0.0.0` placeholder rather than the real library, and
+#     crates.io tracks max_stable_version separately, so `cargo add` skips it
+#     in favour of the newest stable release, and
 #     `cargo install` -- resolving an implicit `*`, which never selects a
 #     pre-release -- needed `--version 0.1.0-10` spelled out.
 #   * The counter was SELF-REFERENTIAL and forced the release commit to be an
@@ -974,8 +971,8 @@ fi
 # the workspace does not silently leave it ungated. Selecting on `path` is what
 # makes that safe: it picks exactly the LOCAL crates, whose version must track
 # the anchor, and skips registry dependencies, whose versions are their own.
-# Globbing `crates/*` would be wrong in the other direction -- glaucus-wasm is a
-# member with no [workspace.dependencies] entry, so nothing declares a version
+# Globbing `crates/*` would be wrong in the other direction -- rusticide-core is
+# a member with no [workspace.dependencies] entry, so nothing declares a version
 # for it to disagree with. `objects` drops the string form (`byteorder = "1"`)
 # first: indexing a string with `.path` is a jq error, not a falsy result.
 deps="$(taplo get -f Cargo.toml -o json '.workspace.dependencies' \
@@ -1013,7 +1010,7 @@ done
 
 # Install snippets restate the version as a Cargo REQUIREMENT, which is a
 # different string from the anchor and from the tag-style `v` form above:
-# `glaucus = "0.2"`, not `"0.2.1"` and not `"v0.2.1"`.
+# `rusticide-core = "0.2"`, not `"0.2.1"` and not `"v0.2.1"`.
 #
 # The requirement that belongs in a README is the LOOSEST one that still
 # excludes breaking changes -- exactly what `serde = { version = "1" }` sitting
@@ -1033,19 +1030,17 @@ esac
 # The `^` anchor is the whole safety argument and it is doing real work. This
 # repository is full of version-shaped strings that MUST NOT be rewritten:
 # CHANGELOG.md's release headings and compare links (`## [0.2.0](...)`), and
-# glaucus-cst's README example `Document::parse("version: 0.0.1  # keep me\n")`
-# whose very next line asserts on those exact digits. Requiring the line to
+# any version string quoted inside a README example. Requiring the line to
 # START with the crate name and ` = "` matches the dependency-table form alone,
-# so both survive untouched -- verified by running the match across every
-# tracked markdown file and getting back only the two install snippets.
+# so both survive untouched.
 while IFS= read -r doc; do
     [ -e "$doc" ] || continue
-    found="$(sed -nE 's/^glaucus[a-z-]* = "([^"]+)".*/\1/p' "$doc" | sort -u | tr '\n' ' ')"
+    found="$(sed -nE 's/^rusticide[a-z-]* = "([^"]+)".*/\1/p' "$doc" | sort -u | tr '\n' ' ')"
     found="${found% }"
     [ -n "$found" ] || continue
-    if stale "${doc} glaucus requirement" "$found" "$req"; then
+    if stale "${doc} rusticide requirement" "$found" "$req"; then
         [ "$checking" = true ] || edit "$doc" \
-            "s|^(glaucus[a-z-]* = \")[^\"]*(\")|\1${req}\2|"
+            "s|^(rusticide[a-z-]* = \")[^\"]*(\")|\1${req}\2|"
     fi
 done < <(git ls-files '*.md')
 
@@ -1079,7 +1074,7 @@ run = '''
 
 set -Eeuo pipefail
 
-page="target/doc/glaucus/index.html"
+page="target/doc/rusticide_core/index.html"
 
 # Dispatched on `uname`, not on which opener happens to be installed. Probing for
 # `open` first would be wrong on Linux, where it is an unrelated command on some
@@ -1432,207 +1427,6 @@ cargo crap --lcov lcov.info --format sarif "${EXCLUDES[@]}" > results.sarif
 '''
 shell = "bash -c"
 
-
-[tasks."docker:build"]
-alias = ["docker-build", "db", "dkr-b", "dkr:build"]
-description = "Build a Docker image using multi-stage Dockerfile with buildx"
-run = '''
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-# `sed`, not `grep -oP`: BSD grep (the macOS default, and first on PATH even
-# when GNU grep is installed) has no `-P`, so both lookups failed and the `||`
-# fallbacks silently supplied literals. That tagged the image `comply:0.1.0`
-# while the workspace was at 0.0.1-1 -- a wrong version label, reported by
-# nothing.
-RUST_VERSION=$(sed -n 's/^channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' rust-toolchain.toml 2>/dev/null \
-  || sed -n 's/^rust-version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml 2>/dev/null)
-RUST_VERSION="${RUST_VERSION:-1.97}"
-APP_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml 2>/dev/null)
-APP_VERSION="${APP_VERSION:-0.1.0}"
-
-# Overrides the BUILD base only. The Dockerfile's runtime base
-# (`IMAGE_TAG_RUNTIME`) keeps its digest-pinned default: a single shared
-# `IMAGE_TAG` sent this rust tag to the `debian:` FROM as well and asked for
-# `debian:1.97-trixie`, which does not exist.
-IMAGE_TAG_BUILD="${RUST_VERSION}-trixie"
-DOCKER_TAG="${usage_tag:-glaucus:${APP_VERSION}}"
-DOCKERFILE="${usage_file:-docker/Dockerfile}"
-
-BUILD_ARGS=()
-eval "extra_args=(${usage_build_arg:-})"
-for arg in "${extra_args[@]}"; do
-  BUILD_ARGS+=("--build-arg" "$arg")
-done
-
-docker buildx build \
-  --pull \
-  --build-arg "IMAGE_TAG_BUILD=${IMAGE_TAG_BUILD}" \
-  "${BUILD_ARGS[@]}" \
-  -f "$DOCKERFILE" \
-  -t "$DOCKER_TAG" \
-  --progress plain \
-  .
-'''
-shell = "bash -c"
-usage = '''
-flag "-b --build-arg <build_arg>" help="Additional build arg values" var=#true
-flag "-t --tag <tag>" help="Docker image tag override"
-flag "-f --file <file>" help="Dockerfile path override" default="docker/Dockerfile"
-'''
-
-[tasks."docker:ignore:verify"]
-alias = ["div"]
-description = "Build an ephemeral Docker image with .dockerignore and verify that only the expected files land in the build context"
-run = '''
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-
-if ! docker buildx version &>/dev/null; then
-    echo "dockerignore-verify: Docker buildx is not available -- skipping." >&2
-    exit 0
-fi
-
-# Create an ephemeral Dockerfile that lists every file in the build context.
-TMPFILE=$(mktemp /tmp/${PROJECT_NAME}-dockerignore-test-XXXXXXXXXX.Dockerfile)
-trap 'rm -f "$TMPFILE"' EXIT
-
-cat > "$TMPFILE" << 'DOCKERFILE'
-FROM busybox:latest
-WORKDIR /ctx
-COPY . .
-RUN find /ctx -type f | sort | tee /tmp/files.txt
-CMD ["cat", "/tmp/files.txt"]
-DOCKERFILE
-
-TAG="${PROJECT_NAME}-dockerignore-verify:latest"
-
-echo "--- Building ephemeral image (buildx + .dockerignore) ---"
-if ! docker buildx build \
-    --file "$TMPFILE" \
-    --load \
-    --tag "$TAG" \
-    --progress plain \
-    . 2>&1; then
-    echo "ERROR: docker buildx build failed." >&2
-    exit 1
-fi
-
-echo ""
-echo "--- Files in build context (after .dockerignore) ---"
-CONTEXT_FILES=$(docker run --rm "$TAG" 2>&1)
-echo "$CONTEXT_FILES"
-
-echo ""
-echo "--- Verifying .dockerignore ---"
-
-# Expected: essential build files MUST be present
-for f in "Cargo.toml" "Cargo.lock" "crates/glaucus/build.rs" "rust-toolchain.toml"; do
-    if echo "$CONTEXT_FILES" | grep -q "/ctx/$f"; then
-        echo "  [ok]   $f present"
-    else
-        echo "  [FAIL] $f MISSING from build context!"
-        FAIL=1
-    fi
-done
-
-# Check that key directories exist
-for d in "crates/glaucus/src/lib.rs" "crates/glaucus/src/main.rs" ".cargo/config.toml"; do
-    if echo "$CONTEXT_FILES" | grep -q "/ctx/$d"; then
-        echo "  [ok]   $d present"
-    else
-        echo "  [FAIL] $d MISSING from build context!"
-        FAIL=1
-    fi
-done
-
-# `.git` is DELIBERATELY not in this list: `.dockerignore` stopped excluding it
-# so `crates/glaucus/build.rs` can stamp a real `GIT_COMMIT` instead of
-# `unknown` (see `.dockerignore`'s own comment for the full reasoning). It is
-# checked as a REQUIRED-present path instead, right below.
-if echo "$CONTEXT_FILES" | grep -q "/ctx/.git/HEAD"; then
-    echo "  [ok]   .git present (needed for GIT_COMMIT provenance)"
-else
-    echo "  [FAIL] .git MISSING from build context -- GIT_COMMIT will report 'unknown'!"
-    FAIL=1
-fi
-
-# Excluded directories: these MUST be absent from context root
-for pat in "target" "docs" "scripts" "tests" "worktrees" ".DS_Store" "__pycache__" ".idea" ".vscode"; do
-    if echo "$CONTEXT_FILES" | grep -Eq "^/ctx/$pat(/|$)"; then
-        echo "  [FAIL] $pat should have been EXCLUDED by .dockerignore!"
-        FAIL=1
-    else
-        echo "  [ok]   $pat excluded"
-    fi
-done
-
-# Root-level excluded files
-for f in "AGENTS.md" "context.md" "CHANGELOG.md" "deny.toml" "hk.pkl" "cobertura.xml" "lcov.info" "results.sarif" "REUSE.toml" "mise.toml" "rustfmt.toml" ".clippy.toml"; do
-    if echo "$CONTEXT_FILES" | grep -Eq "^/ctx/$f$"; then
-        echo "  [FAIL] $f should have been EXCLUDED by .dockerignore!"
-        FAIL=1
-    else
-        echo "  [ok]   $f excluded"
-    fi
-done
-
-# Subdirectory .md files: **/*.md must exclude things like crates/*/README.md
-if echo "$CONTEXT_FILES" | grep -Eq "^/ctx/crates/[^/]+/README\.md$"; then
-    echo "  [FAIL] crates/*/README.md should have been EXCLUDED by **/*.md!"
-    FAIL=1
-else
-    echo "  [ok]   crates/*/README.md excluded via **/*.md"
-fi
-
-echo ""
-if [ -n "${FAIL:-}" ]; then
-    echo "FAIL: .dockerignore verification failed."
-    docker image rm "$TAG" > /dev/null 2>&1 || true
-    exit 1
-fi
-
-echo "PASS: .dockerignore is correctly filtering the build context."
-docker image rm "$TAG" > /dev/null 2>&1 || true
-'''
-shell = "bash -c"
-
-[tasks."test:conformance"]
-alias = ["conformance", "yaml-suite", "test:yaml-suite"]
-description = "Run the official YAML test suite and the round-trip fidelity property against the pinned snapshot, without coverage instrumentation"
-run = '''
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
-
-# GUARD, and the reason this task exists. Both harnesses open with
-# `if !data_dir.exists() { return; }`, so with the submodule directory absent
-# they PASS having asserted nothing -- a conformance gate that cannot fail.
-# `git worktree add` and a non-recursive `git clone` both leave the directory
-# present but EMPTY, which the in-test check does not catch either: there the
-# fidelity property fails with "only 0 faithful cases" and cargo aborts before
-# the conformance binary ever runs, so the 735-case result is silently skipped.
-# Checking for CONTENT rather than existence covers both.
-data="crates/glaucus-yaml-test-suite/data"
-if [ ! -d "${data}" ] || [ -z "$(ls -A "${data}" 2>/dev/null)" ]; then
-    echo "test:conformance: ${data} is missing or empty." >&2
-    echo "                  The suite is a git submodule pinned to yaml/yaml-test-suite." >&2
-    echo "                  Run: mise run setup:submodules" >&2
-    exit 1
-fi
-
-# `--nocapture` because the pass/fail counts are the point: the harness prints a
-# 735-case report to stderr that cargo would otherwise swallow on success.
-cargo test -p glaucus-yaml-test-suite \
-    --test yaml_test_suite --test round_trip_fidelity -- --nocapture
-'''
-shell = "bash -c"
-usage = '''
-flag "-v --verbose" help="Trace each command before running it (set -x)"
-'''
-
 [tasks."test"]
 alias = ["t", "cov", "coverage", "coverage:tarpaulin", "tarpaulin"]
 depends = []
@@ -1680,42 +1474,6 @@ cargo tarpaulin --workspace --engine llvm \
   --run-types Tests --run-types Doctests \
   --fail-under "${usage_threshold?}" \
   ${args[@]+"${args[@]}"}
-'''
-shell = "bash -c"
-usage = '''
-flag "-t --threshold <threshold>" help="Coverage threshold" default="100" env="RUST_COVERAGE_THRESHOLD"
-arg "[args]" var=#true help="Extra arguments forwarded to cargo-tarpaulin (e.g. --out Html)"
-'''
-
-[tasks."test:all"]
-alias = ["ta"]
-depends = []
-depends_post = []
-description = "Full gate: the coverage suite, then the YAML conformance and round-trip harnesses"
-run = '''
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-
-# Expanded with the `+` form, not a length test: an array-length expansion
-# opens a Tera comment in a mise run block and fails to render. A bare
-# "${args[@]}" is also an unbound-variable error under `set -u` when empty.
-eval "args=(${usage_args:-})"
-
-# NO `depends` on test:conformance, deliberately. `depends` would run it before
-# this body, which then runs it again -- the whole 735-case suite twice. Calling
-# both here also fixes the order: coverage first, conformance second, and a
-# failure in either stops the run.
-if [ -z "${usage_args:-}" ]; then
-    mise run test --threshold "${usage_threshold?}"
-else
-    mise run test --threshold "${usage_threshold?}" -- "${args[@]}"
-fi
-
-# No passthrough here. `args` are tarpaulin's (`--out Html` and friends) and
-# test:conformance declares no positional arguments, so forwarding them fails
-# the whole task with "unexpected word: --out".
-mise run test:conformance
 '''
 shell = "bash -c"
 usage = '''
@@ -2157,7 +1915,7 @@ version="${usage_version:-$(cargo metadata --no-deps --format-version 1 \
 verify="${usage_verify:-false}"
 owner="${usage_owner:-$(git config --get remote.origin.url | sed -E 's#.*[:/]([^/]+)/[^/]+$#\1#')}"
 
-ua="glaucus-publish-workflow (+https://github.com/${owner}/glaucus)"
+ua="${PROJECT_NAME}-publish-workflow (+https://github.com/${owner}/${PROJECT_NAME})"
 body="$(mktemp)"
 trap 'rm -f "$body"' EXIT
 
@@ -2340,97 +2098,6 @@ flag "--verify" help="post-publish mode: confirm every crate is indexed at this 
 flag "--owner <owner>" help="expected crates.io owner login (default: the GitHub owner in remote.origin.url)"
 '''
 
-# `publish = false` gates `cargo publish` and NOTHING else. `cargo package` is a
-# local build-verification command with no registry semantics, so
-# `cargo package --workspace` happily packages the dev-only crates -- verified:
-# a two-member sandbox where one member sets `publish = false` still reports
-# "Packaging b v0.1.0", while `cargo publish --workspace --dry-run` skips it.
-#
-# That difference is not academic here. publish.yml packages the workspace and
-# then does `cp target/package/*.crate dist/`, and dist/ is hashed, SLSA-attested,
-# cosign-signed and uploaded to the GitHub release -- so the harnesses would be
-# signed release artefacts. glaucus-yaml-test-suite alone contributes ~9.2k
-# conformance fixtures (322K), which also made the "Package contains N files"
-# size check meaningless.
-#
-# The set is DERIVED rather than spelled out because a hardcoded list in the
-# workflow silently stops covering a fourth dev-only crate. It lives here, not in
-# publish.yml, for the reason stated above `crates:status` in that file: a human
-# must be able to run the exact release-time logic before cutting a release.
-#
-# NOT the same lever as `[workspace] exclude`. That controls MEMBERSHIP, and
-# these three inherit `.workspace = true` fields, which an excluded package
-# cannot resolve ("failed to find a workspace root"); pointing at the root with
-# `package.workspace` fails too ("current package believes it's in a workspace
-# when it's not"). Excluding them breaks `cargo bench -p glaucus-bench` and the
-# manifests themselves, and buys nothing publish = false does not already give.
-[tasks."crates:dev-only"]
-alias = ["cdo", "crates:unpublished"]
-description = "List workspace crates marked `publish = false` (bench, fuzz, conformance suite). `cargo package --workspace` ignores that flag, so release tooling must subtract this set explicitly; --flags emits ready-to-use --exclude arguments"
-dir = "{{ config_root }}"
-run = '''
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-
-verbose="${usage_verbose:-false}"
-as_flags="${usage_flags:-false}"
-
-# `publish` is the same tri-state `crates:status` keys off, read the other way
-# round: null = publishable anywhere, [] = `publish = false`, ["name"] = allowed
-# on specific registries only. The comparison is explicit because [] is TRUTHY in
-# jq -- `select(.publish)` would match every crate and select nothing useful.
-names="$(cargo metadata --no-deps --format-version 1 \
-    | jq -r '.packages[] | select(.publish == []) | .name' | sort)"
-
-# `grep -c .` rather than a parameter expansion: the obvious spelling for an
-# array length opens with the brace-hash pair Tera parses as a comment and would
-# fail this task at render time. See the note above `crates:status`.
-count="$(printf '%s' "$names" | grep -c . || true)"
-
-if [ "$verbose" = "true" ]; then
-    echo "crates:dev-only: $count crate(s) marked publish = false" >&2
-fi
-
-# An empty set is a DEFECT, not "nothing to exclude". It is reachable two ways
-# and both are bad: a harness lost its `publish = false` (that crate is now
-# publishable and the next tag would upload it), or this query stopped matching
-# cargo's metadata schema. Returning success with an empty list restores exactly
-# the behaviour the task exists to prevent -- callers would package the whole
-# workspace and cosign-sign the harnesses into the release -- and it would do so
-# silently, at a tag, which is the worst moment to find out.
-#
-# Same posture `crates:status` already takes: refuse to guess on an inconclusive
-# lookup. There is deliberately NO --allow-empty escape hatch. If this workspace
-# genuinely has no dev-only crates left, the fix is to delete this task and its
-# two call sites in publish.yml -- the subtraction they perform is then a no-op,
-# and a flag would only preserve dead machinery.
-if [ "$count" -eq 0 ]; then
-    {
-        echo 'crates:dev-only: no workspace crate declares publish = false -- refusing to continue.'
-        echo '  Expected at least glaucus-bench, glaucus-fuzz and glaucus-yaml-test-suite.'
-        echo '  Either a harness lost its publish = false key, or this query no longer'
-        echo "  matches cargo's metadata schema. Inspect the raw values with:"
-        echo '    cargo metadata --no-deps --format-version 1 | jq ".packages[] | [.name, .publish]"'
-    } >&2
-    exit 1
-fi
-
-if [ "$as_flags" = "true" ]; then
-    # One line of `--exclude <name>` pairs, for `read -ra` in publish.yml. Safe
-    # to word-split on: cargo restricts crate names to alphanumerics, `-` and `_`.
-    printf '%s' "$names" | sed 's/^/--exclude /' | tr '\n' ' '
-    echo
-elif [ -n "$names" ]; then
-    printf '%s\n' "$names"
-fi
-'''
-shell = "bash -c"
-usage = '''
-flag "--flags" help="emit a single line of `--exclude <name>` arguments for cargo, instead of one bare name per line"
-flag "--verbose" help="report the resolved crate count on stderr before printing"
-'''
-
 # -- comply (REUSE checker) --
 
 # Not in [tools]: a git-source install cannot be served by cargo-binstall, so
@@ -2606,21 +2273,6 @@ export RUSTFLAGS="-C target-cpu=native"
 cargo build --workspace
 unset RUSTFLAGS
 '''
-
-[tasks."build:install"]
-alias = ["bs", "bi", "build:setup"]
-depends = []
-description = "This only build and install the glaucus locally."
-run = '''
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-
-cargo build --release -p glaucus --features cli
-chmod -v +x target/release/glaucus
-cp -rfv target/release/glaucus ~/.local/bin/
-'''
-shell = "bash -c"
 
 [tasks."build:verbose"]
 alias = ["bv"]
@@ -2882,68 +2534,6 @@ run = [
   "mise run coverage",
 ]
 
-# -- Docs site (VitePress, managed with bun) --
-
-# The site lives entirely under `docs/`, package.json included. That is what
-# keeps the npm dependency tree out of the repository root and -- because
-# `.dockerignore` already excludes `docs/` -- out of every image build context
-# without a second rule. None of these tasks belong in `ci` or `pr:ready`: a
-# broken docs build must not fail the crate gate.
-
-[tasks."docs:install"]
-# `bun` runs where `package.json` is, which is `docs/`, not the repo root.
-alias = ["docsi"]
-description = "Install the docs site dependencies with bun (docs/node_modules)"
-dir = "docs"
-run = "bun install"
-
-[tasks."docs:dev"]
-# `bun` runs where `package.json` is, which is `docs/`, not the repo root.
-alias = ["docs", "docsd"]
-depends = ["docs:install"]
-description = "Serve the docs site locally with hot reload on http://localhost:5173"
-dir = "docs"
-run = "bun run dev"
-
-[tasks."docs:build"]
-# `bun` runs where `package.json` is, which is `docs/`, not the repo root.
-alias = ["docsb"]
-depends = ["docs:install"]
-description = "Build the docs site into docs/.vitepress/dist. Set DOCS_BASE=/ for a custom domain; the default `/glaucus/` matches GitHub project pages"
-dir = "docs"
-run = '''
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-
-bun install --locked
-bun run build
-'''
-
-[tasks."docs:typecheck"]
-# `bun` runs where `package.json` is, which is `docs/`, not the repo root.
-alias = ["docstc"]
-depends = ["docs:install"]
-description = "Type-check the site's .ts/.mts sources. Nothing else does: `vitepress build` transpiles without type-checking, so an error in config.mts or mermaid.ts only ever surfaced in an editor"
-dir = "docs"
-run = '''
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-
-bun install --locked
-bun run typecheck
-'''
-shell = "bash -c"
-
-[tasks."docs:preview"]
-# `bun` runs where `package.json` is, which is `docs/`, not the repo root.
-alias = ["docsp"]
-depends = ["docs:build"]
-description = "Serve the built docs site, to check the production build before publishing"
-dir = "docs"
-run = "bun run preview"
-
 # -- Clean --
 
 [tasks.clean]
@@ -2961,11 +2551,11 @@ run = '''
 
 set -Eeuo pipefail
 
-# Repo and branch are RESOLVED, not hardcoded. This read `repos/elioseverojunior/
-# glaucus/branches/main/protection` literally, so running it from a fork -- or
-# after a rename -- rewrote protection on the upstream repository instead of the
-# one checked out, silently and with admin rights. `gh:env:protect` resolves the
-# same way; keep them consistent.
+# Repo and branch are RESOLVED, not hardcoded. A literal `repos/<owner>/<repo>/
+# branches/main/protection` path, run from a fork -- or after a rename -- would
+# rewrite protection on the upstream repository instead of the one checked out,
+# silently and with admin rights. `gh:env:protect` resolves the same way; keep
+# them consistent.
 repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 branch="$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)"
 
@@ -3033,8 +2623,8 @@ set -Eeuo pipefail
 repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 checking="${usage_check:-false}"
 
-# The reviewer is resolved, not hardcoded: `gh:branch:protect` above hardcodes
-# elioseverojunior/glaucus and silently targets the wrong repository from a fork.
+# The reviewer is resolved, not hardcoded, for the same reason the repository
+# is: a literal login silently targets the wrong account from a fork.
 reviewer_login="$(gh api user -q .login)"
 reviewer_id="$(gh api user -q .id)"
 
