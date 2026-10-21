@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 # This crate is deliberately its OWN workspace (see [workspace] below) and is
 # listed in the root Cargo.toml `exclude`. libfuzzer-sys needs nightly and
 # sanitizer -Z flags, and its generated entry point cannot satisfy the parent

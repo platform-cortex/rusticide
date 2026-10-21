@@ -1,9 +1,10 @@
-// SPDX-FileCopyrightText: 2026 XLLM contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::collections::HashMap;
 
-use xllm_model::{GGUFValue, Model};
+use rusticide_model::{GGUFValue, Model};
 
 // ---------------------------------------------------------------------------
 // TokenizerModel

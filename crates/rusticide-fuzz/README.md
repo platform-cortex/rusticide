@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # rusticide-fuzz
 
 libFuzzer targets for [rusticide](https://github.com/elioseverojunior/rusticide), driven

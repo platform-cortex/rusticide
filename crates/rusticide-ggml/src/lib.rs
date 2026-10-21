@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: 2026 XLLM contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #![allow(
@@ -14,7 +15,7 @@ use std::mem::size_of;
 
 use rayon::prelude::*;
 use thiserror::Error;
-use xllm_tensor::{DType, Tensor, TensorError};
+use rusticide_tensor::{DType, Tensor, TensorError};
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -860,7 +861,7 @@ fn op_repeat(inputs: &[&Tensor], params: Option<&[u8]>) -> Result<Tensor> {
 
 #[cfg(test)]
 mod tests {
-    use xllm_tensor::Tensor;
+    use rusticide_tensor::Tensor;
 
     use super::*;
 

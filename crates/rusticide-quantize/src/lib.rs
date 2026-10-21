@@ -1,6 +1,7 @@
 #![allow(
 
-// SPDX-FileCopyrightText: 2026 XLLM contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
     clippy::cast_possible_truncation,
@@ -10,7 +11,7 @@
 )]
 
 use half::f16;
-use xllm_tensor::{Tensor, TensorError};
+use rusticide_tensor::{Tensor, TensorError};
 
 pub const Q4_0_BLOCK_SIZE: usize = 32;
 pub const Q4_0_BLOCK_BYTES: usize = 18;

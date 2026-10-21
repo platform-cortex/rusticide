@@ -1,7 +1,8 @@
-// SPDX-FileCopyrightText: 2026 XLLM contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use xllm_tensor::{Tensor, TensorError};
+use rusticide_tensor::{Tensor, TensorError};
 
 #[derive(Debug, Clone)]
 pub struct SamplingParams {
@@ -245,7 +246,7 @@ fn argmax(logits: &[f32]) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use xllm_tensor::DType;
+    use rusticide_tensor::DType;
 
     use super::*;
 

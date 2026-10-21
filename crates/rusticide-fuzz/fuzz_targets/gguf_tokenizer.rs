@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: 2026 XLLM contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Fuzz the tokenizer built from arbitrary GGUF metadata.
@@ -15,8 +16,8 @@ mod common;
 
 use common::ScratchFile;
 use libfuzzer_sys::fuzz_target;
-use xllm_model::Model;
-use xllm_tokenizer::Tokenizer;
+use rusticide_model::Model;
+use rusticide_tokenizer::Tokenizer;
 
 /// Exercises the byte-fallback path, multi-byte UTF-8, and leading whitespace.
 const PROBES: [&str; 5] = [

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # rusticide-ggml
 
 Compute graph backend matching the llama.cpp GGML API.

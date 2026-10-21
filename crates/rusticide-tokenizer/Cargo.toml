@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 [package]
 authors.workspace = true
 categories = ["text-processing"]
@@ -12,8 +16,8 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-thiserror.workspace = true
 rusticide-model.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

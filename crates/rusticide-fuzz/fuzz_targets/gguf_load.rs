@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: 2026 XLLM contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Fuzz the GGUF reader against arbitrary bytes.
@@ -16,7 +17,7 @@ mod common;
 
 use common::ScratchFile;
 use libfuzzer_sys::fuzz_target;
-use xllm_model::Model;
+use rusticide_model::Model;
 
 fuzz_target!(|data: &[u8]| {
     // Below the 24-byte header there is nothing to parse; skip the file I/O.
