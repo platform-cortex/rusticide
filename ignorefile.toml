@@ -19,6 +19,8 @@ ignore = [
   "/**/__pycache__/",
   "/**/undefined/",
   "/**/.act/",
+  "/dist/",
+  "/binaries/",
 ]
 
 [[gitignore.section.rule]]
@@ -65,5 +67,13 @@ add = ["opencode.json", "/**/.act/README.md"]
 [[gitignore.section]]
 level = 3
 name = "Mise"
+
 [[gitignore.section.rule]]
 ignore = ["mise.local.toml"]
+
+[[gitignore.section]]
+level = 3
+name = "Claude"
+
+[[gitignore.section.rule]]
+add = [".claude/**/*", "CLAUDE.md"]

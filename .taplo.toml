@@ -2,6 +2,10 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
+# taplo does not read .gitignore: without this it formats build output, e.g.
+# the target/package/*/Cargo.toml that `cargo publish --dry-run` writes.
+exclude = ["**/target/**", "dist/**", "**/worktrees/**"]
+
 [formatting]
 indent_string = "  "
 indent_table = true

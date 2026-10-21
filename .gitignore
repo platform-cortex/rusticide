@@ -12,6 +12,8 @@
 /**/__pycache__/
 /**/undefined/
 /**/.act/
+/dist/
+/binaries/
 
 # Editor artifacts
 /**/cobertura.xml
