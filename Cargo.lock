@@ -21,6 +21,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusticide"
+version = "0.1.0"
+
+[[package]]
 name = "rusticide-alloc"
 version = "0.1.0"
 

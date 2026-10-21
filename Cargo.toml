@@ -8,6 +8,7 @@
 # so it must not be pulled in by the `crates/*` glob.
 exclude = ["crates/rusticide-fuzz"]
 members = [
+  "crates/rusticide",
   "crates/rusticide-alloc",
   "crates/rusticide-core",
   "crates/rusticide-schema",

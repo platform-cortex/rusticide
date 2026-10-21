@@ -2,6 +2,11 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-fn main() {
-    println!("Hello, world!");
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    let outcome = rusticide::run(std::env::args().skip(1));
+    print!("{}", outcome.stdout);
+    eprint!("{}", outcome.stderr);
+    ExitCode::from(outcome.code)
 }
