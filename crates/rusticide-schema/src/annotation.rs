@@ -99,9 +99,8 @@ impl Annotation {
 /// names (e.g. `a`, `a|b`). Returns `None` for an empty string, or for
 /// any part that is not exactly one lowercase ASCII letter.
 fn parse_alias_set(s: &str) -> Option<Vec<char>> {
-    if s.is_empty() {
-        return None;
-    }
+    // No separate empty-string check: `"".split('|')` yields one empty
+    // part, which the match below already rejects.
     s.split('|')
         .map(|part| {
             let mut chars = part.chars();
