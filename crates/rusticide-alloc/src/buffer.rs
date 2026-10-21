@@ -102,4 +102,18 @@ mod tests {
         b[3] = 42;
         assert_eq!(&*b, &[0, 0, 0, 42]);
     }
+
+    #[test]
+    fn is_empty_is_true_only_for_a_zero_length_buffer() {
+        assert!(
+            Buffer::alloc_zeroed(0)
+                .expect("allocation succeeds")
+                .is_empty()
+        );
+        assert!(
+            !Buffer::alloc_zeroed(1)
+                .expect("allocation succeeds")
+                .is_empty()
+        );
+    }
 }
