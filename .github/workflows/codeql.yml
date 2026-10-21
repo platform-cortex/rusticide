@@ -15,7 +15,8 @@ on:
 # security-events: write it needs to upload SARIF. Job-level permissions
 # replace (not intersect with) the workflow-level ones, so this grants nothing
 # to any other job that may be added later.
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   analyze:
