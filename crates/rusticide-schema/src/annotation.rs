@@ -229,4 +229,18 @@ mod tests {
         assert_eq!(a.alias_set_after, vec!['b', 'c']);
         round_trip("a -> b|c");
     }
+
+    /// Asserts the exact variant: a parser that wrongly accepted these
+    /// would still fail later on the round-trip check, so `is_err()` alone
+    /// cannot tell the grammar rejecting them from a downstream accident.
+    #[test]
+    fn an_alias_name_must_be_exactly_one_lowercase_letter() {
+        for s in ["", "ab", "A", "a|", "a||b"] {
+            assert_eq!(
+                Annotation::parse(s),
+                Err(crate::ParseError::BadAnnotation(s.to_owned())),
+                "{s:?} must be rejected by the alias-set grammar"
+            );
+        }
+    }
 }

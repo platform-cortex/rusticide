@@ -270,4 +270,11 @@ mod tests {
         assert!(args.out[0].is_write());
         assert_eq!(args.to_string(), s);
     }
+
+    #[test]
+    fn a_blank_argument_list_has_no_arguments() {
+        for s in ["", "   "] {
+            assert_eq!(Arguments::parse(s), Ok(Arguments::default()), "{s:?}");
+        }
+    }
 }

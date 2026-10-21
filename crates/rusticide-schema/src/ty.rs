@@ -169,4 +169,18 @@ mod tests {
             round_trip(s);
         }
     }
+
+    /// `"01"` is a valid `usize`, so the parser accepts it -- and prints it
+    /// back as `1`. The round-trip assertion is what rejects the
+    /// non-canonical spelling instead of silently normalizing it.
+    #[test]
+    fn a_zero_padded_list_size_is_rejected_by_the_round_trip_check() {
+        assert_eq!(
+            Type::parse("int[01]"),
+            Err(crate::ParseError::RoundTrip {
+                parsed: "int[1]".to_owned(),
+                expected: "int[01]".to_owned(),
+            })
+        );
+    }
 }

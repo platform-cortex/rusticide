@@ -134,4 +134,13 @@ mod tests {
     fn parse_rejects_unknown_base_types() {
         assert_eq!(BaseTy::parse("Frobnicator"), None);
     }
+
+    /// The guard's work is done by rustc; calling it here only proves it
+    /// accepts every tabled variant without panicking.
+    #[test]
+    fn the_exhaustiveness_guard_accepts_every_tabled_base_ty() {
+        for (_, ty) in super::BASE_TY_TABLE {
+            super::assert_every_base_ty_is_in_the_table(ty);
+        }
+    }
 }
