@@ -1,5 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 [package]
-name = "rusticide"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -7,6 +10,7 @@ documentation.workspace = true
 edition.workspace = true
 keywords.workspace = true
 license.workspace = true
+name = "rusticide"
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
