@@ -1,6 +1,7 @@
 <!--
-SPDX-FileCopyrightText: 2026 XLLM contributors
-SPDX-License-Identifier: CC-BY-3.0+
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
 # rusticide - OpenSSF Best Practices Badge Application

@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
 # SPDX-License-Identifier: MIT OR Apache-2.0
+
 name: parity
 
 # Manual dispatch only for now. Enable a schedule trigger once the golden

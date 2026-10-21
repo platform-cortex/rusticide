@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 # Fetch the Llama-3.2-1B-Instruct Q4_K_M GGUF for the parity test.
 # Output: models/Llama-3.2-1B-Instruct-Q4_K_M.gguf (git-ignored).
 # Override REPO / FILE to use a different mirror.

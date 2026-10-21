@@ -1,6 +1,7 @@
 <!--
-SPDX-FileCopyrightText: 2026 Rusticide contributors
-SPDX-License-Identifier: CC-BY-3.0+
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
 # Rusticide -- Pure-Rust Deep Learning Framework (Design)

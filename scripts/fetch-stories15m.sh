@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 # Fetch Karpathy's stories15M and convert it to a single-file F32 GGUF.
 # Output: models/stories15M-f32.gguf (git-ignored). Requires llama.cpp's
 # convert tooling on PATH or at $LLAMA_CPP (env var pointing at a checkout).

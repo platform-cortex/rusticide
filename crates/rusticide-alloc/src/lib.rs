@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: 2026 Rusticide contributors
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Rusticide alloc: aligned buffer allocation for tensor storage.

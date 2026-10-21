@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # rusticide
 
 CPU-first LLM inference engine in pure Rust -- a port of [llama.cpp](https://github.com/ggml-org/llama.cpp).

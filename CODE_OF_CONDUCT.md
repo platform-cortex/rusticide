@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # Code of Conduct
 
 This is an [Open Source Security Foundation (OpenSSF)](https://openssf.org) project, so we follow the [OpenSSF Code of Conduct (CoC)](https://openssf.org/community/code-of-conduct/). Here is a copy of the OpenSSF CoC at the time of this writing, so that anyone with a copy of this repository's data has a copy of it.

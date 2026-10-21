@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 # @generated from commit-types.toml by scripts/commit-config.py -- DO NOT EDIT
 # Regenerate with `mise run commit-config`; `mise run commit-config:check` guards drift.
 

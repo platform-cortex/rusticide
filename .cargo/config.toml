@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 [build]
 # Warnings as errors enforced via Cargo.toml [lints], kept here for build-rs
 # and any crate that isn't covered by Cargo.toml's lint table.

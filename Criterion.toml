@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 # This is used to override the directory where cargo-criterion saves
 # its data and generates reports.
 criterion_home = "./target/criterion"

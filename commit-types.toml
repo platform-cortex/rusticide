@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 # commit-types.toml ~ SINGLE SOURCE OF TRUTH for conventional-commit types.
 #
 # This is the ONLY file you edit when commit types, their changelog grouping, or

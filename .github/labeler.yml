@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 # Configuration for actions/labeler, applied by .github/workflows/labeler.yml.
 # https://github.com/actions/labeler
 #

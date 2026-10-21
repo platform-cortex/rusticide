@@ -1,7 +1,7 @@
 SPDX-FileCopyrightText = "2026 Elio Severo Junior and contributors"
 SPDX-PackageDownloadLocation = "https://github.com/elioseverojunior/rusticide"
 SPDX-PackageName = "rusticide"
-SPDX-PackageSupplier = "XLLM contributors"
+SPDX-PackageSupplier = "RUSTICIDE contributors"
 version = 1
 
 [[annotations]]
@@ -30,3 +30,48 @@ precedence = "aggregate"
 SPDX-License-Identifier = "MIT"
 path = ["DCO.txt"]
 precedence = "aggregate"
+
+[tool.comply]
+# Custom comply settings
+ignore = [
+  "**/*.ico",
+  "**/*.lock",
+  "**/*.png",
+  "**/*.svg",
+  "**/*yaml-test-suite/data/",
+  "**/*yaml-test-suite/data/**",
+  "**/.actrc",
+  "**/.aider.*/",
+  "**/.bun-version",
+  "**/.nvmrc",
+  "**/.prettierignore",
+  "**/.prettierrc",
+  "**/.remember/",
+  "**/.rumdl_cache/",
+  "**/CHANGELOG.md",
+  "**/RELEASE_NOTE*.md",
+  "**/bench-report/",
+  "**/benchmarks.json",
+  "**/committed.toml",
+  "**/dist/",
+  "**/docker/Dockerfile*",
+  "**/docs/benchmarks/latest.md",
+  "**/docs/index.md",
+  "**/mutants*/",
+  "**/package*.json",
+  "**/supply-chain/.cargo-vet/**",
+  "**/tsconfig*.json",
+]
+
+[[tool.comply.comment-styles]]
+close = ""
+filenames = [".gitmessage"]
+line = ""
+open = "#"
+
+[[tool.comply.comment-styles]]
+close = ""
+extensions = ["pkl"]
+filenames = ["hk.pkl"]
+line = ""
+open = "//"
