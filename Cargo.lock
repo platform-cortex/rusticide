@@ -75,6 +75,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusticide-ggml"
+version = "0.1.0"
+dependencies = [
+ "half",
+ "rusticide-core",
+ "thiserror",
+]
+
+[[package]]
 name = "rusticide-io"
 version = "0.1.0"
 dependencies = [

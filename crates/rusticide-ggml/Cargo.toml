@@ -4,10 +4,10 @@
 
 [package]
 authors.workspace = true
-categories = ["algorithms", "concurrency"]
-description = "Compute graph backend matching the llama.cpp GGML API"
+categories = ["algorithms"]
+description = "Compute graph over rusticide-core tensors, matching the llama.cpp GGML API"
 edition.workspace = true
-keywords = ["compute-graph", "ggml", "neural-network", "rayon", "parallel"]
+keywords = ["compute-graph", "ggml", "neural-network", "tensor"]
 license.workspace = true
 name = "rusticide-ggml"
 readme = "README.md"
@@ -15,13 +15,12 @@ repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
-[package.metadata.cargo-machete]
-ignored = ["rayon", "thiserror", "rusticide-tensor"]
-
 [dependencies]
-rayon.workspace = true
-rusticide-tensor.workspace = true
+rusticide-core.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+half.workspace = true
 
 [lints]
 workspace = true
