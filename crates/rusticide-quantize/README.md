@@ -8,9 +8,9 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 Model quantization formats.
 
-Implements low-bit quantizations: Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, and
-more. Quantizes and dequantizes tensors for reduced memory usage and
-faster CPU inference.
+Implements the Q4_0, Q4_K and Q6_K block formats on top of `rusticide-core`
+tensors. Q4_0 quantizes and dequantizes; Q4_K and Q6_K dequantize, for
+reduced memory usage and faster CPU inference.
 
 ## License
 

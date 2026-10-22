@@ -5,9 +5,9 @@
 [package]
 authors.workspace = true
 categories = ["compression"]
-description = "Model quantization formats (Q4_0, Q5_1, Q8_0, etc.)"
+description = "Model quantization formats (Q4_0, Q4_K, Q6_K)"
 edition.workspace = true
-keywords = ["quantization", "q4_0", "q8_0", "compression", "model"]
+keywords = ["quantization", "q4_0", "q4_k", "q6_k", "model"]
 license.workspace = true
 name = "rusticide-quantize"
 readme = "README.md"
@@ -15,12 +15,10 @@ repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
-[package.metadata.cargo-machete]
-ignored = ["half", "rusticide-tensor"]
-
 [dependencies]
 half.workspace = true
-rusticide-tensor.workspace = true
+rusticide-core.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

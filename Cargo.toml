@@ -12,6 +12,7 @@ members = [
   "crates/rusticide-alloc",
   "crates/rusticide-core",
   "crates/rusticide-dispatch",
+  "crates/rusticide-quantize",
   "crates/rusticide-schema",
 ]
 resolver = "3"

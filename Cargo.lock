@@ -69,6 +69,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusticide-quantize"
+version = "0.1.0"
+dependencies = [
+ "half",
+ "rusticide-core",
+ "thiserror",
+]
+
+[[package]]
 name = "rusticide-schema"
 version = "0.1.0"
 dependencies = [
