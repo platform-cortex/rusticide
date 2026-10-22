@@ -4,10 +4,17 @@
 
 //! The GGUF format layer.
 
-// Consumers (header, metadata, tensor loading) land in later tasks.
-#![cfg_attr(not(test), allow(dead_code))]
-
 mod cursor;
+mod file;
+mod header;
+mod metadata;
+mod tensor_info;
 mod value;
 
+#[cfg(test)]
+mod test_support;
+
+pub use file::GgufFile;
+pub use metadata::Metadata;
+pub use tensor_info::{GgmlType, TensorInfo};
 pub use value::GGUFValue;

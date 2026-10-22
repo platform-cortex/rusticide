@@ -72,6 +72,7 @@ dependencies = [
 name = "rusticide-io"
 version = "0.1.0"
 dependencies = [
+ "rusticide-core",
  "thiserror",
 ]
 

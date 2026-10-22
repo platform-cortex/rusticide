@@ -16,6 +16,7 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+rusticide-core.workspace = true
 thiserror.workspace = true
 
 [lints]
