@@ -12,6 +12,7 @@ members = [
   "crates/rusticide-alloc",
   "crates/rusticide-core",
   "crates/rusticide-dispatch",
+  "crates/rusticide-io",
   "crates/rusticide-quantize",
   "crates/rusticide-schema",
 ]
@@ -97,6 +98,7 @@ rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.1.0" }
 rusticide-core = { path = "crates/rusticide-core", version = "0.1.0" }
 rusticide-dispatch = { path = "crates/rusticide-dispatch", version = "0.1.0" }
 rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.1.0" }
+rusticide-io = { path = "crates/rusticide-io", version = "0.1.0" }
 rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.1.0" }
 rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.1.0" }
 rusticide-schema = { path = "crates/rusticide-schema", version = "0.1.0" }
