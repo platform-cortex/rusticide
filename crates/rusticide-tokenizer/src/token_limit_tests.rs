@@ -32,7 +32,9 @@ fn from_gguf_accepts_a_token_at_the_length_cap() {
 #[test]
 fn the_piece_lookup_is_built_at_construction() {
     let tok = Tokenizer::from_gguf(&llama_fixture()).unwrap();
-    assert_eq!(tok.pieces.longest(), "hello".len().max(" world".len()));
+    let found = tok.pieces.prefixes(b"hello", 0, &tok.scores);
+    assert_eq!(found, vec![(5, 4, -1.0), (3, 5, -2.0)]);
     let direct = Tokenizer::new(TokenizerModel::LLaMA, vec!["ab", "abc"], None, 0, 1, false);
-    assert_eq!(direct.pieces.longest(), 3);
+    let found = direct.pieces.prefixes(b"abc", 0, &direct.scores);
+    assert_eq!(found, vec![(0, 2, 0.0), (1, 3, 0.0)]);
 }
