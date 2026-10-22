@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
+use crate::trie::Trie;
 
 pub(crate) type MergeLookup = HashMap<(u32, u32), (usize, u32)>;
 
@@ -29,6 +30,7 @@ pub struct Tokenizer {
     pub(crate) add_bos: bool,
     pub(crate) add_space_prefix: bool,
     pub(crate) merge_info: MergeLookup,
+    pub(crate) pieces: Trie,
 }
 
 impl Tokenizer {
@@ -52,6 +54,7 @@ impl Tokenizer {
         let add_space_prefix = model == TokenizerModel::LLaMA;
         Self {
             model,
+            pieces: Trie::from_vocab(&vocab_bytes),
             vocab: vocab_bytes,
             scores: scores_vec,
             bos_id,

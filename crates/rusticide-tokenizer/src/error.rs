@@ -18,6 +18,12 @@ pub enum TokenizerError {
     InvalidId(i32),
     #[error("non-finite score at vocabulary index {index}")]
     NonFiniteScore { index: usize },
+    #[error("token at vocabulary index {index} is {len} bytes, over the {max}-byte limit")]
+    TokenTooLong {
+        index: usize,
+        len: usize,
+        max: usize,
+    },
     #[error("vocabulary size exceeds u32 range")]
     VocabOverflow,
 }

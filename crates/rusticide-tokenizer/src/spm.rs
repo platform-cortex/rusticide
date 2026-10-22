@@ -5,7 +5,6 @@
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
 use crate::tokenizer::Tokenizer;
-use crate::trie::Trie;
 
 const SPACE_MARKER: &str = "\u{2581}";
 
@@ -76,17 +75,16 @@ impl Tokenizer {
 
     /// `LLaMA` / `SentencePiece` unigram encoding via Viterbi DP.
     ///
-    /// Cost is O(input bytes x longest vocabulary entry); the trie is rebuilt
-    /// on every call.
+    /// Cost is O(input bytes x longest vocabulary entry); the piece lookup is
+    /// built once at construction.
     fn encode_llama(&self, text: &str) -> Result<Vec<u32>> {
         let prefix = if self.add_space_prefix { " " } else { "" };
         let normalized = format!("{prefix}{text}").replace(' ', SPACE_MARKER);
         let bytes = normalized.as_bytes();
         let byte_fallback = self.build_byte_fallback();
-        let trie = self.build_trie();
         let mut lattice = Lattice::new(bytes.len());
         for start in 0..bytes.len() {
-            let matches = trie.prefixes(bytes, start, &self.scores);
+            let matches = self.pieces.prefixes(bytes, start, &self.scores);
             if matches.is_empty() {
                 if let Some(id) = byte_fallback[bytes[start] as usize] {
                     lattice.relax(start, 1, id, self.scores[id as usize]);
@@ -97,14 +95,6 @@ impl Tokenizer {
             }
         }
         lattice.backtrack()
-    }
-
-    fn build_trie(&self) -> Trie {
-        let mut trie = Trie::new();
-        for (id, bytes) in self.vocab.iter().enumerate() {
-            trie.insert(bytes, u32::try_from(id).unwrap_or(u32::MAX));
-        }
-        trie
     }
 
     fn build_byte_fallback(&self) -> [Option<u32>; 256] {

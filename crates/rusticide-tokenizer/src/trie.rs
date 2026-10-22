@@ -2,49 +2,40 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-struct TrieNode {
-    children: Vec<(u8, usize)>,
-    token_id: Option<u32>,
-}
+use std::collections::HashMap;
 
+/// Length-bounded piece lookup: memory is proportional to the vocabulary's
+/// total bytes, and a probe never looks past the longest piece.
+#[derive(Debug, Default)]
 pub(crate) struct Trie {
-    nodes: Vec<TrieNode>,
+    pieces: HashMap<Vec<u8>, u32>,
+    longest: usize,
 }
 
 impl Trie {
     pub(crate) fn new() -> Self {
-        Self {
-            nodes: vec![TrieNode {
-                children: Vec::new(),
-                token_id: None,
-            }],
-        }
+        Self::default()
     }
 
-    fn child(&self, node: usize, byte: u8) -> Option<usize> {
-        self.nodes[node]
-            .children
-            .iter()
-            .find(|(candidate, _)| *candidate == byte)
-            .map(|&(_, index)| index)
+    pub(crate) fn from_vocab(vocab: &[Vec<u8>]) -> Self {
+        let mut trie = Self::new();
+        for (id, bytes) in vocab.iter().enumerate() {
+            trie.insert(bytes, u32::try_from(id).unwrap_or(u32::MAX));
+        }
+        trie
     }
 
     pub(crate) fn insert(&mut self, bytes: &[u8], token_id: u32) {
-        let mut idx = 0usize;
-        for &b in bytes {
-            if let Some(next) = self.child(idx, b) {
-                idx = next;
-            } else {
-                let new_idx = self.nodes.len();
-                self.nodes.push(TrieNode {
-                    children: Vec::new(),
-                    token_id: None,
-                });
-                self.nodes[idx].children.push((b, new_idx));
-                idx = new_idx;
-            }
+        if bytes.is_empty() {
+            return;
         }
-        self.nodes[idx].token_id = Some(token_id);
+        self.longest = self.longest.max(bytes.len());
+        self.pieces.insert(bytes.to_vec(), token_id);
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn longest(&self) -> usize {
+        self.longest
     }
 
     /// Returns all (`token_id`, `byte_length`, score) that match at `start`.
@@ -54,18 +45,13 @@ impl Trie {
         start: usize,
         scores: &[f32],
     ) -> Vec<(u32, usize, f32)> {
-        let mut result = Vec::new();
-        let mut idx = 0usize;
-        for (len, &b) in bytes[start..].iter().enumerate() {
-            let Some(next) = self.child(idx, b) else {
-                break;
-            };
-            idx = next;
-            if let Some(tid) = self.nodes[idx].token_id {
-                result.push((tid, len + 1, scores[tid as usize]));
-            }
-        }
-        result
+        let rest = &bytes[start..];
+        (1..=rest.len().min(self.longest))
+            .filter_map(|len| {
+                let tid = *self.pieces.get(&rest[..len])?;
+                Some((tid, len, scores[tid as usize]))
+            })
+            .collect()
     }
 }
 

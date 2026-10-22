@@ -9,7 +9,10 @@ use rusticide_io::{GGUFValue, Metadata};
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
 use crate::tokenizer::{MergeLookup, Tokenizer, pad_scores, token_id};
+use crate::trie::Trie;
 use crate::value_ext::GGUFValueExt;
+
+pub(crate) const MAX_TOKEN_BYTES: usize = 1024;
 
 fn required<'a>(metadata: &'a Metadata, key: &'static str) -> Result<&'a GGUFValue> {
     metadata
@@ -32,8 +35,20 @@ fn read_tokens(metadata: &Metadata) -> Result<Vec<String>> {
     required(metadata, "tokenizer.ggml.tokens")?
         .as_array()?
         .iter()
-        .map(GGUFValueExt::as_string)
+        .enumerate()
+        .map(|(index, value)| bounded_token(index, value.as_string()?))
         .collect()
+}
+
+fn bounded_token(index: usize, token: String) -> Result<String> {
+    if token.len() > MAX_TOKEN_BYTES {
+        return Err(TokenizerError::TokenTooLong {
+            index,
+            len: token.len(),
+            max: MAX_TOKEN_BYTES,
+        });
+    }
+    Ok(token)
 }
 
 fn read_scores(metadata: &Metadata) -> Result<Vec<f32>> {
@@ -102,10 +117,12 @@ impl Tokenizer {
         let add_bos = read_flag(metadata, "tokenizer.ggml.add_bos_token", is_llama);
         let add_space_prefix = read_flag(metadata, "tokenizer.ggml.add_space_prefix", is_llama);
         let merge_info = read_merges(metadata, model, &vocab_strings)?;
+        let vocab: Vec<Vec<u8>> = vocab_strings.into_iter().map(String::into_bytes).collect();
         Ok(Self {
             model,
-            scores: pad_scores(scores, vocab_strings.len()),
-            vocab: vocab_strings.into_iter().map(String::into_bytes).collect(),
+            scores: pad_scores(scores, vocab.len()),
+            pieces: Trie::from_vocab(&vocab),
+            vocab,
             bos_id,
             eos_id,
             add_bos,
@@ -144,3 +161,7 @@ mod tests;
 #[cfg(test)]
 #[path = "merge_tests.rs"]
 mod merge_tests;
+
+#[cfg(test)]
+#[path = "token_limit_tests.rs"]
+mod token_limit_tests;
