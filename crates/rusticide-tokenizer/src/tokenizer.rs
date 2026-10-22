@@ -36,9 +36,15 @@ pub struct Tokenizer {
 impl Tokenizer {
     /// Construct a tokenizer directly from values (useful for testing).
     ///
-    /// `scores` must be finite. Non-finite scores are not validated here (use
-    /// `from_gguf` for untrusted input, which rejects them); they give
-    /// unspecified but non-panicking tokenization.
+    /// This is a trusted API: it validates nothing. Use `from_gguf` for
+    /// untrusted input, which rejects what this accepts:
+    ///
+    /// - `scores` must be finite. Non-finite scores give unspecified but
+    ///   non-panicking tokenization.
+    /// - `from_gguf` rejects any token longer than 1024 bytes
+    ///   ([`TokenizerError::TokenTooLong`]); `new` does not enforce that cap.
+    ///   `SentencePiece` encoding costs O(input bytes x longest token), so a
+    ///   long token here makes every such encode proportionally slower.
     #[must_use]
     #[allow(clippy::needless_pass_by_value)]
     pub fn new(

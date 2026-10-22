@@ -14,6 +14,10 @@ impl Storage {
     /// `lock_order_key` order whatever the argument order, so concurrent
     /// `a.with_read_pair(b)` and `b.with_read_pair(a)` cannot form a wait
     /// cycle. Kernels needing two operands at once must use this method.
+    ///
+    /// The ordering covers one pair only. Nesting `with_read_pair` calls, or
+    /// calling it while this thread holds `write()` on either storage, can
+    /// deadlock.
     pub fn with_read_pair<R>(&self, other: &Self, body: impl FnOnce(&[u8], &[u8]) -> R) -> R {
         if self.same_buffer_as(other) {
             let guard = self.read();

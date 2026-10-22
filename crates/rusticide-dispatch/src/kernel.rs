@@ -30,7 +30,10 @@ impl KernelFunction {
     ///
     /// # Errors
     ///
-    /// Whatever [`DispatchError`] the kernel returns.
+    /// Whatever [`DispatchError`] the kernel returns. The stack's contents
+    /// after an error are unspecified (the kernel may have popped some
+    /// arguments and pushed some results), so the caller must discard the
+    /// stack rather than reuse it.
     pub fn call(&self, stack: &mut Stack) -> Result<(), DispatchError> {
         (self.0)(stack)
     }

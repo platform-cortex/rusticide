@@ -53,7 +53,9 @@ impl Dispatcher {
     /// [`DispatchError::UnknownOperator`] if the operator was never
     /// registered; [`DispatchError::NoKernel`] if it has no kernel for the
     /// computed keyset (including a stack without tensors); whatever error
-    /// the kernel itself returns.
+    /// the kernel itself returns. The lookup errors leave the stack
+    /// untouched, but after a kernel error its contents are unspecified, so
+    /// the caller must discard the stack rather than reuse it.
     pub fn call(&self, operator: &str, stack: &mut Stack) -> Result<(), DispatchError> {
         let keys = stack.key_set();
         let operators = self.read();

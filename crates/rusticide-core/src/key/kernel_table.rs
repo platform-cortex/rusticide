@@ -25,7 +25,7 @@ impl DispatchKeySet {
     /// and forces the caller to handle "no key" rather than silently routing
     /// to the Dense-CPU kernel.
     ///
-    /// Per-backend functionalities occupy [`BACKENDS_PER_FUNCTIONALITY`]
+    /// Per-backend functionalities occupy `BACKENDS_PER_FUNCTIONALITY`
     /// consecutive slots (one per backend); others occupy one. Functionalities
     /// are laid out in discriminant order, so a functionality's base offset is
     /// the summed slot count of every functionality that outranks it less.

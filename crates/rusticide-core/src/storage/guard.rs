@@ -7,7 +7,7 @@ use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 use rusticide_alloc::Buffer;
 
-/// A shared view of a [`Storage`]'s bytes.
+/// A shared view of a [`Storage`](super::Storage)'s bytes.
 ///
 /// Derefs only to `[u8]`, never to the underlying buffer: the buffer's
 /// length is fixed at `numel * dtype.size_in_bytes()` when the storage is
@@ -30,7 +30,7 @@ impl Deref for StorageReadGuard<'_> {
     }
 }
 
-/// An exclusive view of a [`Storage`]'s bytes.
+/// An exclusive view of a [`Storage`](super::Storage)'s bytes.
 ///
 /// Derefs only to `[u8]`, so `guard.len() == numel * dtype.size_in_bytes()`
 /// holds for as long as the storage lives; see [`StorageReadGuard`].
