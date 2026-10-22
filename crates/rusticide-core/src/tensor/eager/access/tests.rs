@@ -197,3 +197,13 @@ fn get_and_set_round_trip_on_an_f16_tensor() {
     );
     assert_eq!(t.get::<f16>(&[0, 1]).expect("in bounds"), f16::ZERO);
 }
+
+#[test]
+#[cfg(target_pointer_width = "64")]
+fn from_slice_accepts_a_zero_extent_with_huge_trailing_dims() {
+    let t = Tensor::from_slice::<f32>(&[], &[0, 1 << 32, 1 << 32]).expect("zero elements");
+    assert_eq!(t.numel(), 0);
+    assert_eq!(t.to_vec::<f32>().expect("f32 tensor"), Vec::<f32>::new());
+    let err = t.get::<f32>(&[0, 0, 0]).expect_err("extent 0");
+    assert!(matches!(err, Error::IndexOutOfBounds { .. }));
+}

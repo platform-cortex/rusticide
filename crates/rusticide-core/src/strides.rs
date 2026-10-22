@@ -24,12 +24,15 @@ impl Strides {
     }
 
     /// Row-major strides: the last dimension steps by one.
+    ///
+    /// Strides saturate only for zero-element shapes, which have no valid
+    /// index; otherwise every stride is at most the element count.
     #[must_use]
     pub fn contiguous_for(shape: &Shape) -> Self {
         let dims = shape.dims();
-        let mut strides = vec![1; dims.len()];
+        let mut strides = vec![1usize; dims.len()];
         for i in (0..dims.len().saturating_sub(1)).rev() {
-            strides[i] = strides[i + 1] * dims[i + 1];
+            strides[i] = strides[i + 1].saturating_mul(dims[i + 1]);
         }
         Self { strides }
     }
@@ -44,6 +47,13 @@ impl Strides {
 mod tests {
     use super::Strides;
     use crate::Shape;
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn contiguous_for_saturates_instead_of_overflowing() {
+        let strides = Strides::contiguous_for(&Shape::new(&[0, 1 << 32, 1 << 32]));
+        assert_eq!(strides.as_slice(), &[usize::MAX, 1 << 32, 1]);
+    }
 
     #[test]
     fn contiguous_strides_are_row_major() {
