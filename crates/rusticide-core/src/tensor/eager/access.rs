@@ -10,7 +10,7 @@
 //! `to_vec` reads storage linearly relying on that. SP2's views must revisit
 //! it.
 
-use crate::{Device, Element, Error, Result, Shape, Storage, Tensor};
+use crate::{Device, Element, Error, Result, Shape, Storage, Tensor, try_vec_with_capacity};
 
 impl Tensor {
     /// Build a contiguous CPU tensor of `dims` from `data`, row-major.
@@ -81,14 +81,16 @@ impl Tensor {
     ///
     /// # Errors
     ///
-    /// `Error::DTypeMismatch` if `T` is not this tensor's dtype.
+    /// `Error::DTypeMismatch` if `T` is not this tensor's dtype;
+    /// `Error::AllocationFailed` if the output cannot be reserved. The
+    /// reservation happens before the storage lock is taken.
     pub fn to_vec<T: Element>(&self) -> Result<Vec<T>> {
         self.check_dtype::<T>()?;
-        let buffer = self.storage().read();
-        Ok(buffer
-            .chunks_exact(T::DTYPE.size_in_bytes())
-            .map(T::read_ne)
-            .collect())
+        let mut values = try_vec_with_capacity(self.numel())?;
+        let bytes = self.storage().read();
+        values.extend(bytes.chunks_exact(T::DTYPE.size_in_bytes()).map(T::read_ne));
+        drop(bytes);
+        Ok(values)
     }
 
     /// Number of dimensions; 0 for a scalar.

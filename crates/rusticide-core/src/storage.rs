@@ -2,11 +2,50 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use rusticide_alloc::Buffer;
 
 use crate::{DType, Device, Error, Result};
+
+/// A shared view of a [`Storage`]'s bytes.
+///
+/// Derefs only to `[u8]`, never to the underlying buffer: the buffer's
+/// length is fixed at `numel * dtype.size_in_bytes()` when the storage is
+/// created, and handing out the buffer itself would let safe code replace
+/// it and break that invariant.
+#[derive(Debug)]
+pub struct StorageReadGuard<'a>(RwLockReadGuard<'a, Buffer>);
+
+impl Deref for StorageReadGuard<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// An exclusive view of a [`Storage`]'s bytes.
+///
+/// Derefs only to `[u8]`, so `guard.len() == numel * dtype.size_in_bytes()`
+/// holds for as long as the storage lives; see [`StorageReadGuard`].
+#[derive(Debug)]
+pub struct StorageWriteGuard<'a>(RwLockWriteGuard<'a, Buffer>);
+
+impl Deref for StorageWriteGuard<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl DerefMut for StorageWriteGuard<'_> {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+}
 
 /// The buffer backing one or more tensors.
 ///
@@ -55,22 +94,24 @@ impl Storage {
     /// tensor has no meaningful recovery, and propagating a `Result` here
     /// would force every kernel call site to plumb an error it cannot act
     /// on differently.
-    pub fn read(&self) -> RwLockReadGuard<'_, Buffer> {
-        match self.buffer.read() {
+    #[must_use]
+    pub fn read(&self) -> StorageReadGuard<'_> {
+        StorageReadGuard(match self.buffer.read() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
-        }
+        })
     }
 
     /// An exclusive view of the bytes.
     ///
     /// See [`Storage::read`] for why lock poisoning is recovered rather
     /// than propagated.
-    pub fn write(&self) -> RwLockWriteGuard<'_, Buffer> {
-        match self.buffer.write() {
+    #[must_use]
+    pub fn write(&self) -> StorageWriteGuard<'_> {
+        StorageWriteGuard(match self.buffer.write() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
-        }
+        })
     }
 
     #[must_use]
@@ -101,7 +142,7 @@ impl Storage {
 
 #[cfg(test)]
 mod tests {
-    use super::Storage;
+    use super::{Storage, StorageReadGuard, StorageWriteGuard};
     use crate::{DType, Device, Error};
 
     #[test]
@@ -109,6 +150,19 @@ mod tests {
         let s = Storage::new(DType::F32, Device::cpu(), 10).expect("allocation succeeds");
         assert_eq!(s.numel(), 10);
         assert_eq!(s.read().len(), 40);
+    }
+
+    #[test]
+    fn write_guard_exposes_only_the_byte_slice() {
+        let s = Storage::new(DType::F32, Device::cpu(), 3).expect("allocation succeeds");
+        let mut guard: StorageWriteGuard<'_> = s.write();
+        guard[0] = 1;
+        guard.fill(2);
+        assert_eq!(guard.len(), s.numel() * s.dtype().size_in_bytes());
+        drop(guard);
+        let _: StorageReadGuard<'_> = s.read();
+        assert_eq!(s.read().len(), 12);
+        assert!(s.read().iter().all(|&byte| byte == 2));
     }
 
     #[test]

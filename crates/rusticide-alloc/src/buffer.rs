@@ -5,7 +5,7 @@
 use std::ops::{Deref, DerefMut};
 
 /// An owned, byte-addressed allocation backing a tensor's storage.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Buffer {
     bytes: Vec<u8>,
 }

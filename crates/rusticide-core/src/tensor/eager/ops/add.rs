@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::{filled_f32, require_f32};
+use super::{filled_f32, require_f32, with_f32_pair};
 use crate::{Result, Tensor};
 
 /// Legacy eager CPU operator (SP0 port of the deleted rusticide-tensor).
@@ -12,11 +12,11 @@ pub(super) fn add(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
     require_f32(lhs)?;
     require_f32(rhs)?;
     let out = lhs.shape().broadcast_with(rhs.shape())?;
-    let left = lhs.to_vec::<f32>()?;
-    let right = rhs.to_vec::<f32>()?;
-    filled_f32(out.dims(), |flat| {
-        left[source_index(flat, out.dims(), lhs.shape().dims())]
-            + right[source_index(flat, out.dims(), rhs.shape().dims())]
+    with_f32_pair(lhs, rhs, |left, right| {
+        filled_f32(out.dims(), |flat| {
+            left.at(source_index(flat, out.dims(), lhs.shape().dims()))
+                + right.at(source_index(flat, out.dims(), rhs.shape().dims()))
+        })
     })
 }
 
@@ -82,6 +82,15 @@ mod tests {
             sum.to_vec::<f32>().expect("f32"),
             [11.0, 21.0, 31.0, 12.0, 22.0, 32.0]
         );
+    }
+
+    #[test]
+    fn add_of_a_tensor_with_itself() {
+        let a = f32s(&[1.0, 2.0, 3.5, -4.0], &[2, 2]);
+        let sum = a.add(&a).expect("add");
+        assert_eq!(sum.shape().dims(), &[2, 2]);
+        assert_eq!(sum.to_vec::<f32>().expect("f32"), [2.0, 4.0, 7.0, -8.0]);
+        assert_eq!(a.to_vec::<f32>().expect("f32"), [1.0, 2.0, 3.5, -4.0]);
     }
 
     #[test]

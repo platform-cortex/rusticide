@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::{filled_f32, require_f32};
+use super::{filled_f32, require_f32, with_f32_pair};
 use crate::{Error, Result, Tensor};
 
 /// Legacy eager CPU operator (SP0 port of the deleted rusticide-tensor).
@@ -21,13 +21,13 @@ pub(super) fn matmul(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
         });
     }
     let (inner, columns) = (left_dims[1], right_dims[1]);
-    let left = lhs.to_vec::<f32>()?;
-    let right = rhs.to_vec::<f32>()?;
-    filled_f32(&[left_dims[0], columns], |flat| {
-        let (row, column) = (flat / columns, flat % columns);
-        (0..inner)
-            .map(|k| left[row * inner + k] * right[k * columns + column])
-            .fold(0.0_f32, |sum, term| sum + term)
+    with_f32_pair(lhs, rhs, |left, right| {
+        filled_f32(&[left_dims[0], columns], |flat| {
+            let (row, column) = (flat / columns, flat % columns);
+            (0..inner)
+                .map(|k| left.at(row * inner + k) * right.at(k * columns + column))
+                .fold(0.0_f32, |sum, term| sum + term)
+        })
     })
 }
 
@@ -61,6 +61,18 @@ mod tests {
             product.to_vec::<f32>().expect("f32"),
             [58.0, 64.0, 139.0, 154.0]
         );
+    }
+
+    #[test]
+    fn matmul_of_a_tensor_with_itself() {
+        let a = f32s(&[1.0, 2.0, 3.0, 4.0], &[2, 2]);
+        let product = a.matmul(&a).expect("matmul");
+        assert_eq!(product.shape().dims(), &[2, 2]);
+        assert_eq!(
+            product.to_vec::<f32>().expect("f32"),
+            [7.0, 10.0, 15.0, 22.0]
+        );
+        assert_eq!(a.to_vec::<f32>().expect("f32"), [1.0, 2.0, 3.0, 4.0]);
     }
 
     #[test]

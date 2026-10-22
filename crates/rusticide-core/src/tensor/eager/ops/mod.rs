@@ -100,6 +100,42 @@ fn write_element<T: Element>(value: T, out: &mut [u8]) {
     value.write_ne(out);
 }
 
+// `read_ne` is sealed and only callable through an `Element` bound.
+fn read_element<T: Element>(bytes: &[u8]) -> T {
+    T::read_ne(bytes)
+}
+
+/// Element-indexed `f32` view over a tensor's raw bytes, decoded on read.
+pub(super) struct F32Reader<'a>(&'a [u8]);
+
+impl F32Reader<'_> {
+    pub(super) fn at(&self, flat: usize) -> f32 {
+        let size = DType::F32.size_in_bytes();
+        read_element(&self.0[flat * size..(flat + 1) * size])
+    }
+}
+
+/// Run `body` over `f32` readers for both operands, holding one read guard
+/// per distinct storage. Two read guards on one `RwLock` from one thread can
+/// deadlock when a writer is queued, so an aliasing pair shares one guard.
+#[expect(
+    clippy::significant_drop_tightening,
+    reason = "the guards back the readers handed to `body` and must outlive it"
+)]
+pub(super) fn with_f32_pair<R>(
+    lhs: &Tensor,
+    rhs: &Tensor,
+    body: impl FnOnce(&F32Reader<'_>, &F32Reader<'_>) -> R,
+) -> R {
+    let left = lhs.storage().read();
+    if lhs.shares_storage_with(rhs) {
+        let reader = F32Reader(&left);
+        return body(&reader, &reader);
+    }
+    let right = rhs.storage().read();
+    body(&F32Reader(&left), &F32Reader(&right))
+}
+
 /// Allocate a CPU `F32` tensor of `dims` fallibly and fill element `flat`
 /// with `value_at(flat)` under one write lock.
 pub(super) fn filled_f32(dims: &[usize], mut value_at: impl FnMut(usize) -> f32) -> Result<Tensor> {
