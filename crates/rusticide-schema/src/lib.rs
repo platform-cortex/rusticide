@@ -10,6 +10,7 @@ mod base_ty;
 mod error;
 mod name;
 mod returns;
+mod schema;
 mod ty;
 
 pub use annotation::Annotation;
@@ -18,4 +19,5 @@ pub use base_ty::BaseTy;
 pub use error::ParseError;
 pub use name::OperatorName;
 pub use returns::Return;
+pub use schema::FunctionSchema;
 pub use ty::Type;

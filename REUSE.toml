@@ -31,6 +31,12 @@ SPDX-License-Identifier = "MIT"
 path = ["DCO.txt"]
 precedence = "aggregate"
 
+[[annotations]]
+SPDX-FileCopyrightText = "PyTorch contributors"
+SPDX-License-Identifier = "BSD-3-Clause"
+path = ["crates/rusticide-schema/tests/data/schemas.txt"]
+precedence = "override"
+
 [tool.comply]
 # Custom comply settings
 ignore = [
