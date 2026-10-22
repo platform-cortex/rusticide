@@ -140,3 +140,17 @@ fn get_rows_runtime_data_must_not_be_scalar() {
         }
     ));
 }
+
+#[test]
+#[cfg(target_pointer_width = "64")]
+fn get_rows_of_a_zero_element_tensor_with_huge_row_extents_is_empty() {
+    let data = Tensor::zeros(
+        &[1, 1 << 40, 1 << 40, 0],
+        DType::F32,
+        rusticide_core::Device::cpu(),
+    )
+    .unwrap();
+    let indices = f32_tensor(&[0.0], &[1]);
+    let out = run(Op::GetRows, &[data, indices]).unwrap();
+    assert_eq!(out.shape().dims(), &[1, 1 << 40, 1 << 40, 0]);
+}

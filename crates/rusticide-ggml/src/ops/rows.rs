@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_core::{Error, Tensor, try_vec_with_capacity};
+use rusticide_core::{Error, Shape, Tensor, try_vec_with_capacity};
 
 use crate::{GraphError, Result};
 
@@ -15,7 +15,7 @@ pub(super) fn get_rows(data: &Tensor, indices: &Tensor) -> Result<Tensor> {
     };
     let values = data.to_vec::<f32>()?;
     let wanted = indices.to_vec::<f32>()?;
-    let row_len: usize = row_dims.iter().product();
+    let row_len = Shape::new(row_dims).numel();
     let mut gathered = try_vec_with_capacity(wanted.len().saturating_mul(row_len))?;
     for &index in &wanted {
         let row = row_index(index, data.shape().dims())?;
