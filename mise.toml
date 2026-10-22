@@ -19,8 +19,14 @@ idiomatic_version_file_enable_tools = []
 legacy_version_file = false
 lockfile = true
 not_found_auto_install = true
-python.uv_venv_auto = "create|source"
 quiet = true
+task.run_auto_install = false
+# `mise install --locked` runs cargo-binstall with compile and quick-install
+# disabled, so a crate that publishes no binary of its own failed outright and
+# mise fell back to compiling it (the Mise workflow's "cargo-binstall failed"
+# lines, then minutes of cargo builds). cargo-quickinstall serves prebuilt
+# binaries for those crates (cargo-fuzz, cargo-pgo, flamegraph, ...).
+cargo.binstall_quickinstall = true
 ### Debug
 #verbose = true
 #log_level = "debug"
@@ -45,11 +51,8 @@ _.file = ".env"
 # rust is provisioned from rust-toolchain.toml via [settings] above — no version
 # is repeated here, keeping rust-toolchain.toml the single source of truth.
 "cargo:cargo-audit" = { version = "latest" }
-"cargo:cargo-binstall" = { version = "latest" }
 "cargo:cargo-crap" = { version = "latest" }
 "cargo:cargo-criterion" = { version = "latest" }
-"cargo:cargo-deny" = { version = "latest" }
-"cargo:cargo-edit" = { version = "latest" }
 "cargo:cargo-fuzz" = { version = "latest" }
 "cargo:cargo-machete" = { version = "latest" }
 "cargo:cargo-mutants" = { version = "latest" }
@@ -58,16 +61,14 @@ _.file = ".env"
 "cargo:cargo-semver-checks" = { version = "latest" }
 "cargo:cargo-sort" = { version = "latest" }
 "cargo:cargo-tarpaulin" = { version = "latest" }
-"cargo:cargo-update" = { version = "latest" }
 "cargo:cargo-wizard" = { version = "latest" }
-"cargo:committed" = { version = "latest" }
 "cargo:flamegraph" = { version = "latest" }
-"cargo:rumdl" = { version = "latest" }
-"cargo:taplo-cli" = { version = "latest" }
+# The one crate with no prebuilt binary anywhere (its own releases or
+# cargo-quickinstall): `mise install` logs "cargo-binstall failed" for it, then
+# compiles it -- an expected fallback, not a failure. mise has no per-tool
+# switch to skip binstall.
 "cargo:yamllint-rs" = { version = "latest" }
 
-# Python
-"pipx:codecov-cli" = { version = "latest" }
 
 # Binaries registries or from sources if architecture is not supported
 "aqua:hk" = { version = "latest", os = [
@@ -79,15 +80,25 @@ _.file = ".env"
   "x64",
 ], locked = false }
 
-# Binaries from mise registries:
-actionlint = { version = "latest" }
-git-cliff = { version = "latest" }
+# Binaries from mise registries (checksummed per platform in mise.lock).
+# cargo-binstall comes from here, not the cargo backend: as a cargo: tool it was
+# itself compiled from source on every cold runner before anything else ran.
+"actionlint" = { version = "latest" }
+"cargo-binstall" = { version = "latest" }
+"cargo-deny" = { version = "latest" }
+"committed" = { version = "latest" }
+"git-cliff" = { version = "latest" }
 # Release signing (publish.yml / release:sign); syft below makes the SBOM.
-cosign = { version = "3" }
-gitleaks = { version = "latest" }
-scorecard = { version = "latest" }
-syft = { version = "1" }
-taplo = { version = "latest" }
+"cosign" = { version = "3" }
+"gitleaks" = { version = "latest" }
+"rumdl" = { version = "latest" }
+"scorecard" = { version = "latest" }
+"syft" = { version = "1" }
+"taplo" = { version = "latest" }
+# pipx: tools (codecov-cli) are installed and locked through uv, and locking
+# their Python dependencies needs uv >= 0.12.10. Pinned to a minor rather than
+# `latest` so `mise run setup` cannot hand it to an older Homebrew uv.
+"uv" = { version = "0.13" }
 
 [hooks]
 postinstall = '''
@@ -99,6 +110,205 @@ auto = true
 
 [deps.gh]
 auto = true
+
+# === Tool Installation ===
+[tasks.setup]
+alias = ["install", "dev", "dev:setup", "dev:up"]
+description = "Install tools, sourcing from Homebrew when it matches the pin"
+run = '''
+set -eo pipefail
+
+# Homebrew is preferred on macOS when present, but ONLY for a tool whose
+# installed version already equals the pin in [tools] above. None of these ship
+# a versioned formula (there is no swiftlint@0.65.0), so brew tracks whatever is
+# current — honouring it blindly would silently break the pinning this file
+# exists to guarantee. On any mismatch the pin wins and mise installs the tool.
+#
+# The candidates are every tool [tools] pins, taken from `mise ls --current
+# --json` and keyed by its short name (`cargo:cargo-audit` -> cargo-audit,
+# `github:owner/repo` -> repo); there is no hand-kept list. Versions are read
+# back from [tools] so mise.toml stays the single source of truth.
+
+root="$(git rev-parse --show-toplevel)"
+local_cfg="$root/mise.local.toml"
+
+# An empty MISE_DISABLE_TOOLS overrides whatever mise.local.toml sets, so the
+# lockfile is always written from the FULL toolset. A disabled tool is omitted
+# from mise.lock entirely, and a brew machine committing such a lockfile would
+# leave non-brew machines unresolvable. This is why locking no longer needs to
+# delete the local config first.
+MISE_DISABLE_TOOLS= mise lock
+
+have_brew=no
+if [ "$(uname -s)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
+  have_brew=yes
+fi
+
+tools_json="$(MISE_DISABLE_TOOLS= mise ls --current --json)"
+pins="$(printf '%s\n' "$tools_json" | jq -r 'to_entries[] | "\(.key) \(.value[0].requested_version)"' | sort)"
+
+# "<formula> <mise key>" per line. `mise ls --current` merges the global config,
+# so only keys whose source lives in this repo count.
+# Nothing here asks brew yet: this runs on every `cd`, and `brew formulae` is
+# deferred to a cache miss below.
+candidates="$(
+  {
+    printf '%s\n' "$tools_json" \
+      | jq -r --arg root "$root/" 'to_entries[] | select((.value[0].source.path // "") | startswith($root)) | .key' \
+      | awk '{ name = $0; sub(/^.*:/, "", name); sub(/^.*\//, "", name); print name, $0 }'
+  } | awk '!seen[$1]++' | sort
+)"
+candidate_names="$(printf '%s\n' "$candidates" | awk 'NF { print $1 }')"
+
+# One batched call: six separate `brew list` invocations cost roughly 5x more.
+# Never call it bare: `brew list --versions` with no names lists everything.
+brew_versions() {
+  [ "$have_brew" = yes ] && [ -n "$candidate_names" ] || return 0
+  brew list --versions $candidate_names 2>/dev/null | sort || true
+}
+
+# Fingerprint every input that decides this file's content. Hashing mise.lock
+# alone is NOT sufficient: Homebrew moving swiftlint 0.65.0 -> 0.66.0 must force
+# a rewrite, and nothing about that touches the lockfile.
+fingerprint() {
+  printf '%s\n' \
+    "v2" "$(uname -s)" "$(uname -m)" "$have_brew" "$pins" "$candidates" "$(brew_versions)" \
+    "$(shasum -a 256 "$root/mise.lock" 2>/dev/null | cut -d" " -f1)" \
+    | shasum -a 256 | cut -d" " -f1
+}
+
+# `mise install` can settle new entries into mise.lock — a first-time install of
+# a version, or a tool added since the last lock — which leaves the fingerprint
+# just written already stale and costs one redundant rebuild on the next run.
+# Re-stamping afterwards makes the cache converge in a single run.
+refresh_fp() {
+  [ -f "$local_cfg" ] || return 0
+  local now tmp
+  now="$(fingerprint)"
+  if grep -qF "# fingerprint: $now" "$local_cfg"; then
+    return 0
+  fi
+  tmp="$(mktemp)"
+  awk -v fp="$now" '/^# fingerprint: /{ print "# fingerprint: " fp; next } { print }' "$local_cfg" > "$tmp"
+  mv "$tmp" "$local_cfg"
+}
+
+fp="$(fingerprint)"
+if [ -f "$local_cfg" ] && grep -qF "# fingerprint: $fp" "$local_cfg"; then
+  echo "mise.local.toml up to date ($(printf '%s' "$fp" | cut -c1-12))"
+  mise install
+  mise deps
+  refresh_fp
+  exit 0
+fi
+
+lookup() { printf '%s\n' "$2" | awk -v t="$1" '$1 == t { print $2 }'; }
+
+brewed=""
+installed_any=no
+if [ "$have_brew" = yes ]; then
+  state="$(brew_versions)"
+  missing=""
+
+  # Only candidates that are Homebrew formulae go on (cargo:* and most github:*
+  # are not, and stay with mise). `brew formulae` reads the local API cache, so
+  # this is one call and no network.
+  formulae="$(
+    { printf '%s\n' "$candidate_names"; echo "--"; brew formulae 2>/dev/null || true; } \
+      | awk '$0 == "--" { listed = 1; next } !listed { wanted[$1] = 1; next } $1 in wanted { print $1 }'
+  )"
+
+  for f in $formulae; do
+    key="$(lookup "$f" "$candidates")"
+    pin="$(lookup "$key" "$pins")"
+    [ -n "$pin" ] || continue
+    inst="$(lookup "$f" "$state")"
+
+    if [ -z "$inst" ]; then
+      missing="$missing $f"
+    elif [ "$pin" = "latest" ] || [ "$pin" = "$inst" ]; then
+      brewed="$brewed $key"
+      echo "brew $key $inst"
+    else
+      echo "mise $key $pin (Homebrew has $inst)"
+    fi
+  done
+
+  # Only tools that are not installed yet need the slow formula API, and they
+  # are queried in a single batched call.
+  if [ -n "$missing" ]; then
+    stables="$(brew info --json=v2 $missing 2>/dev/null | jq -r '.formulae[] | "\(.name) \(.versions.stable)"' || true)"
+    for f in $missing; do
+      key="$(lookup "$f" "$candidates")"
+      pin="$(lookup "$key" "$pins")"
+      stable="$(lookup "$f" "$stables")"
+      if [ -n "$stable" ] && { [ "$pin" = "latest" ] || [ "$pin" = "$stable" ]; }; then
+        # A tool is handed to brew (disable_tools) only once brew REPORTS it
+        # installed. A failed or partial `brew install` must fall back to mise,
+        # never leave the tool disabled in mise and absent from brew.
+        if brew install "$f" && [ -n "$(brew list --versions "$f" 2>/dev/null)" ]; then
+          brewed="$brewed $key"
+          installed_any=yes
+          echo "brew $key $stable (installed)"
+        else
+          echo "mise $key $pin (brew install $f did not leave it installed)"
+        fi
+      else
+        echo "mise $key $pin${stable:+ (Homebrew has $stable)}"
+      fi
+    done
+  fi
+fi
+
+# Installing changed what brew reports, so the fingerprint must be recomputed or
+# the next run would see a mismatch and redo all of this for nothing.
+[ "$installed_any" = yes ] && fp="$(fingerprint)"
+
+# disable_tools makes mise step aside so its shims stop shadowing Homebrew's
+# bin. Machine-specific, hence mise.local.toml rather than mise.toml.
+{
+  echo "# Generated by \`mise run install\` - machine-specific, not committed."
+  echo "# fingerprint: $fp"
+  if [ -n "$brewed" ]; then
+    echo "# Tools Homebrew satisfies at the pinned version; mise handles the rest."
+    echo "[settings]"
+    printf 'disable_tools = ['
+    sep=""
+    for f in $brewed; do
+      printf '%s"%s"' "$sep" "$f"
+      sep=", "
+    done
+    printf ']\n'
+  fi
+  # No [tools] section is emitted here: platform gating belongs in mise.toml,
+  # where the compound os = [..., "macos/arm64"] form already covers hk. This
+  # file is only ever about stepping aside for the system package manager.
+} > "$local_cfg"
+
+# Same reason as the lock at the top: mise.local.toml now disables the brewed
+# tools, and a bare `mise lock` would re-resolve their "latest" pins to whatever
+# Homebrew has installed on this machine.
+MISE_DISABLE_TOOLS= mise lock
+mise install
+mise deps
+refresh_fp
+'''
+shell = "bash -c"
+
+[tasks."git:hooks:install"]
+alias = []
+description = "Install the git hooks managed by hk (global install for Git 2.54+)"
+run = "hk install"
+
+[tasks."git:hooks:install:global"]
+alias = []
+description = "Install the git hooks managed by hk (global install for Git 2.54+)"
+run = "mise run git:hooks:install --global"
+
+[tasks."git:hooks:install:local"]
+alias = []
+description = "Install the git hooks managed by hk (global install for Git 2.54+)"
+run = "mise run git:hooks:install --force-local"
 
 [tasks."act:setup"]
 alias = []
@@ -463,177 +673,6 @@ usage = '''
 flag "-v --verbose" help="Trace each command before running it (set -x)"
 flag "--latest" help="If already initialised, advance each submodule to the newest commit on its tracked branch (moves the pin and dirties the tree)"
 '''
-
-# === Tool Installation ===
-[tasks.setup]
-alias = ["install", "dev", "dev:setup", "dev:up"]
-depends = ["setup:submodules"]
-description = "Install tools, sourcing from Homebrew when it matches the pin"
-run = '''
-set -eo pipefail
-
-# Homebrew is preferred on macOS when present, but ONLY for a tool whose
-# installed version already equals the pin in [tools] above. None of these ship
-# a versioned formula (there is no swiftlint@0.65.0), so brew tracks whatever is
-# current — honouring it blindly would silently break the pinning this file
-# exists to guarantee. On any mismatch the pin wins and mise installs the tool.
-#
-# Formula names only; versions are read back from [tools] so mise.toml stays the
-# single source of truth.
-BREW_TOOLS="git-cliff gitleaks gh jq rustup scorecard uv yq"
-
-root="$(git rev-parse --show-toplevel)"
-local_cfg="$root/mise.local.toml"
-
-# An empty MISE_DISABLE_TOOLS overrides whatever mise.local.toml sets, so the
-# lockfile is always written from the FULL toolset. A disabled tool is omitted
-# from mise.lock entirely, and a brew machine committing such a lockfile would
-# leave non-brew machines unresolvable. This is why locking no longer needs to
-# delete the local config first.
-MISE_DISABLE_TOOLS= mise lock
-
-have_brew=no
-if [ "$(uname -s)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
-  have_brew=yes
-fi
-
-# One batched call: six separate `brew list` invocations cost roughly 5x more.
-brew_versions() {
-  [ "$have_brew" = yes ] || return 0
-  brew list --versions $BREW_TOOLS 2>/dev/null | sort || true
-}
-
-# `mise ls --current` merges the global config, so intersecting with BREW_TOOLS
-# below keeps this to the project's own tools.
-pins="$(MISE_DISABLE_TOOLS= mise ls --current --json | jq -r 'to_entries[] | "\(.key) \(.value[0].requested_version)"' | sort)"
-
-# Fingerprint every input that decides this file's content. Hashing mise.lock
-# alone is NOT sufficient: Homebrew moving swiftlint 0.65.0 -> 0.66.0 must force
-# a rewrite, and nothing about that touches the lockfile.
-fingerprint() {
-  printf '%s\n' \
-    "v1" "$(uname -s)" "$(uname -m)" "$have_brew" "$pins" "$(brew_versions)" \
-    "$(shasum -a 256 "$root/mise.lock" 2>/dev/null | cut -d" " -f1)" \
-    | shasum -a 256 | cut -d" " -f1
-}
-
-# `mise install` can settle new entries into mise.lock — a first-time install of
-# a version, or a tool added since the last lock — which leaves the fingerprint
-# just written already stale and costs one redundant rebuild on the next run.
-# Re-stamping afterwards makes the cache converge in a single run.
-refresh_fp() {
-  [ -f "$local_cfg" ] || return 0
-  local now tmp
-  now="$(fingerprint)"
-  if grep -qF "# fingerprint: $now" "$local_cfg"; then
-    return 0
-  fi
-  tmp="$(mktemp)"
-  awk -v fp="$now" '/^# fingerprint: /{ print "# fingerprint: " fp; next } { print }' "$local_cfg" > "$tmp"
-  mv "$tmp" "$local_cfg"
-}
-
-fp="$(fingerprint)"
-if [ -f "$local_cfg" ] && grep -qF "# fingerprint: $fp" "$local_cfg"; then
-  echo "mise.local.toml up to date ($(printf '%s' "$fp" | cut -c1-12))"
-  mise install
-  mise deps
-  refresh_fp
-  exit 0
-fi
-
-lookup() { printf '%s\n' "$2" | awk -v t="$1" '$1 == t { print $2 }'; }
-
-brewed=""
-installed_any=no
-if [ "$have_brew" = yes ]; then
-  state="$(brew_versions)"
-  missing=""
-
-  for f in $BREW_TOOLS; do
-    pin="$(lookup "$f" "$pins")"
-    [ -n "$pin" ] || continue
-    inst="$(lookup "$f" "$state")"
-
-    if [ -z "$inst" ]; then
-      missing="$missing $f"
-    elif [ "$pin" = "latest" ] || [ "$pin" = "$inst" ]; then
-      brewed="$brewed $f"
-      echo "brew $f $inst"
-    else
-      echo "mise $f $pin (Homebrew has $inst)"
-    fi
-  done
-
-  # Only tools that are not installed yet need the slow formula API, and they
-  # are queried in a single batched call.
-  if [ -n "$missing" ]; then
-    stables="$(brew info --json=v2 $missing 2>/dev/null | jq -r '.formulae[] | "\(.name) \(.versions.stable)"' || true)"
-    for f in $missing; do
-      pin="$(lookup "$f" "$pins")"
-      stable="$(lookup "$f" "$stables")"
-      if [ -n "$stable" ] && { [ "$pin" = "latest" ] || [ "$pin" = "$stable" ]; }; then
-        brew install "$f"
-        brewed="$brewed $f"
-        installed_any=yes
-        echo "brew $f $stable (installed)"
-      else
-        echo "mise $f $pin${stable:+ (Homebrew has $stable)}"
-      fi
-    done
-  fi
-fi
-
-# Installing changed what brew reports, so the fingerprint must be recomputed or
-# the next run would see a mismatch and redo all of this for nothing.
-[ "$installed_any" = yes ] && fp="$(fingerprint)"
-
-# disable_tools makes mise step aside so its shims stop shadowing Homebrew's
-# bin. Machine-specific, hence mise.local.toml rather than mise.toml.
-{
-  echo "# Generated by \`mise run install\` - machine-specific, not committed."
-  echo "# fingerprint: $fp"
-  if [ -n "$brewed" ]; then
-    echo "# Tools Homebrew satisfies at the pinned version; mise handles the rest."
-    echo "[settings]"
-    printf 'disable_tools = ['
-    sep=""
-    for f in $brewed; do
-      printf '%s"%s"' "$sep" "$f"
-      sep=", "
-    done
-    printf ']\n'
-  fi
-  # hk ships a darwin/arm64 build but no darwin/amd64 one, and mise has no way
-  # to gate a tool on architecture (see the [tools] comment). Adding it here
-  # keeps Apple Silicon covered without breaking Intel Macs.
-  if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
-    echo '[tools]'
-    echo '"aqua:hk" = { version = "latest", locked = false }'
-  fi
-} > "$local_cfg"
-
-mise lock
-mise install
-mise deps
-refresh_fp
-'''
-shell = "bash -c"
-
-[tasks."git:hooks:install"]
-alias = []
-description = "Install the git hooks managed by hk (global install for Git 2.54+)"
-run = "hk install"
-
-[tasks."git:hooks:install:global"]
-alias = []
-description = "Install the git hooks managed by hk (global install for Git 2.54+)"
-run = "mise run git:hooks:install --global"
-
-[tasks."git:hooks:install:local"]
-alias = []
-description = "Install the git hooks managed by hk (global install for Git 2.54+)"
-run = "mise run git:hooks:install --force-local"
 
 # -- Local release tags --
 #
@@ -1535,7 +1574,10 @@ slug="${CODECOV_SLUG:-$(git config --get remote.origin.url \
 # No `--token "$CODECOV_TOKEN"`. codecovcli reads CODECOV_TOKEN from the
 # environment, and passing it as a flag put a live credential in argv, which is
 # world-readable through `ps` for as long as the upload runs.
-if ! codecovcli upload-coverage \
+# Run through uvx rather than a pipx [tools] entry: a pipx tool under the
+# lockfile needs a mise-managed Python and a committed dependency sidecar, all
+# for one optional upload. uv (pinned in [tools]) fetches it on demand instead.
+if ! uvx --from "codecov-cli==${CODECOV_CLI_VERSION:-11.3.1}" codecovcli upload-coverage \
     --fail-on-error \
     --git-service github \
     --slug "$slug" \
@@ -2612,8 +2654,8 @@ echo "-- Node toolchain (package.json devEngines) --"
 v node node --version
 v pnpm pnpm --version
 
-echo "-- Python tools (pipx) --"
-v codecov-cli codecovcli --version
+echo "-- Python tools (uvx, on demand) --"
+v uv uv --version
 
 echo "-- Meta --"
 v mise mise --version
