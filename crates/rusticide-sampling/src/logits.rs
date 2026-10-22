@@ -67,6 +67,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_pointer_width = "64")]
     fn token_id_overflow_is_vocab_overflow() {
         let overflowing = usize::try_from(u64::from(u32::MAX) + 1).unwrap();
         assert!(matches!(

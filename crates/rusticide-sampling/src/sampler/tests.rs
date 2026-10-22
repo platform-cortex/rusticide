@@ -253,3 +253,17 @@ fn sample_with_temp_draws_from_the_scaled_distribution() {
         assert_eq!(sampler.sample_with_temp(&logits, 0.05).unwrap(), 2);
     }
 }
+
+#[test]
+fn sample_with_temp_rejects_all_negative_infinity_logits() {
+    let logits = Tensor::from_slice(&[f32::NEG_INFINITY; 4], &[4]).unwrap();
+    let result = Sampler::new(1).sample_with_temp(&logits, 1.0);
+    assert!(matches!(result, Err(SamplingError::NoValidTokens)));
+}
+
+#[test]
+fn sample_with_temp_rejects_nan_logits() {
+    let logits = Tensor::from_slice(&[f32::NAN; 4], &[4]).unwrap();
+    let result = Sampler::new(1).sample_with_temp(&logits, 1.0);
+    assert!(matches!(result, Err(SamplingError::NoValidTokens)));
+}

@@ -43,11 +43,7 @@ impl Sampler {
             apply_top_p(&mut logits, params.top_p);
         }
 
-        let probs = softmax(&logits);
-
-        if probs.iter().all(|&p| p.is_nan() || p <= 0.0) {
-            return Err(SamplingError::NoValidTokens);
-        }
+        let probs = valid_probabilities(&logits)?;
 
         if params.temperature == 0.0 || params.top_k == 1 {
             return greedy_token(&logits);
@@ -81,10 +77,7 @@ impl Sampler {
         }
         let mut logits = extract_logits(logits)?;
         apply_temperature(&mut logits, temperature);
-        let probs = softmax(&logits);
-        if probs.is_empty() {
-            return Err(SamplingError::NoValidTokens);
-        }
+        let probs = valid_probabilities(&logits)?;
         token_id(self.sample_multinomial(&probs))
     }
 
@@ -110,4 +103,12 @@ mod tests;
 
 fn greedy_token(logits: &[f32]) -> Result<u32> {
     token_id(argmax(logits).ok_or(SamplingError::NoValidTokens)?)
+}
+
+fn valid_probabilities(logits: &[f32]) -> Result<Vec<f32>> {
+    let probs = softmax(logits);
+    if probs.iter().all(|&p| p.is_nan() || p <= 0.0) {
+        return Err(SamplingError::NoValidTokens);
+    }
+    Ok(probs)
 }
