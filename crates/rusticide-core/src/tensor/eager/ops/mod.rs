@@ -115,37 +115,16 @@ impl F32Reader<'_> {
     }
 }
 
-/// Run `body` over `f32` readers for both operands, holding one read guard
-/// per distinct storage. Two read guards on one `RwLock` from one thread can
-/// deadlock when a writer is queued, so an aliasing pair shares one guard.
-#[expect(
-    clippy::significant_drop_tightening,
-    reason = "the guards back the readers handed to `body` and must outlive it"
-)]
+/// Run `body` over `f32` readers for both operands, under the ordered,
+/// alias-deduplicating read pair of [`crate::Storage::with_read_pair`].
 pub(super) fn with_f32_pair<R>(
     lhs: &Tensor,
     rhs: &Tensor,
     body: impl FnOnce(&F32Reader<'_>, &F32Reader<'_>) -> R,
 ) -> R {
-    if lhs.shares_storage_with(rhs) {
-        let guard = lhs.storage().read();
-        let reader = F32Reader(&guard);
-        return body(&reader, &reader);
-    }
-    // Lock-order invariant: one guard for shared storage, otherwise the two
-    // guards are acquired in ascending `lock_order_key` order, whatever the
-    // caller's (lhs, rhs) order, so concurrent `a.op(b)` and `b.op(a)` with
-    // queued writers cannot form a wait cycle.
-    let lhs_first = lhs.storage().lock_order_key() < rhs.storage().lock_order_key();
-    let (first, second) = if lhs_first { (lhs, rhs) } else { (rhs, lhs) };
-    let first_guard = first.storage().read();
-    let second_guard = second.storage().read();
-    let (left, right) = if lhs_first {
-        (&first_guard, &second_guard)
-    } else {
-        (&second_guard, &first_guard)
-    };
-    body(&F32Reader(left), &F32Reader(right))
+    lhs.storage().with_read_pair(rhs.storage(), |left, right| {
+        body(&F32Reader(left), &F32Reader(right))
+    })
 }
 
 /// Allocate a CPU `F32` tensor of `dims` fallibly and fill element `flat`

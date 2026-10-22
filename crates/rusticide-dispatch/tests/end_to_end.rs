@@ -24,14 +24,12 @@ fn register_add() {
                 ));
             };
             let out = Tensor::zeros(lhs.shape().dims(), lhs.dtype(), lhs.device())?;
-            {
-                let a = lhs.storage().read();
-                let b = rhs.storage().read();
+            lhs.storage().with_read_pair(rhs.storage(), |a, b| {
                 let mut o = out.storage().write();
                 for (slot, (x, y)) in o.iter_mut().zip(a.iter().zip(b.iter())) {
                     *slot = x.wrapping_add(*y);
                 }
-            }
+            });
             stack.push(IValue::Tensor(out));
             Ok(())
         }),
@@ -55,6 +53,21 @@ fn add_dispatches_to_the_cpu_kernel() {
 
     let out = stack.pop_tensor().expect("kernel pushed a tensor");
     assert_eq!(out.storage().read()[0], 5);
+}
+
+#[test]
+fn add_of_a_tensor_with_itself_does_not_lock_twice() {
+    register_add();
+    let a = Tensor::zeros(&[2], DType::U8, Device::cpu()).expect("allocation succeeds");
+    a.storage().write()[0] = 21;
+    let mut stack = Stack::new();
+    stack.push(IValue::Tensor(a.clone()));
+    stack.push(IValue::Tensor(a));
+    Dispatcher::global()
+        .call("add", &mut stack)
+        .expect("op is registered");
+    let out = stack.pop_tensor().expect("kernel pushed a tensor");
+    assert_eq!(out.storage().read()[0], 42);
 }
 
 #[test]

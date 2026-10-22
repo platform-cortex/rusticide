@@ -7,6 +7,7 @@ use std::sync::{Arc, RwLock};
 use rusticide_alloc::Buffer;
 
 mod guard;
+mod pair;
 
 pub use guard::{StorageReadGuard, StorageWriteGuard};
 
