@@ -75,8 +75,8 @@ impl Tokenizer {
 
     /// `LLaMA` / `SentencePiece` unigram encoding via Viterbi DP.
     ///
-    /// Cost is O(input bytes x longest vocabulary entry); the piece lookup is
-    /// built once at construction.
+    /// Cost is O(input bytes x longest vocabulary entry x log2 fan-out); the
+    /// piece lookup is built once at construction.
     fn encode_llama(&self, text: &str) -> Result<Vec<u32>> {
         let prefix = if self.add_space_prefix { " " } else { "" };
         let normalized = format!("{prefix}{text}").replace(' ', SPACE_MARKER);

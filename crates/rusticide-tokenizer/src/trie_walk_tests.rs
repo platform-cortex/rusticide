@@ -63,3 +63,41 @@ fn reinserting_a_piece_replaces_its_token_id() {
     trie.insert(b"ab", 1);
     assert_eq!(trie.prefixes(b"ab", 0, &[-1.0, -2.0]), vec![(1, 2, -2.0)]);
 }
+
+fn wide_trie(depth: usize, fan_out: &[u8]) -> Trie {
+    let mut vocab = Vec::new();
+    for prefix_len in 1..=depth {
+        for &byte in fan_out {
+            let mut token = vec![b'a'; prefix_len];
+            token.push(byte);
+            vocab.push(token);
+        }
+    }
+    Trie::from_vocab(&vocab)
+}
+
+#[test]
+fn a_wide_node_costs_logarithmic_comparisons_per_byte() {
+    let depth = 32;
+    let fan_out: Vec<u8> = (0x20..=0xFF).collect();
+    let trie = wide_trie(depth, &fan_out);
+    let scores = vec![0.0; depth * fan_out.len()];
+    let input = vec![b'a'; 256];
+    let mut comparisons = 0;
+    for start in 0..input.len() {
+        trie.walk(&input, start, &scores, &mut comparisons);
+    }
+    let log2_fan_out = (usize::BITS - (fan_out.len() - 1).leading_zeros()) as usize;
+    let bound = input.len() * (depth + 1) * (log2_fan_out + 2);
+    assert!(comparisons <= bound, "{comparisons} comparisons > {bound}");
+}
+
+#[test]
+fn one_lookup_among_224_children_costs_exactly_nine_comparisons() {
+    let vocab: Vec<Vec<u8>> = (0x20..=0xFF).map(|byte| vec![byte]).collect();
+    let trie = Trie::from_vocab(&vocab);
+    let mut comparisons = 0;
+    let found = trie.walk(b"a", 0, &vec![0.0; vocab.len()], &mut comparisons);
+    assert_eq!(found, vec![(0x61 - 0x20, 1, 0.0)]);
+    assert_eq!(comparisons, 9);
+}
