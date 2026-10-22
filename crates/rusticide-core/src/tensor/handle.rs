@@ -31,23 +31,30 @@ impl Tensor {
     /// [`Storage::new`].
     pub fn zeros(dims: &[usize], dtype: DType, device: Device) -> Result<Self> {
         let shape = Shape::new(dims);
+        Ok(Self::from_storage(
+            Storage::new(dtype, device, shape.numel())?,
+            shape,
+        ))
+    }
+
+    /// Wrap `storage` as a contiguous tensor of `shape` with offset 0.
+    pub(crate) fn from_storage(storage: Storage, shape: Shape) -> Self {
         let strides = Strides::contiguous_for(&shape);
-        let storage = Storage::new(dtype, device, shape.numel())?;
-        let backend = match device.kind() {
+        let backend = match storage.device().kind() {
             DeviceKind::Cpu => BackendComponent::Cpu,
             DeviceKind::Gpu => BackendComponent::Gpu,
         };
         let key_set = DispatchKeySet::empty()
             .with_backend(backend)
             .with_functionality(DispatchKey::Dense);
-        Ok(Self(Arc::new(TensorImpl {
+        Self(Arc::new(TensorImpl {
             storage,
             shape,
             strides,
             storage_offset: 0,
             version: VersionCounter::new(),
             key_set,
-        })))
+        }))
     }
 
     #[must_use]

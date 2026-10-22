@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+mod eager;
 mod handle;
 mod impl_;
 mod version;

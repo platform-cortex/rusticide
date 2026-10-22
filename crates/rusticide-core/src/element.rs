@@ -62,6 +62,12 @@ mod tests {
     }
 
     #[test]
+    fn rust_size_matches_dtype_size() {
+        assert_eq!(size_of::<f32>(), <f32 as Element>::DTYPE.size_in_bytes());
+        assert_eq!(size_of::<f16>(), <f16 as Element>::DTYPE.size_in_bytes());
+    }
+
+    #[test]
     fn f32_round_trips_through_native_bytes() {
         use super::sealed::Sealed;
         let mut buffer = [0u8; 4];
