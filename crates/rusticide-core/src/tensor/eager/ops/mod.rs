@@ -95,6 +95,7 @@ pub(super) fn require_f32(tensor: &Tensor) -> Result<()> {
     }
 }
 
+// `write_ne` is sealed and only callable through an `Element` bound.
 fn write_element<T: Element>(value: T, out: &mut [u8]) {
     value.write_ne(out);
 }

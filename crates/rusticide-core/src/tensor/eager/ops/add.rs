@@ -140,6 +140,42 @@ mod tests {
     }
 
     #[test]
+    fn add_pads_a_lower_rank_lhs() {
+        let sum = f32s(&[10.0, 20.0, 30.0], &[3])
+            .add(&f32s(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3]))
+            .expect("add");
+        assert_eq!(sum.shape().dims(), &[2, 3]);
+        assert_eq!(
+            sum.to_vec::<f32>().expect("f32"),
+            [11.0, 22.0, 33.0, 14.0, 25.0, 36.0]
+        );
+    }
+
+    #[test]
+    fn add_broadcasts_rank_three_against_rank_two() {
+        let lhs = f32s(&[0.0, 1.0, 2.0, 100.0, 101.0, 102.0], &[2, 1, 3]);
+        let rhs = f32s(&[0.0, 10.0, 20.0, 30.0], &[4, 1]);
+        let sum = lhs.add(&rhs).expect("add");
+        assert_eq!(sum.shape().dims(), &[2, 4, 3]);
+        assert_eq!(
+            sum.to_vec::<f32>().expect("f32"),
+            [
+                0.0, 1.0, 2.0, 10.0, 11.0, 12.0, 20.0, 21.0, 22.0, 30.0, 31.0, 32.0, 100.0, 101.0,
+                102.0, 110.0, 111.0, 112.0, 120.0, 121.0, 122.0, 130.0, 131.0, 132.0
+            ]
+        );
+    }
+
+    #[test]
+    fn add_broadcasts_a_scalar_over_a_tensor() {
+        let sum = f32s(&[1.5], &[])
+            .add(&f32s(&[1.0, 2.0, 3.0, 4.0], &[2, 2]))
+            .expect("add");
+        assert_eq!(sum.shape().dims(), &[2, 2]);
+        assert_eq!(sum.to_vec::<f32>().expect("f32"), [2.5, 3.5, 4.5, 5.5]);
+    }
+
+    #[test]
     fn add_of_scalars() {
         let sum = f32s(&[1.5], &[]).add(&f32s(&[2.0], &[])).expect("add");
         assert_eq!(sum.shape().dims(), &[] as &[usize]);

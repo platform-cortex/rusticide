@@ -27,7 +27,7 @@ pub(super) fn matmul(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
         let (row, column) = (flat / columns, flat % columns);
         (0..inner)
             .map(|k| left[row * inner + k] * right[k * columns + column])
-            .sum()
+            .fold(0.0_f32, |sum, term| sum + term)
     })
 }
 
@@ -144,6 +144,29 @@ mod tests {
         let product = f32s(&[], &[2, 0])
             .matmul(&f32s(&[], &[0, 3]))
             .expect("matmul");
-        assert_eq!(product.to_vec::<f32>().expect("f32"), [0.0; 6]);
+        assert!(
+            product
+                .to_vec::<f32>()
+                .expect("f32")
+                .iter()
+                .all(|value| value.to_bits() == 0.0_f32.to_bits())
+        );
+    }
+
+    #[test]
+    fn matmul_with_distinct_m_k_n() {
+        let lhs = f32s(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3]);
+        let rhs = f32s(
+            &[
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+            ],
+            &[3, 4],
+        );
+        let product = lhs.matmul(&rhs).expect("matmul");
+        assert_eq!(product.shape().dims(), &[2, 4]);
+        assert_eq!(
+            product.to_vec::<f32>().expect("f32"),
+            [38.0, 44.0, 50.0, 56.0, 83.0, 98.0, 113.0, 128.0]
+        );
     }
 }
