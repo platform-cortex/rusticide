@@ -39,12 +39,12 @@ warnings = "deny"
 # `warn`). priority = -1 so the per-lint overrides further down win over the
 # groups (clippy requires group priority < lint priority for the override to
 # apply). NOTE on "warn" vs "deny": the warnings-as-errors policy lives in ONE
-# place — `-D warnings` in .cargo/config.toml — which escalates EVERY warning
+# place -- `-D warnings` in .cargo/config.toml -- which escalates EVERY warning
 # (rustc + clippy, local + CI) into a hard error. So "warn" here already means
 # "deny in practice"; writing "deny" per-group would scatter that single policy.
-#   * pedantic — stricter, opinionated correctness/clarity lints.
-#   * nursery  — newer lints still being refined (may evolve); enabled per request.
-#   * cargo    — Cargo.toml hygiene: wildcard/`*` deps, missing metadata, feature names.
+#   * pedantic -- stricter, opinionated correctness/clarity lints.
+#   * nursery  -- newer lints still being refined (may evolve); enabled per request.
+#   * cargo    -- Cargo.toml hygiene: wildcard/`*` deps, missing metadata, feature names.
 cargo = { level = "warn", priority = -1 }
 collapsible_if = "allow"
 nursery = { level = "warn", priority = -1 }
@@ -71,7 +71,7 @@ cargo_common_metadata = "allow"
 # `unreachable_pub` lint in [workspace.lints.rust]: the former wants `pub` on a
 # `pub(crate)` item inside a private module, the latter wants `pub(crate)` on a
 # `pub` item that isn't externally reachable. They can't both be satisfied, so the
-# nursery lint yields to the stable one — `pub(crate)` is the correct visibility.
+# nursery lint yields to the stable one -- `pub(crate)` is the correct visibility.
 redundant_pub_crate = "allow"
 
 [workspace.dependencies]

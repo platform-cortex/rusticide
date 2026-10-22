@@ -297,8 +297,9 @@ is small enough to audit in one sitting.
   reader), and a pickle VM for `.pt` checkpoints.
 - `rusticide-ggml` -- the legacy GGML-style compute graph, rebound to
   `rusticide-core` and kept as is until the framework replaces it.
-- `rusticide-llm-*` -- the former `rusticide-*` crates: model, tokenizer,
-  sampling, context, quantize.
+- `rusticide-tokenizer`, `rusticide-sampling`, `rusticide-quantize` -- the
+  former LLM crates, kept under their original names (the `-llm-` rename
+  was dropped); the old model and context crates were deleted.
 
 **Development.**
 
@@ -346,12 +347,19 @@ gets exhaustive matching for free.
 
 ### Eager ops and the SP2 removal seam
 
-The legacy eager API ported in SP1 (`from_slice`, `get`, `set`, `add`,
-`matmul`, `reshape`, `contiguous`, `deep_copy`) conflicts with the
-dispatcher design: it computes directly instead of routing through the
-dispatch table. It is isolated behind the `EagerOps` trait in
-`rusticide-core` so SP2 can delete it in one place and re-express the
-callers as dispatched operators. It is not re-exported from the facade.
+The legacy eager operators ported in SP1 (`add`, `matmul`, `reshape`,
+`contiguous`) conflict with the dispatcher design: they compute directly
+instead of routing through the dispatch table. Exactly these four are
+isolated behind the `EagerOps` trait in `rusticide-core`, so SP2 can delete
+them in one place and re-express the callers as dispatched operators. The
+trait is not re-exported from the facade.
+
+The data-access methods (`from_slice`, `get`, `set`, `to_vec`, `ndim`,
+`deep_copy`) are NOT behind the seam. They are inherent `impl Tensor`
+methods: legitimate core construction and inspection API, the analogue of
+`torch.tensor`, `.item` and `.tolist`, used by `rusticide-io`,
+`rusticide-quantize`, `rusticide-sampling` and `rusticide-ggml`, and
+reachable through the facade. SP2 keeps them.
 
 ### Deferred from SP1
 
@@ -364,6 +372,24 @@ callers as dispatched operators. It is not re-exported from the facade.
   in memory. Typed array variants or a size cap belong to SP2.
 - **`try_vec_with_capacity`.** It is `pub` but doc-hidden, and is removed
   once SP2 decodes directly into `Tensor` storage.
+- **Dispatcher aliasing check.** Comparing storage pointers across all
+  arguments (writes included) before locking needs the operator schema's
+  mutability annotations, which arrive with SP2's generated operator
+  surface. SP1 ships the ordered, alias-deduplicating read pair
+  (`Storage::with_read_pair`) and kernels returning `DispatchError`.
+- **Allocator direction.** The spec has `rusticide-alloc` implement an
+  `Allocator` trait declared in `rusticide-core`; the code has
+  `core -> alloc` with a concrete `Buffer` and no trait. SP2 inverts that
+  edge if the trait is still wanted.
+- **Views.** `copy_with_shape`, `to_vec` and `F32Reader` assume
+  `storage.numel == shape.numel` and `storage_offset == 0`; SP2's views
+  must revisit each.
+- **Before the first crates.io publish.** Legacy crates need
+  `publish = false` (or a decision), `rusticide-schema` must exclude or
+  license `tests/data`, and `Annotation` fields should become private;
+  SentencePiece Viterbi reports a spurious `EncodeError` for extreme finite
+  scores; `DispatchKeySet` with a per-backend functionality but no backend
+  bit maps to the CPU slot.
 
 ### Schema model and code generation
 
@@ -420,6 +446,12 @@ a read on the same storage and would deadlock. The dispatcher compares
 storage pointers across arguments before locking and degrades to a
 single write lock when they coincide. This check is part of the boxed
 calling convention, not left to individual kernels.
+
+SP1 delivers the read half only: `Storage::with_read_pair` acquires two
+read guards in ascending storage-address order and shares one guard when
+the storages alias. The dispatcher-level check that also covers write
+arguments needs schema-driven mutability, so it is deferred to SP2 (see
+"Deferred from SP1"); until then each kernel owns that check.
 
 Alternatives considered and rejected:
 

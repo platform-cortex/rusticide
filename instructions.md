@@ -11,12 +11,10 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Instructions
 
-I want to build a new project called `rusticide`, written purely in Rust. It must
-follow the existing project `llama.cpp`: our project must have everything
-`llama.cpp` has, plus other enhancements that make it better than the original.
-I want to make sure we implement LLM and vLLM support.
-I want to focus on running models on CPU, and it must be fast.
-As a later feature I want to enable GPU model support (AMD and NVIDIA GPUs), so
+`rusticide` is a pure-Rust deep learning framework modelled on PyTorch's
+design (see README.md and docs/plan/2026-08-21-rusticide-framework-design.md).
+I want to focus on running on CPU, and it must be fast.
+As a later feature I want to enable GPU support (AMD and NVIDIA GPUs), so
 we need a design that can handle this.
 
 ## Rust SDK Requirements

@@ -3240,16 +3240,23 @@ Each sub-task shipped with review and the 100% coverage gate.
 
 ### Rulings that bind later work
 
-- Eager ops live behind the `EagerOps` trait, which is the SP2 removal
-  seam. It is not re-exported from the `rusticide` facade.
+- The four eager operators (`add`, `matmul`, `reshape`, `contiguous`) live
+  behind the `EagerOps` trait, which is the SP2 removal seam. It is not
+  re-exported from the `rusticide` facade. `from_slice`, `get`, `set`,
+  `to_vec`, `ndim` and `deep_copy` are inherent core data-access API and
+  stay in SP2.
 - Element typing is strict: only `f32` and `f16`, and `get::<f32>` on an
   F16 tensor is an error.
 - `Shape::numel` and contiguous strides saturate instead of overflowing;
   `Storage::new` and `from_slice` then reject the saturated size.
 - Storage guard newtypes expose only `[u8]`, so safe code cannot break
   the `len == numel * size` invariant.
-- Paired read locks (add, matmul) are taken in global storage-address
-  order; the same-storage case reuses one guard.
+- Paired read locks (eager ops and kernels alike) go through
+  `Storage::with_read_pair`: global storage-address order, one guard for
+  the same storage. The dispatcher-level aliasing check is deferred to SP2.
+- Kernels return `Result<(), DispatchError>`; `Dispatcher::call` propagates
+  it. GGUF rejects duplicate metadata keys, and the tokenizer rejects any
+  token over 1024 bytes.
 - GGUF: tensor offsets are relative to the aligned data section; a
   present but invalid `general.alignment` is rejected (absent means 32);
   duplicate tensor names are rejected; only version 3 is accepted;

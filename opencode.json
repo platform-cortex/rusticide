@@ -8,7 +8,7 @@
   "default_agent": "rusticide",
   "agent": {
     "rusticide": {
-      "description": "Autonomous development agent for rusticide - Rust LLM inference engine (llama.cpp port). TDD-first, CPU-primary, nightly Rust.",
+      "description": "Autonomous development agent for rusticide - Pure-Rust deep learning framework modelled on PyTorch's design. TDD-first, CPU-primary, stable Rust.",
       "mode": "primary"
     }
   },

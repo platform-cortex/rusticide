@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # rusticide-fuzz
 
-libFuzzer targets for [rusticide](https://github.com/elioseverojunior/rusticide), driven
+libFuzzer targets for [rusticide](https://github.com/platform-cortex/rusticide), driven
 by [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz).
 
 ## Why this crate is special

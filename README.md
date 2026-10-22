@@ -14,7 +14,7 @@ operators to kernels. No C, C++, Python, BLAS or vendored bindings.
 ![Rust Stable](https://img.shields.io/badge/rust-stable-purple)
 ![Unsafe Denied](https://img.shields.io/badge/unsafe-denied-red)
 ![Status: SP1 foundation](https://img.shields.io/badge/status-SP1%20foundation-yellow)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/elioseverojunior/rusticide/badge)](https://securityscorecards.dev/viewer/?uri=github.com/elioseverojunior/rusticide)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/platform-cortex/rusticide/badge)](https://securityscorecards.dev/viewer/?uri=github.com/platform-cortex/rusticide)
 
 ## Status
 
@@ -57,7 +57,7 @@ Everything lives under `crates/`:
 `rust-toolchain.toml`) and every dev tool.
 
 ```sh
-git clone https://github.com/elioseverojunior/rusticide.git
+git clone https://github.com/platform-cortex/rusticide.git
 cd rusticide
 mise trust
 mise run setup

@@ -10,7 +10,7 @@
 # positives. detect-secrets (.secrets.baseline) runs alongside this — the two
 # are complementary scanners, not redundant.
 
-title = "XLLM gitleaks config"
+title = "rusticide gitleaks config"
 
 [extend]
 # Pull in gitleaks maintained ruleset rather than re-deriving ~150 rules here.
@@ -41,7 +41,7 @@ paths = [
 #
 # [[rules]]
 # id = "rusticide-internal-token"
-# description = "XLLM internal service token"
+# description = "rusticide internal service token"
 # regex = '''skald_(test|live)_[0-9a-zA-Z]{32}'''
 # keywords = [""]
 # ---------------------------------------------------------------------------

@@ -11,8 +11,8 @@ This file records the evidence for the [OpenSSF Best Practices Badge](https://ww
 ## Project Information
 
 - **Project Name**: rusticide
-- **Project URL**: <https://github.com/elioseverojunior/rusticide>
-- **Description**: Rust port of llama.cpp - CPU-first LLM inference with GPU support planned
+- **Project URL**: <https://github.com/platform-cortex/rusticide>
+- **Description**: Pure-Rust deep learning framework modelled on PyTorch's design, CPU-first with GPU support planned
 - **Language**: Rust
 - **License**: MIT OR Apache-2.0 for code (CC-BY-3.0+ for documentation)
 - **Version Control**: Git (GitHub)
@@ -23,8 +23,8 @@ This file records the evidence for the [OpenSSF Best Practices Badge](https://ww
 
 | Criterion | Status | Evidence |
 |-----------|--------|----------|
-| **Project website** | ✅ | GitHub repo serves as website: <https://github.com/elioseverojunior/rusticide> |
-| **What it does** | ✅ | README.md - "Rust port of llama.cpp, CPU-first LLM inference" |
+| **Project website** | ✅ | GitHub repo serves as website: <https://github.com/platform-cortex/rusticide> |
+| **What it does** | ✅ | README.md - "A pure-Rust deep learning framework modelled on PyTorch's design" |
 | **How to get it** | ✅ | README.md - Installation via cargo, pre-built binaries planned |
 | **How to give feedback** | ✅ | README.md - Issues, discussions, GitHub contact |
 | **How to contribute** | ✅ | CONTRIBUTING.md |

@@ -9,7 +9,7 @@
 # the pinned v7.
 #
 # Areas mirror the layering documented in docs/ARCHITECTURE.md: a foundation
-# crate (tensor), a compute backend (ggml), domain crates on top, and the CLI
+# layer (tensor), a compute backend (ggml), domain crates on top, and the CLI
 # at the app layer. Sibling crates whose changes almost always travel together
 # share one label rather than getting one each.
 #
@@ -76,11 +76,15 @@ security:
 
 cli:
   - changed-files:
-      - any-glob-to-any-file: "crates/rusticide-cli/**/*"
+      - any-glob-to-any-file: "crates/rusticide/src/cli/**/*"
 
 tensor:
   - changed-files:
-      - any-glob-to-any-file: "crates/rusticide-tensor/**/*"
+      - any-glob-to-any-file:
+          - "crates/rusticide-alloc/**/*"
+          - "crates/rusticide-core/**/*"
+          - "crates/rusticide-dispatch/**/*"
+          - "crates/rusticide-schema/**/*"
 
 ggml:
   - changed-files:
@@ -89,38 +93,25 @@ ggml:
 model:
   - changed-files:
       - any-glob-to-any-file:
-          - "crates/rusticide-model/**/*"
+          - "crates/rusticide-io/**/*"
           - "crates/rusticide-tokenizer/**/*"
 
 inference:
   - changed-files:
       - any-glob-to-any-file:
-          - "crates/rusticide-context/**/*"
           - "crates/rusticide-sampling/**/*"
           - "crates/rusticide/**/*"
 
 quantization:
   - changed-files:
-      - any-glob-to-any-file:
-          - "crates/rusticide-quantize/**/*"
-          - "crates/rusticide-bitnet/**/*"
-
-training:
-  - changed-files:
-      - any-glob-to-any-file: "crates/rusticide-train/**/*"
+      - any-glob-to-any-file: "crates/rusticide-quantize/**/*"
 
 # --- Test and scaffolding crates ---------------------------------------------
 
 tests:
   - changed-files:
-      - any-glob-to-any-file:
-          - "crates/*/tests/**/*"
-          - "crates/rusticide-integration-tests/**/*"
+      - any-glob-to-any-file: "crates/*/tests/**/*"
 
 fuzzing:
   - changed-files:
       - any-glob-to-any-file: "crates/rusticide-fuzz/**/*"
-
-examples:
-  - changed-files:
-      - any-glob-to-any-file: "crates/rusticide-examples/**/*"

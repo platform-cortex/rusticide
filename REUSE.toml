@@ -1,5 +1,5 @@
 SPDX-FileCopyrightText = "2026 Elio Severo Junior and contributors"
-SPDX-PackageDownloadLocation = "https://github.com/elioseverojunior/rusticide"
+SPDX-PackageDownloadLocation = "https://github.com/platform-cortex/rusticide"
 SPDX-PackageName = "rusticide"
 SPDX-PackageSupplier = "RUSTICIDE contributors"
 version = 1

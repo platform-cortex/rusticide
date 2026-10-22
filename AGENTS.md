@@ -40,7 +40,7 @@ file; edit here, never there.
 - Stable channel pinned in `rust-toolchain.toml` (read it; do not restate the
   number elsewhere). Edition 2024.
 - MSRV **1.88** (`Cargo.toml` `rust-version`, `.clippy.toml` `msrv`). Do not
-  use APIs newer than 1.88. README and plan saying 1.92 are stale.
+  use APIs newer than 1.88. The foundation plan's 1.92 is stale.
 - Nightly only where a task pins it: fuzz, miri, and the coverage task
   (tarpaulin doctests need `nightly-2026-08-03`).
 

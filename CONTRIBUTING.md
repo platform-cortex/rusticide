@@ -26,11 +26,11 @@ This document explains how to contribute to rusticide, a pure-Rust deep learning
 ## General Information
 
 For specific proposals, please provide them as
-[pull requests](https://github.com/elioseverojunior/rusticide/pulls)
+[pull requests](https://github.com/platform-cortex/rusticide/pulls)
 or
-[issues](https://github.com/elioseverojunior/rusticide/issues)
+[issues](https://github.com/platform-cortex/rusticide/issues)
 via our
-[GitHub site](https://github.com/elioseverojunior/rusticide).
+[GitHub site](https://github.com/platform-cortex/rusticide).
 
 You may find the
 [GitHub CLI (`gh`)](https://cli.github.com/)
@@ -72,8 +72,8 @@ and
 ### How We Handle Proposals
 
 We use GitHub to track proposed changes via its
-[issue tracker](https://github.com/elioseverojunior/rusticide/issues) and
-[pull requests](https://github.com/elioseverojunior/rusticide/pulls).
+[issue tracker](https://github.com/platform-cortex/rusticide/issues) and
+[pull requests](https://github.com/platform-cortex/rusticide/pulls).
 Specific changes are proposed using those mechanisms.
 Issues are assigned to an individual, who works on them and then marks them complete.
 If there are questions or objections, the conversation area of that

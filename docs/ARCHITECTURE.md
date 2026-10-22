@@ -94,21 +94,27 @@ expected to move or replace them as the operator surface appears.
 
 ## The EagerOps removal seam
 
-The legacy eager tensor API (`from_slice`, `get`, `set`, `add`, `matmul`,
-`reshape`, `contiguous`, `deep_copy`) computes directly instead of going
-through the dispatch table, so it contradicts the dispatcher design. It is
-quarantined behind one trait, `EagerOps`, defined in `rusticide-core` under
-`src/tensor/eager`.
+The legacy eager operators (`add`, `matmul`, `reshape`, `contiguous`)
+compute directly instead of going through the dispatch table, so they
+contradict the dispatcher design. Exactly these four are quarantined behind
+one trait, `EagerOps`, defined in `rusticide-core` under `src/tensor/eager`.
 
 - `rusticide-core` implements `EagerOps` for `Tensor`.
 - `rusticide-ggml` is the only other crate that imports it.
 - The facade does not re-export it, and a `compile_fail` doctest keeps it that
   way. Callers must name `rusticide_core::EagerOps` explicitly.
 
-SP2 removes the seam by deleting the `eager` module and the `ggml` call sites
+SP2 removes the seam by deleting the four operators and the `ggml` call sites
 together, then re-expressing those callers as dispatched operators. Because
 the facade never exposed the trait, that removal is not a breaking change to
-the facade's API. The binding rulings are recorded in the "Rulings that bind
+the facade's API.
+
+The data-access methods (`from_slice`, `get`, `set`, `to_vec`, `ndim`,
+`deep_copy`) are not behind the seam: they are inherent `Tensor` methods, the
+core's construction and inspection API (the analogue of `torch.tensor`,
+`.item` and `.tolist`). They are reachable through the facade, used by
+`rusticide-io`, `rusticide-quantize`, `rusticide-sampling` and
+`rusticide-ggml`, and SP2 keeps them. The binding rulings are recorded in the "Rulings that bind
 later work" section of the
 [foundation plan](plan/2026-08-21-rusticide-foundation-plan.md).
 
