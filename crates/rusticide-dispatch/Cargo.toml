@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+authors.workspace = true
+categories = ["data-structures"]
+description = "Operator dispatcher and boxed calling convention for rusticide"
+edition.workspace = true
+keywords = ["dispatch", "tensor", "deep-learning", "operator", "kernel"]
+license.workspace = true
+name = "rusticide-dispatch"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+rusticide-core.workspace = true
+
+[lints]
+workspace = true

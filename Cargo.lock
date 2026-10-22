@@ -37,6 +37,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusticide-dispatch"
+version = "0.1.0"
+dependencies = [
+ "rusticide-core",
+]
+
+[[package]]
 name = "rusticide-schema"
 version = "0.1.0"
 dependencies = [

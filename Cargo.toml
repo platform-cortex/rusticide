@@ -11,6 +11,7 @@ members = [
   "crates/rusticide",
   "crates/rusticide-alloc",
   "crates/rusticide-core",
+  "crates/rusticide-dispatch",
   "crates/rusticide-schema",
 ]
 resolver = "3"
@@ -92,6 +93,8 @@ rayon = { version = ">=1,<2.0.0" }
 reqwest = { version = ">=0,<1.0.0", features = ["json", "__tls"] }
 ### Workspaced Crates
 rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.1.0" }
+rusticide-core = { path = "crates/rusticide-core", version = "0.1.0" }
+rusticide-dispatch = { path = "crates/rusticide-dispatch", version = "0.1.0" }
 rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.1.0" }
 rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.1.0" }
 rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.1.0" }
