@@ -6,6 +6,7 @@
 
 mod device;
 mod dtype;
+mod element;
 mod error;
 mod key;
 mod layout;
@@ -16,6 +17,7 @@ mod tensor;
 
 pub use device::{Device, DeviceKind};
 pub use dtype::DType;
+pub use element::Element;
 pub use error::{Error, Result};
 pub use key::{BackendComponent, DispatchKey, DispatchKeySet, NUM_BACKENDS};
 pub use layout::{Layout, MemoryFormat};

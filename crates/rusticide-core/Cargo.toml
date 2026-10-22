@@ -16,6 +16,7 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+half.workspace = true
 rusticide-alloc.workspace = true
 thiserror.workspace = true
 
