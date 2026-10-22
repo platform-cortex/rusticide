@@ -7,5 +7,6 @@ mod handle;
 mod impl_;
 mod version;
 
+pub use eager::EagerOps;
 pub use handle::Tensor;
 pub use version::VersionCounter;

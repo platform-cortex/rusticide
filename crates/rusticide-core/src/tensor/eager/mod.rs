@@ -9,3 +9,8 @@
 //! operators here.
 
 mod access;
+
+mod copy;
+mod ops;
+
+pub use ops::EagerOps;

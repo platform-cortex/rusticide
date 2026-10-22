@@ -24,4 +24,4 @@ pub use layout::{Layout, MemoryFormat};
 pub use shape::Shape;
 pub use storage::Storage;
 pub use strides::Strides;
-pub use tensor::{Tensor, VersionCounter};
+pub use tensor::{EagerOps, Tensor, VersionCounter};
