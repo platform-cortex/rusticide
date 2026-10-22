@@ -293,8 +293,10 @@ is small enough to audit in one sitting.
   dependency-counting engine, and VJPs generated from `derivatives.yaml`.
 - `rusticide-nn` -- modules.
 - `rusticide-optim` -- optimizers.
-- `rusticide-io` -- safetensors, GGUF (from the existing `rusticide-ggml`),
-  and a pickle VM for `.pt` checkpoints.
+- `rusticide-io` -- safetensors, GGUF (from the deleted `rusticide-model`
+  reader), and a pickle VM for `.pt` checkpoints.
+- `rusticide-ggml` -- the legacy GGML-style compute graph, rebound to
+  `rusticide-core` and kept as is until the framework replaces it.
 - `rusticide-llm-*` -- the former `rusticide-*` crates: model, tokenizer,
   sampling, context, quantize.
 
@@ -341,6 +343,27 @@ CompositeExplicitAutograd > CompositeImplicitAutograd > Autograd`.
 improves on the original: PyTorch hand-rolls a 27-variant tagged union
 with a manual `Tag` field and hand-written payload management, and Rust
 gets exhaustive matching for free.
+
+### Eager ops and the SP2 removal seam
+
+The legacy eager API ported in SP1 (`from_slice`, `get`, `set`, `add`,
+`matmul`, `reshape`, `contiguous`, `deep_copy`) conflicts with the
+dispatcher design: it computes directly instead of routing through the
+dispatch table. It is isolated behind the `EagerOps` trait in
+`rusticide-core` so SP2 can delete it in one place and re-express the
+callers as dispatched operators. It is not re-exported from the facade.
+
+### Deferred from SP1
+
+- **Allocation ceiling.** Outputs that amplify their inputs (`[m,0] x
+  [0,n]`, `[N,1] + [1,M]`) are allocated fallibly, but zero-fill can still
+  trigger an overcommit OOM-kill on Linux. A ceiling is policy for the SP2
+  allocator and its `alloc_zeroed` path.
+- **GGUF metadata amplification.** `GgufValue` arrays cost about 24-32
+  bytes per element, so a hostile file can expand its metadata that much
+  in memory. Typed array variants or a size cap belong to SP2.
+- **`try_vec_with_capacity`.** It is `pub` but doc-hidden, and is removed
+  once SP2 decodes directly into `Tensor` storage.
 
 ### Schema model and code generation
 
@@ -507,6 +530,10 @@ immediately.
   totalling 4,061 lines -- and the workspace does not currently resolve.
   Repairing it is SP0's first task, and the damage is exactly eight
   `use` lines:
+
+  > **Amended 2026-10-22.** The "eight `use` lines" estimate was wrong:
+  > the old `Tensor` API had to be ported into `rusticide-core`. See Tasks
+  > 17-18 in the foundation plan.
 
   - `rusticide-ggml`, `rusticide-sampling`, `rusticide-quantize` import `Tensor`,
     `DType`, and `TensorError` from the deleted `rusticide-tensor`. These

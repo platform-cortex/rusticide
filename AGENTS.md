@@ -24,20 +24,18 @@ file; edit here, never there.
 
 - Virtual workspace (root `Cargo.toml` is `[workspace]` only, resolver 3).
   `members` is an **explicit list**: `rusticide` (the binary), `rusticide-alloc`,
-  `rusticide-core`, `rusticide-schema`. A new crate must be added to it by hand.
+  `rusticide-core`, `rusticide-dispatch`, `rusticide-ggml`, `rusticide-io`,
+  `rusticide-quantize`, `rusticide-sampling`, `rusticide-schema`,
+  `rusticide-tokenizer`. A new crate must be added to it by hand.
 - `crates/rusticide` is the shipped binary: all behavior lives in its `lib.rs`
   (unit-tested); `main.rs` only forwards `std::env::args` and is excluded from
   coverage by `tarpaulin.toml`.
 - `crates/rusticide-fuzz` is `exclude`d and is its own workspace: libfuzzer
   needs nightly and its generated entry point cannot satisfy
   `unsafe_code = "deny"`. It stays in `exclude` whatever `members` says.
-- The explicit `members` list is temporary: plan Task 20 restores
-  `members = ["crates/*"]` (with the fuzz `exclude`) once Tasks 17-18 have
-  rewired the leftover crates below. Until then a `crates/*` glob would pull
-  in crates that do not build.
-- `crates/rusticide-ggml`, `-tokenizer`, `-sampling`, `-quantize` are
-  pre-reset leftovers: on disk, not members, never built. They get rewired
-  once the core types they import exist.
+- The explicit `members` list is temporary. Every crate on disk except
+  `rusticide-fuzz` is a member, so plan Task 20 restores
+  `members = ["crates/*"]` (with the fuzz `exclude`).
 
 ## Toolchain
 

@@ -133,15 +133,13 @@ New crates, each with `Cargo.toml`, `README.md`, `LICENSE-MIT`,
   - `src/aliasing.rs` -- the self-aliasing guard.
   - `src/entry.rs` -- `OperatorEntry`.
   - `src/dispatcher.rs` -- `Dispatcher`.
+- `crates/rusticide-io/` -- GGUF reader and tensor materialization.
 - `crates/rusticide/` -- facade and CLI.
   - `src/lib.rs`, `src/main.rs`, `src/cli/mod.rs`,
     `src/cli/cmd/{mod,schema,version}.rs`.
 
-Renamed: `../../crates/rusticide-ggml` -> `crates/rusticide-io`,
-`../../crates/rusticide-tokenizer` -> `crates/rusticide-llm-tokenizer`,
-`../../crates/rusticide-quantize` -> `crates/rusticide-quantize`,
-`../../crates/rusticide-sampling` -> `crates/rusticide-llm-sampling`,
-`../../crates/rusticide-fuzz` -> `crates/rusticide-fuzz`.
+Kept in place (no renames): `crates/rusticide-ggml` (legacy compute
+graph), `-tokenizer`, `-quantize`, `-sampling` and `-fuzz`.
 
 ---
 
@@ -3188,172 +3186,81 @@ SP1's second acceptance criterion."
 
 ---
 
-## Task 17: rusticide-io -- rewire from rusticide-ggml
+## Task 17: Port the eager Tensor API and add rusticide-io
 
-**Files:**
+> **Replaced 2026-10-22.** The original Task 17 (rename `rusticide-ggml`
+> to `rusticide-io`) and Task 18 were superseded by a re-plan after the
+> legacy `Tensor` API turned out to be larger than "eight `use` lines".
+> Human decision: build `rusticide-io` from the deleted reader's GGUF
+> layer, and port the old eager Tensor API into `rusticide-core` so the
+> leftover crates compile. No rename happened: `rusticide-ggml` stays the
+> legacy compute graph. This section records the outcome. Commit ranges
+> are within `7aefefd..HEAD`.
 
-- Rename: `../../crates/rusticide-ggml` -> `crates/rusticide-io`
-- Modify: `crates/rusticide-io/Cargo.toml`
-- Modify: `crates/rusticide-io/src/lib.rs`
-- Modify: `Cargo.toml`
+Each sub-task shipped with review and the 100% coverage gate.
 
-**Interfaces:**
+- **17a** `d91988f` -- `rusticide-core` element-access error variants and
+  the sealed `Element` trait (`f32`, `f16`).
+- **17b** `645860e..c671766` -- `Tensor::from_slice`, `get`, `set`,
+  `to_vec`; fixes that saturate `Shape::numel` and contiguous strides.
+- **17c** `c14858d` -- `deep_copy` and the `EagerOps` trait with
+  `reshape` and `contiguous` (copying, per the design's tier-1 value
+  semantics).
+- **17d** `a3fd23d..56d5217` -- `EagerOps::add` (NumPy broadcasting, F32)
+  and 2-D `matmul`; outputs allocated fallibly; index-order tests.
+- **17e** `276aefd` -- `rusticide-quantize` rebound to core and split by
+  format (Q4_0, Q4_K, Q6_K); K-quant dequantizers reject numel not a multiple of 256
+  (`QuantizeError::UnalignedShape`); `quantize_q4_0` is fallible.
+- **17f** `8fd4ee8` -- `rusticide-io` GGUF value layer (`GgufValue`, typed
+  reads); array nesting capped (`MAX_ARRAY_DEPTH`, `NestingTooDeep`).
+- **17m** `e802ede..313aadc` -- memory hardening from the rust-skills
+  audit: storage guard newtypes, fallible `to_vec` and dequantizer
+  allocation, ordered paired read locks.
+- **17g** `3b29b04` -- `GgufFile::from_bytes`: header, metadata and tensor
+  infos, with typed `GgufError`s.
+- **17h** `b7b1d85` -- GGUF tensor materialization into core `Tensor`s,
+  dequantizing the quantized types through `rusticide-quantize`.
 
-- Consumes: `Tensor`, `DType`, `Error` from `rusticide-core`.
-- Produces: the existing GGUF reader API under the new crate name, plus
-  `GGUFValue` moved here from the deleted `rusticide-model`.
+## Task 18: Rewire quantize, sampling, ggml, the tokenizer and fuzz
 
-**Steps:**
+- **18a** `88e4c69..435b70a` -- `rusticide-sampling` rebound to core and
+  split by concern; `sample_with_temp` rejects non-finite logits.
+- **18b** `df4e927..1132748` -- `rusticide-ggml` compute graph rebound to
+  core and split; `GetRows` indices validated; `set_input` accepts input
+  nodes only and `forward` recomputes every non-input node.
+- **18c** `b043ce7` -- ggml math operators (unary, binary with
+  broadcasting, RMSNorm, RoPE, row gather) ported onto core, allocated
+  fallibly.
+- **18d** `2d17dc2..a03e89f` -- `rusticide-tokenizer` reads GGUF metadata
+  from `rusticide-io` and no longer depends on `Model`; non-finite
+  scores rejected.
+- **18e** `7e66094` -- the fuzz targets retargeted at `rusticide-io`.
+- **18f** (this commit) -- docs, `AGENTS.md` and the full gate. Every
+  crate on disk except `rusticide-fuzz` is now a workspace member.
 
-- [ ] **Step 1: Rename the directory and package**
+### Rulings that bind later work
 
-```bash
-git mv crates/rusticide-ggml crates/rusticide-io
-```
-
-Set `name = "rusticide-io"` in its `Cargo.toml`, replace
-`rusticide-tensor.workspace = true` with `rusticide-core.workspace = true`,
-and update `[package.metadata.cargo-machete]`.
-
-- [ ] **Step 2: Rebind the imports**
-
-`crates/rusticide-io/src/lib.rs` line 17 currently reads:
-
-```rust
-use rusticide_tensor::{DType, Tensor, TensorError};
-```
-
-Replace with:
-
-```rust
-use rusticide_core::{DType, Error, Tensor};
-```
-
-and rename `TensorError` to `Error` at its use sites.
-
-- [ ] **Step 3: Move `GGUFValue` here**
-
-`GGUFValue` lived in the deleted `rusticide-model`, and `rusticide-llm-
-tokenizer` imports it. It is GGUF format metadata, so it belongs beside
-the GGUF reader. Recover the definition from the archive:
-
-```bash
-git -C /Users/elio/Development/personal/elioseverojunior/github/ai/rusticide \
-  show HEAD:crates/rusticide-model/src/lib.rs | grep -n "enum GGUFValue" -A 40
-```
-
-Add it to a new `crates/rusticide-io/src/gguf/value.rs` with its tests,
-re-exported from the crate root. Keep the file under 300 lines.
-
-- [ ] **Step 4: Split the 1,355-line lib.rs**
-
-The crate is a single file. Split by responsibility into
-`src/gguf/{mod,header,metadata,tensor_info,value}.rs`, each under 300
-lines, with `src/lib.rs` reduced to re-exports.
-
-- [ ] **Step 5: Verify and commit**
-
-Add `"crates/rusticide-io"` to `members`.
-
-Run: `cargo test -p rusticide-io` -- expected: existing tests pass.
-
-```bash
-mise run clippy
-git add crates Cargo.toml
-git commit -S -m "refactor(io): rename rusticide-ggml to rusticide-io and rebind
-
-GGUFValue moves here from the deleted rusticide-model. A tokenizer depending
-on a model crate was a layering inversion; the value type is format
-metadata and belongs with the format reader."
-```
-
----
-
-## Task 18: Rewire quantize, sampling and the tokenizer
-
-**Files:**
-
-- Rename: `../../crates/rusticide-quantize` -> `crates/rusticide-quantize`
-- Rename: `../../crates/rusticide-sampling` -> `crates/rusticide-llm-sampling`
-- Rename: `../../crates/rusticide-tokenizer` -> `crates/rusticide-llm-tokenizer`
-- Rename: `../../crates/rusticide-fuzz` -> `crates/rusticide-fuzz`
-- Modify: each crate's `Cargo.toml` and `src/lib.rs`
-- Modify: `Cargo.toml`
-
-**Interfaces:**
-
-- Consumes: `rusticide-core` (Tensor, DType, Error), `rusticide-io`
-  (GGUFValue).
-- Produces: the same public APIs under new crate names.
-
-**Steps:**
-
-- [ ] **Step 1: No renames -- confirm the names are already correct**
-
-This step originally renamed four crates off an `xllm-` prefix. That
-prefix is already gone: the directories, the `[package] name` fields,
-and `[workspace.dependencies]` all say `rusticide-*`.
-
-The `-llm-` prefix this plan once proposed for the application-layer
-crates is dropped. It was cosmetic -- the layering is documented in the
-design, and renaming working crates to relabel them buys nothing.
-
-Confirm and move on:
-
-```bash
-ls -1 crates/
-# expect: rusticide, rusticide-fuzz, rusticide-io, rusticide-quantize,
-#         rusticide-sampling, rusticide-tokenizer
-```
-
-`rusticide-io` appears in that list only if Task 17 has run; that
-rename is real, because it changes the crate's scope rather than its
-label.
-
-- [ ] **Step 2: Rebind the five remaining imports**
-
-Five `use` lines are the entire coupling to the deleted crates. Change
-each one:
-
-- `rusticide-quantize/src/lib.rs:13`:
-  `use rusticide_tensor::{Tensor, TensorError};` ->
-  `use rusticide_core::{Error, Tensor};`
-- `rusticide-llm-sampling/src/lib.rs:4`: same substitution; the test at
-  line 248 imports `DType` from the same crate.
-- `rusticide-llm-tokenizer/src/lib.rs:6`:
-  `use rusticide_model::{GGUFValue, Model};` ->
-  `use rusticide_io::GGUFValue;`. The `Model` import must go: a
-  tokenizer must not depend on a model type. Change the constructor to
-  take `&[(String, GGUFValue)]` metadata instead of a `&Model`.
-- `rusticide-fuzz/fuzz_targets/{gguf_load,gguf_tokenizer}.rs`: replace
-  `rusticide_model::Model` with the `rusticide_io` reader.
-
-After this step `cargo check` should pass for all four crates.
-
-- [ ] **Step 3: Split the oversized files**
-
-`rusticide-llm-tokenizer/src/lib.rs` is 1,641 lines. Split into
-`src/{bpe,vocab,special,decode}.rs` with `lib.rs` as re-exports only.
-Each file under 300 lines.
-
-- [ ] **Step 4: Verify and commit, one crate per commit**
-
-```bash
-mise run test
-mise run clippy
-git add crates/rusticide-quantize Cargo.toml
-git commit -S -m "refactor(quantize): rename and rebind to rusticide-core"
-git add crates/rusticide-llm-sampling
-git commit -S -m "refactor(sampling): rename and rebind to rusticide-core"
-git add crates/rusticide-llm-tokenizer
-git commit -S -m "refactor(tokenizer): rename, rebind, drop the Model dep
-
-The tokenizer took a &Model only to read GGUF metadata out of it. It
-now takes the metadata directly, removing a dependency from a lower
-layer on a higher one."
-git add crates/rusticide-fuzz
-git commit -S -m "refactor(fuzz): rename and retarget at rusticide-io"
-```
+- Eager ops live behind the `EagerOps` trait, which is the SP2 removal
+  seam. It is not re-exported from the `rusticide` facade.
+- Element typing is strict: only `f32` and `f16`, and `get::<f32>` on an
+  F16 tensor is an error.
+- `Shape::numel` and contiguous strides saturate instead of overflowing;
+  `Storage::new` and `from_slice` then reject the saturated size.
+- Storage guard newtypes expose only `[u8]`, so safe code cannot break
+  the `len == numel * size` invariant.
+- Paired read locks (add, matmul) are taken in global storage-address
+  order; the same-storage case reuses one guard.
+- GGUF: tensor offsets are relative to the aligned data section; a
+  present but invalid `general.alignment` is rejected (absent means 32);
+  duplicate tensor names are rejected; only version 3 is accepted;
+  misaligned or out-of-range tensor offsets are rejected.
+- Q4_0 uses the ggml nibble layout: element j in the low nibble of
+  `qs[j]`, element j+16 in the high nibble.
+- The tokenizer rejects non-finite scores read from GGUF metadata.
+- The ggml graph recomputes on every `forward`, and `set_input` accepts
+  input nodes only (`GraphError::NotAnInput`).
+- Deferred to SP2: the allocation ceiling and the GGUF metadata
+  amplification; see the design document's "Deferred from SP1".
 
 ---
 

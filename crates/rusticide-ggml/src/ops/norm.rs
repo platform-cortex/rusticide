@@ -31,7 +31,7 @@ pub(super) fn softmax(input: &Tensor) -> Result<Tensor> {
     Ok(Tensor::from_slice(&values, dims)?)
 }
 
-/// Divides each last-dimension row by its root mean square plus `eps`.
+/// Divides each last-dimension row by `sqrt(mean(x^2) + eps)`.
 pub(super) fn rms_norm(input: &Tensor, eps: f32) -> Result<Tensor> {
     let mut values = input.to_vec::<f32>()?;
     let dims = input.shape().dims();
