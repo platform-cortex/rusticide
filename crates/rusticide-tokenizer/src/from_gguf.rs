@@ -40,11 +40,16 @@ fn read_scores(metadata: &Metadata) -> Result<Vec<f32>> {
     let Some(value) = metadata.get("tokenizer.ggml.scores") else {
         return Ok(Vec::new());
     };
-    Ok(value
+    value
         .as_array()?
         .iter()
-        .map(|v| v.as_f32().unwrap_or(0.0))
-        .collect())
+        .enumerate()
+        .map(|(index, v)| match v.as_f32() {
+            Ok(score) if !score.is_finite() => Err(TokenizerError::NonFiniteScore { index }),
+            Ok(score) => Ok(score),
+            Err(_) => Ok(0.0),
+        })
+        .collect()
 }
 
 fn read_id(metadata: &Metadata, key: &str, default: u32) -> Result<u32> {

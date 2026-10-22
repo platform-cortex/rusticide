@@ -8,7 +8,7 @@
 use rusticide_io::GGUFValue;
 
 use crate::error::TokenizerError;
-use crate::test_support::{build, float_array, text_array, tokenizer_meta, with};
+use crate::test_support::{build, char_byte_tokens, float_array, text_array, tokenizer_meta, with};
 
 #[test]
 fn gpt2_ids_outside_a_small_vocabulary_decode_to_a_typed_error() {
@@ -68,13 +68,16 @@ fn merges_naming_unknown_tokens_are_skipped_not_indexed() {
 
 #[test]
 fn self_referential_merges_terminate() {
+    let mut tokens = char_byte_tokens();
+    tokens.push("aa".to_string());
+    let refs: Vec<&str> = tokens.iter().map(String::as_str).collect();
     let entries = with(
-        tokenizer_meta("gpt2", &["\u{0}", "a", "aa"]),
+        tokenizer_meta("gpt2", &refs),
         "tokenizer.ggml.merges",
         text_array(&["a a"]),
     );
     let tok = build(&entries);
-    assert!(tok.merge_info.contains_key(&(1, 1)));
+    assert!(tok.merge_info.contains_key(&(97, 97)));
     let word = "a".repeat(64);
-    assert!(tok.encode(&word).unwrap().len() <= 64);
+    assert_eq!(tok.encode(&word).unwrap(), vec![256; 32]);
 }

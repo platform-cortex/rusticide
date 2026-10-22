@@ -33,6 +33,10 @@ pub struct Tokenizer {
 
 impl Tokenizer {
     /// Construct a tokenizer directly from values (useful for testing).
+    ///
+    /// `scores` must be finite. Non-finite scores are not validated here (use
+    /// `from_gguf` for untrusted input, which rejects them); they give
+    /// unspecified but non-panicking tokenization.
     #[must_use]
     #[allow(clippy::needless_pass_by_value)]
     pub fn new(

@@ -16,6 +16,8 @@ pub enum TokenizerError {
     DecodeError(String),
     #[error("invalid token ID (negative): {0}")]
     InvalidId(i32),
+    #[error("non-finite score at vocabulary index {index}")]
+    NonFiniteScore { index: usize },
     #[error("vocabulary size exceeds u32 range")]
     VocabOverflow,
 }

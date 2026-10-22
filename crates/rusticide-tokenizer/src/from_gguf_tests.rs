@@ -242,3 +242,32 @@ fn from_gguf_absent_scores_are_all_zero() {
     let tok = build(&tokenizer_meta("llama", &["a", "b"]));
     assert_eq!(tok.scores, vec![0.0, 0.0]);
 }
+
+fn error_for_score(bad: f32) -> TokenizerError {
+    let entries = with(
+        tokenizer_meta("llama", &["a", "b"]),
+        "tokenizer.ggml.scores",
+        float_array(&[1.0, bad]),
+    );
+    error_of(&entries)
+}
+
+#[test]
+fn from_gguf_rejects_nan_score() {
+    assert!(matches!(
+        error_for_score(f32::NAN),
+        TokenizerError::NonFiniteScore { index: 1 }
+    ));
+}
+
+#[test]
+fn from_gguf_rejects_infinite_score() {
+    assert!(matches!(
+        error_for_score(f32::INFINITY),
+        TokenizerError::NonFiniteScore { index: 1 }
+    ));
+    assert!(matches!(
+        error_for_score(f32::NEG_INFINITY),
+        TokenizerError::NonFiniteScore { index: 1 }
+    ));
+}
