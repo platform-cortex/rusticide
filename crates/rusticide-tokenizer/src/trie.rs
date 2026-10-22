@@ -33,12 +33,6 @@ pub(crate) struct Trie {
     nodes: Vec<Node>,
 }
 
-impl Default for Trie {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Trie {
     pub(crate) fn new() -> Self {
         Self {
