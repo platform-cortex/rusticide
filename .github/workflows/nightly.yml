@@ -36,7 +36,7 @@ jobs:
       - name: Check for fuzz targets
         id: has-fuzz
         run: |
-          if [ -d fuzz ] || ls crates/*-fuzz/Cargo.toml 2>/dev/null; then
+          if [ -f crates/rusticide-fuzz/Cargo.toml ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
@@ -51,16 +51,21 @@ jobs:
       - name: List targets
         if: steps.has-fuzz.outputs.found == 'true'
         id: list-targets
+        working-directory: crates/rusticide-fuzz
         run: |
-          targets=$(cargo +nightly fuzz list 2>/dev/null | tr '\n' ' ')
+          targets=$(cargo +nightly fuzz list --fuzz-dir . | tr '\n' ' ')
           echo "targets=$targets" >> "$GITHUB_OUTPUT"
 
       - name: Run fuzzer (5 min each)
         if: steps.has-fuzz.outputs.found == 'true'
+        working-directory: crates/rusticide-fuzz
+        env:
+          FUZZ_TARGETS: ${{ steps.list-targets.outputs.targets }}
         run: |
-          for target in ${{ steps.list-targets.outputs.targets }}; do
+          host="$(rustc +nightly -vV | awk '/^host:/{print $2}')"
+          for target in $FUZZ_TARGETS; do
             echo "Fuzzing $target for 300s..."
-            cargo +nightly fuzz run "$target" -- -max_total_time=300
+            cargo +nightly fuzz run --fuzz-dir . "$target" --target "$host" -- -max_total_time=300
           done
 
       - name: Upload crash artifacts
@@ -68,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-crash
-          path: fuzz/artifacts/
+          path: crates/rusticide-fuzz/artifacts/
 
   bench:
     name: Benchmarks

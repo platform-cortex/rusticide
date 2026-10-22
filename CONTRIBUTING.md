@@ -182,7 +182,7 @@ git config commit.template ~/rusticide/git-template
 
 ## Code and Commit Standards
 
-- Avoid the em dash `—`, the unicode arrow `→`, and any other non-ASCII characters such as `×` and `…`; use the ASCII equivalents instead: `-`, `->`, `x`, `...`
+- Avoid the em dash (U+2014), the arrow (U+2192), and any other non-ASCII characters such as the multiplication sign (U+00D7) and the ellipsis (U+2026); use the ASCII equivalents instead: `--`, `->`, `x`, `...`
 - Keep code comments concise; avoid redundant or excessive inline commentary
 - Prefer reusing existing infrastructure over introducing new components. Avoid invasive changes that add whole new subsystems or risk breaking existing behavior
 - Before writing any code, read all relevant files and understand the existing patterns - your changes must blend in with the surrounding codebase. If the change is large or introduces a new pattern, **PAUSE and ask for confirmation** before proceeding; remind them that large changes submitted without prior discussion are likely to be rejected by maintainers
