@@ -21,6 +21,11 @@ lockfile = true
 not_found_auto_install = true
 quiet = true
 task.run_auto_install = false
+# cargo: tools build with `cargo install --locked` from crates.io. cargo-binstall
+# is off: under `mise install --locked` it may only use a crate's own binaries,
+# so for crates without one it printed "cargo-binstall failed" before mise fell
+# back to building anyway. Tools that publish binaries use github: below.
+cargo.binstall = false
 ### Debug
 #verbose = true
 #log_level = "debug"
@@ -48,20 +53,13 @@ _.file = ".env"
 "cargo:cargo-criterion" = { version = "latest" }
 "cargo:cargo-fuzz" = { version = "latest" }
 "cargo:cargo-mutants" = { version = "latest" }
-"cargo:cargo-nextest" = { version = "latest" }
 "cargo:cargo-pgo" = { version = "latest" }
-"cargo:cargo-semver-checks" = { version = "latest" }
 "cargo:cargo-sort" = { version = "latest" }
-"cargo:cargo-tarpaulin" = { version = "latest" }
 "cargo:cargo-wizard" = { version = "latest" }
 "cargo:flamegraph" = { version = "latest" }
 "cargo:yamllint-rs" = { version = "latest" }
-# cargo-fuzz, cargo-pgo, cargo-wizard, flamegraph, cargo-criterion and
-# yamllint-rs publish no binary for every platform here, so `mise install`
-# logs "cargo-binstall failed" for each and then builds it from crates.io
-# (--locked). That is the expected fallback, not a failure: mise has no
-# per-tool switch to skip binstall, and cargo-quickinstall stays off because
-# its third-party binaries carry no checksum in mise.lock.
+# The cargo: tools above publish no binary for every platform used here, so
+# they build from crates.io (cargo.binstall is off; see [settings]).
 
 
 # Binaries registries or from sources if architecture is not supported
@@ -78,14 +76,16 @@ _.file = ".env"
 # cargo-binstall comes from here, not the cargo backend: as a cargo: tool it was
 # itself compiled from source on every cold runner before anything else ran.
 "actionlint" = { version = "latest" }
-"cargo-binstall" = { version = "latest" }
 # Upstream release binaries via the github backend: mise.lock records each
 # asset's URL and sha256. rustsec tags per crate, hence the version_prefix.
 "cargo-deny" = { version = "latest" }
 "committed" = { version = "latest" }
 "git-cliff" = { version = "latest" }
 "github:bnjbvr/cargo-machete" = { version = "latest" }
+"github:nextest-rs/nextest" = { version = "latest", version_prefix = "cargo-nextest-" }
+"github:obi1kenobi/cargo-semver-checks" = { version = "latest" }
 "github:rustsec/rustsec" = { version = "latest", version_prefix = "cargo-audit/v" }
+"github:xd009642/tarpaulin" = { version = "latest" }
 # Release signing (publish.yml / release:sign); syft below makes the SBOM.
 "cosign" = { version = "3" }
 "gitleaks" = { version = "latest" }

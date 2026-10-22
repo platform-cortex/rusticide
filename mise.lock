@@ -87,53 +87,6 @@ checksum = "sha256:391d61bb4a3bb612464142277f4d934d3b1aee6068cf18175d1c2406aeda2
 url = "https://github.com/jdx/hk/releases/download/v2.8.0/hk-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/jdx/hk/releases/assets/660247237"
 
-[[tools.cargo-binstall]]
-version = "1.26.0"
-backend = "aqua:cargo-bins/cargo-binstall"
-specifiers = ["latest"]
-
-[tools.cargo-binstall."platforms.linux-arm64"]
-checksum = "sha256:255fd8d52e3a977ddb5e74fee58e7ef14b31c09d4eab5ad678e9967baedefced"
-url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.26.0/cargo-binstall-aarch64-unknown-linux-gnu.tgz"
-url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/650344745"
-provenance = "github-attestations"
-
-[tools.cargo-binstall."platforms.linux-arm64-musl"]
-checksum = "sha256:4c7fdaa9fb6803ef66d282dfb671dc81f36fc03d469fb9a177b4aa4fade6b91b"
-url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.26.0/cargo-binstall-aarch64-unknown-linux-musl.tgz"
-url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/650344574"
-provenance = "github-attestations"
-
-[tools.cargo-binstall."platforms.linux-x64"]
-checksum = "sha256:e59aec44d811ab53b1bb4c5e0b57e433b017999c37e24ca577a3afbefd49dabd"
-url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.26.0/cargo-binstall-x86_64-unknown-linux-gnu.tgz"
-url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/650343654"
-provenance = "github-attestations"
-
-[tools.cargo-binstall."platforms.linux-x64-musl"]
-checksum = "sha256:dd7ff9451d8ba2e437a8d861889b630746f82f09d931df2d893b0c3f28656f87"
-url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.26.0/cargo-binstall-x86_64-unknown-linux-musl.tgz"
-url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/650343510"
-provenance = "github-attestations"
-
-[tools.cargo-binstall."platforms.macos-arm64"]
-checksum = "sha256:8cb681294876c8fdc1750bf79cd24aa0fa810cb91ecbd869d9e540a00dd08624"
-url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.26.0/cargo-binstall-aarch64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/650345034"
-provenance = "github-attestations"
-
-[tools.cargo-binstall."platforms.macos-x64"]
-checksum = "sha256:5af8aa7b908318eb26794f35a0a7baf46132cf9c2d20b0a9f5aea4effed96b22"
-url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.26.0/cargo-binstall-x86_64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/650343951"
-provenance = "github-attestations"
-
-[tools.cargo-binstall."platforms.windows-x64"]
-checksum = "sha256:59ab87c04779661369f4bfcc3d58f3d6e5ede36e0c5b6651af00a4c69f95769a"
-url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.26.0/cargo-binstall-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/650343802"
-provenance = "github-attestations"
-
 [[tools.cargo-deny]]
 version = "0.20.2"
 backend = "aqua:EmbarkStudios/cargo-deny"
@@ -194,29 +147,14 @@ version = "27.1.0"
 backend = "cargo:cargo-mutants"
 specifiers = ["latest"]
 
-[[tools."cargo:cargo-nextest"]]
-version = "0.9.140"
-backend = "cargo:cargo-nextest"
-specifiers = ["latest"]
-
 [[tools."cargo:cargo-pgo"]]
 version = "0.3.0"
 backend = "cargo:cargo-pgo"
 specifiers = ["latest"]
 
-[[tools."cargo:cargo-semver-checks"]]
-version = "0.49.0"
-backend = "cargo:cargo-semver-checks"
-specifiers = ["latest"]
-
 [[tools."cargo:cargo-sort"]]
 version = "2.1.4"
 backend = "cargo:cargo-sort"
-specifiers = ["latest"]
-
-[[tools."cargo:cargo-tarpaulin"]]
-version = "0.37.0"
-backend = "cargo:cargo-tarpaulin"
 specifiers = ["latest"]
 
 [[tools."cargo:cargo-wizard"]]
@@ -391,6 +329,96 @@ checksum = "sha256:996120ac70afe405c58fce508a476f25bb71032c6fb8013aa0123bba36429
 url = "https://github.com/bnjbvr/cargo-machete/releases/download/v0.9.2/cargo-machete-v0.9.2-x86_64-pc-windows-msvc.tar.gz"
 url_api = "https://api.github.com/repos/bnjbvr/cargo-machete/releases/assets/397131414"
 
+[[tools."github:nextest-rs/nextest"]]
+version = "0.9.149"
+backend = "github:nextest-rs/nextest"
+specifiers = ["latest"]
+
+[tools."github:nextest-rs/nextest".options]
+version_prefix = "cargo-nextest-"
+
+[tools."github:nextest-rs/nextest"."platforms.linux-arm64"]
+checksum = "sha256:6f82e375187cf3a1f3e336879a51940c315a5d0ce7253f7e517ad28295b74189"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.149/cargo-nextest-0.9.149-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/nextest-rs/nextest/releases/assets/660818146"
+provenance = "github-attestations"
+
+[tools."github:nextest-rs/nextest"."platforms.linux-arm64-musl"]
+checksum = "sha256:533c9b431c2bb1dcb216e02e474263db0cdcd556373b72cc34830fb417058a6b"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.149/cargo-nextest-0.9.149-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/nextest-rs/nextest/releases/assets/660820807"
+provenance = "github-attestations"
+
+[tools."github:nextest-rs/nextest"."platforms.linux-x64"]
+checksum = "sha256:32d1d8c0567b7a80bee2bad8bb09125c846da96bc009b2de11ec08557290c770"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.149/cargo-nextest-0.9.149-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/nextest-rs/nextest/releases/assets/660814555"
+provenance = "github-attestations"
+
+[tools."github:nextest-rs/nextest"."platforms.linux-x64-musl"]
+checksum = "sha256:d65c7f14bcb5c1566d1ecd534c5da8dedb81ba58586e478b0ab81c877d2bd8ad"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.149/cargo-nextest-0.9.149-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/nextest-rs/nextest/releases/assets/660821053"
+provenance = "github-attestations"
+
+[tools."github:nextest-rs/nextest"."platforms.macos-arm64"]
+checksum = "sha256:47b9941765a9ff94e304a3fe5444ac1c7593da655525b8b69f8f2b31a9217507"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.149/cargo-nextest-0.9.149-universal-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/nextest-rs/nextest/releases/assets/660825754"
+provenance = "github-attestations"
+
+[tools."github:nextest-rs/nextest"."platforms.macos-x64"]
+checksum = "sha256:47b9941765a9ff94e304a3fe5444ac1c7593da655525b8b69f8f2b31a9217507"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.149/cargo-nextest-0.9.149-universal-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/nextest-rs/nextest/releases/assets/660825754"
+provenance = "github-attestations"
+
+[tools."github:nextest-rs/nextest"."platforms.windows-x64"]
+checksum = "sha256:bf904b85c7c5c2a29c340053a8d9d8e8027ff0d55a2bf7cef7d23032f8166438"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.149/cargo-nextest-0.9.149-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/nextest-rs/nextest/releases/assets/660828894"
+provenance = "github-attestations"
+
+[[tools."github:obi1kenobi/cargo-semver-checks"]]
+version = "0.51.0"
+backend = "github:obi1kenobi/cargo-semver-checks"
+specifiers = ["latest"]
+
+[tools."github:obi1kenobi/cargo-semver-checks"."platforms.linux-arm64"]
+checksum = "sha256:58531fa492d237c71b97d113a6d2a36209d96105956569cd0406aa66226ac928"
+url = "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/obi1kenobi/cargo-semver-checks/releases/assets/608677275"
+
+[tools."github:obi1kenobi/cargo-semver-checks"."platforms.linux-arm64-musl"]
+checksum = "sha256:a7355f6d36edab9f76ea3fe565b9f5727394ca64f6ad751b8be24ac65a902136"
+url = "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/obi1kenobi/cargo-semver-checks/releases/assets/608677272"
+
+[tools."github:obi1kenobi/cargo-semver-checks"."platforms.linux-x64"]
+checksum = "sha256:cacadafaa5cd27ae6d05a74a103266917ebab4c5e43c898360e177d4fbf06a65"
+url = "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/obi1kenobi/cargo-semver-checks/releases/assets/608677290"
+
+[tools."github:obi1kenobi/cargo-semver-checks"."platforms.linux-x64-musl"]
+checksum = "sha256:396c8508d973c83de52660943a057e971b586f7511c3ba695762373452b43d5b"
+url = "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/obi1kenobi/cargo-semver-checks/releases/assets/608677291"
+
+[tools."github:obi1kenobi/cargo-semver-checks"."platforms.macos-arm64"]
+checksum = "sha256:3cec5da41eee9a3336d75ad43d1f30a5c9680818f4ba209024786f452cabab5b"
+url = "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/obi1kenobi/cargo-semver-checks/releases/assets/608677274"
+
+[tools."github:obi1kenobi/cargo-semver-checks"."platforms.macos-x64"]
+checksum = "sha256:542f9518fd5360f46c1027a6ac2c9e9ee7431518c42495346df84922a050ce5b"
+url = "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/obi1kenobi/cargo-semver-checks/releases/assets/608677271"
+
+[tools."github:obi1kenobi/cargo-semver-checks"."platforms.windows-x64"]
+checksum = "sha256:7663ba2c938b59f0476d375ee1b5d8bece36a81819612d1541bc6ccf6316c4b7"
+url = "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/obi1kenobi/cargo-semver-checks/releases/assets/608677294"
+
 [[tools."github:rustsec/rustsec"]]
 version = "0.22.2"
 backend = "github:rustsec/rustsec"
@@ -433,6 +461,46 @@ url_api = "https://api.github.com/repos/rustsec/rustsec/releases/assets/43929273
 checksum = "sha256:0a7316540862c13d954f648917ceacca593747baed6eec180fafa590be2710ab"
 url = "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.2/cargo-audit-x86_64-pc-windows-msvc-v0.22.2.zip"
 url_api = "https://api.github.com/repos/rustsec/rustsec/releases/assets/439294720"
+
+[[tools."github:xd009642/tarpaulin"]]
+version = "0.37.5"
+backend = "github:xd009642/tarpaulin"
+specifiers = ["latest"]
+
+[tools."github:xd009642/tarpaulin"."platforms.linux-arm64"]
+checksum = "sha256:dcbdecd73903ac9071d61d2003ff0c82568edb676cff5a557b8be26d78ae896b"
+url = "https://github.com/xd009642/tarpaulin/releases/download/0.37.5/cargo-tarpaulin-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/xd009642/tarpaulin/releases/assets/592469202"
+
+[tools."github:xd009642/tarpaulin"."platforms.linux-arm64-musl"]
+checksum = "sha256:e74a781283a3843185d93370c8af9be224a4edaab0aa5ed421e1c973d751bc8f"
+url = "https://github.com/xd009642/tarpaulin/releases/download/0.37.5/cargo-tarpaulin-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/xd009642/tarpaulin/releases/assets/592473030"
+
+[tools."github:xd009642/tarpaulin"."platforms.linux-x64"]
+checksum = "sha256:affb00dc5e82582fb8124efb39233ee8318980c3136b27931684d2804d9e3a54"
+url = "https://github.com/xd009642/tarpaulin/releases/download/0.37.5/cargo-tarpaulin-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/xd009642/tarpaulin/releases/assets/592469228"
+
+[tools."github:xd009642/tarpaulin"."platforms.linux-x64-musl"]
+checksum = "sha256:edd214e46aedd1692bf8601f9754da5c6ade83da78f73d291f5dd611c940b590"
+url = "https://github.com/xd009642/tarpaulin/releases/download/0.37.5/cargo-tarpaulin-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/xd009642/tarpaulin/releases/assets/592471864"
+
+[tools."github:xd009642/tarpaulin"."platforms.macos-arm64"]
+checksum = "sha256:079019d2881bc80cbc98daafbe23735a757548388f39321713a6f5bf4c19e41d"
+url = "https://github.com/xd009642/tarpaulin/releases/download/0.37.5/cargo-tarpaulin-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/xd009642/tarpaulin/releases/assets/592472207"
+
+[tools."github:xd009642/tarpaulin"."platforms.macos-x64"]
+checksum = "sha256:7cab0bcc37d1b5ce535cd4d6ddd4ace09d89f36188e9590f7e12cba7ae8e18d3"
+url = "https://github.com/xd009642/tarpaulin/releases/download/0.37.5/cargo-tarpaulin-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/xd009642/tarpaulin/releases/assets/592470713"
+
+[tools."github:xd009642/tarpaulin"."platforms.windows-x64"]
+checksum = "sha256:1e8fe6c852c93ae9ed079fbcb28ddcbe053e2a334d32dbab00c92b5218003ad3"
+url = "https://github.com/xd009642/tarpaulin/releases/download/0.37.5/cargo-tarpaulin-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/xd009642/tarpaulin/releases/assets/592473015"
 
 [[tools.gitleaks]]
 version = "8.30.1"
