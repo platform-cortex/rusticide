@@ -41,6 +41,7 @@ name = "rusticide-dispatch"
 version = "0.1.0"
 dependencies = [
  "rusticide-core",
+ "thiserror",
 ]
 
 [[package]]

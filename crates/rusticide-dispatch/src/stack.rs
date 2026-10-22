@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::IValue;
-use rusticide_core::Tensor;
+use rusticide_core::{DispatchKeySet, Tensor};
 
 /// The argument and return stack of the boxed calling convention.
 ///
@@ -44,6 +44,19 @@ impl Stack {
             .as_int()
     }
 
+    /// The union of the dispatch keys of every tensor on the stack,
+    /// including tensors inside tensor lists (multiple dispatch).
+    #[must_use]
+    pub fn key_set(&self) -> DispatchKeySet {
+        self.values
+            .iter()
+            .fold(DispatchKeySet::empty(), |keys, value| match value {
+                IValue::Tensor(t) => keys.union(t.key_set()),
+                IValue::TensorList(ts) => ts.iter().fold(keys, |k, t| k.union(t.key_set())),
+                _ => keys,
+            })
+    }
+
     /// Returns the number of values on the stack.
     #[must_use]
     pub const fn len(&self) -> usize {
@@ -59,7 +72,7 @@ impl Stack {
 
 #[cfg(test)]
 mod tests {
-    use rusticide_core::{DType, Device, Tensor};
+    use rusticide_core::{DType, Device, DispatchKeySet, Tensor};
 
     use super::Stack;
     use crate::IValue;
@@ -110,5 +123,17 @@ mod tests {
         assert_eq!(stack.len(), 2);
         assert!(stack.pop_tensor().is_some());
         assert_eq!(stack.pop().and_then(|v| v.as_int()), Some(5));
+    }
+
+    #[test]
+    fn the_key_set_unions_every_tensor_and_ignores_other_values() {
+        let cpu = tensor();
+        let gpu = Tensor::zeros(&[1], DType::F32, Device::gpu(0)).expect("allocation succeeds");
+        let mut stack = Stack::new();
+        assert_eq!(stack.key_set(), DispatchKeySet::empty());
+        stack.push(IValue::Int(1));
+        stack.push(IValue::Tensor(cpu.clone()));
+        stack.push(IValue::TensorList(vec![gpu.clone()]));
+        assert_eq!(stack.key_set(), cpu.key_set().union(gpu.key_set()));
     }
 }
