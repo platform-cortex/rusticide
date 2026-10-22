@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use half::f16;
 use rusticide_core::{DType, Tensor};
 
 use crate::{Graph, GraphBuilder, Op, Result};
@@ -49,4 +50,27 @@ pub(crate) fn tensor_error(err: crate::GraphError) -> rusticide_core::Error {
         panic!("expected a tensor error, got {err:?}");
     };
     inner
+}
+
+pub(crate) fn assert_close(tensor: &Tensor, dims: &[usize], expected: &[f32]) {
+    assert_eq!(tensor.shape().dims(), dims);
+    let actual = tensor.to_vec::<f32>().unwrap();
+    assert_eq!(actual.len(), expected.len());
+    for (got, want) in actual.iter().zip(expected) {
+        assert!((got - want).abs() < 1e-5, "expected {want}, got {got}");
+    }
+}
+
+pub(crate) fn assert_rejects_non_f32(op: Op, dims: &[usize]) {
+    let count = dims.iter().product::<usize>();
+    let data = vec![f16::from_f32(1.0); count];
+    let input = Tensor::from_slice(&data, dims).unwrap();
+    let err = run(op, &[input]).unwrap_err();
+    assert!(matches!(
+        tensor_error(err),
+        rusticide_core::Error::DTypeMismatch {
+            expected: DType::F32,
+            got: DType::F16
+        }
+    ));
 }

@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 mod binary;
+mod norm;
+mod rope;
 mod rows;
 mod structural;
+mod unary;
 
 use rusticide_core::{EagerOps, Tensor};
 
@@ -20,6 +23,12 @@ pub(crate) fn execute_op(op: &Op, inputs: &[&Tensor]) -> Result<Tensor> {
         Op::GetRows => rows::get_rows(inputs[0], inputs[1]),
         Op::Add => binary::add(inputs[0], inputs[1]),
         Op::MatMul => binary::matmul(inputs[0], inputs[1]),
+        Op::Mul => binary::mul(inputs[0], inputs[1]),
+        Op::Scale(factor) => unary::scale(inputs[0], *factor),
+        Op::Silu => unary::silu(inputs[0]),
+        Op::SoftMax => norm::softmax(inputs[0]),
+        Op::RMSNorm { eps } => norm::rms_norm(inputs[0], *eps),
+        Op::RoPE { theta, dim_pairs } => rope::rope(inputs[0], *theta, *dim_pairs),
     }
 }
 

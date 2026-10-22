@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use half::f16;
-use rusticide_core::{DType, Error, Tensor};
+use rusticide_core::{DType, Device, Error, Tensor};
 
-use crate::Op;
-use crate::test_support::{assert_values, f32_tensor, run, run_declared, tensor_error};
+use crate::test_support::{
+    assert_close, assert_values, f32_tensor, run, run_declared, tensor_error,
+};
+use crate::{GraphBuilder, Op};
 
 #[test]
 fn graph_add() {
@@ -156,4 +158,87 @@ fn reshape_runtime_error_propagates() {
             got: 6
         }
     ));
+}
+
+#[test]
+fn graph_mul() {
+    let lhs = f32_tensor(&[1.0, 2.0, 3.0, 4.0], &[2, 2]);
+    let rhs = f32_tensor(&[5.0, 6.0, 7.0, 8.0], &[2, 2]);
+    let out = run(Op::Mul, &[lhs, rhs]).unwrap();
+    assert_values(&out, &[2, 2], &[5.0, 12.0, 21.0, 32.0]);
+}
+
+#[test]
+fn graph_mul_broadcast() {
+    let lhs = f32_tensor(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3]);
+    let rhs = f32_tensor(&[10.0, 20.0, 30.0], &[3]);
+    let out = run(Op::Mul, &[lhs, rhs]).unwrap();
+    assert_values(&out, &[2, 3], &[10.0, 40.0, 90.0, 40.0, 100.0, 180.0]);
+}
+
+#[test]
+fn mul_rejects_non_f32_lhs() {
+    let lhs = Tensor::from_slice(&[f16::from_f32(1.0)], &[1]).unwrap();
+    let rhs = f32_tensor(&[1.0], &[1]);
+    let err = run_declared(
+        Op::Mul,
+        &[(&[1], DType::F32), (&[1], DType::F32)],
+        &[lhs, rhs],
+    )
+    .unwrap_err();
+    assert!(matches!(
+        tensor_error(err),
+        Error::DTypeMismatch {
+            expected: DType::F32,
+            got: DType::F16
+        }
+    ));
+}
+
+#[test]
+fn mul_rejects_non_f32_rhs() {
+    let lhs = f32_tensor(&[1.0], &[1]);
+    let rhs = Tensor::from_slice(&[f16::from_f32(1.0)], &[1]).unwrap();
+    let err = run_declared(
+        Op::Mul,
+        &[(&[1], DType::F32), (&[1], DType::F32)],
+        &[lhs, rhs],
+    )
+    .unwrap_err();
+    assert!(matches!(
+        tensor_error(err),
+        Error::DTypeMismatch {
+            expected: DType::F32,
+            got: DType::F16
+        }
+    ));
+}
+
+#[test]
+fn mul_unsatisfiable_broadcast_is_allocation_failed() {
+    let side = 1 << 23;
+    let lhs = Tensor::zeros(&[side, 1], DType::F32, Device::cpu()).unwrap();
+    let rhs = Tensor::zeros(&[1, side], DType::F32, Device::cpu()).unwrap();
+    let err = run(Op::Mul, &[lhs, rhs]).unwrap_err();
+    assert!(matches!(tensor_error(err), Error::AllocationFailed { .. }));
+}
+
+#[test]
+fn graph_multi_node() {
+    let mut builder = GraphBuilder::new();
+    let lhs_id = builder.add_input(&[3], DType::F32);
+    let rhs_id = builder.add_input(&[3], DType::F32);
+    let sum_id = builder.add(Op::Add, &[lhs_id, rhs_id]).unwrap();
+    let silu_id = builder.add(Op::Silu, &[sum_id]).unwrap();
+    let scale_id = builder.add(Op::Scale(2.0), &[silu_id]).unwrap();
+    let mut graph = builder.build();
+    graph
+        .set_input(lhs_id, f32_tensor(&[1.0, 2.0, 3.0], &[3]))
+        .unwrap();
+    graph
+        .set_input(rhs_id, f32_tensor(&[4.0, 5.0, 6.0], &[3]))
+        .unwrap();
+    graph.forward().unwrap();
+    let expected = [5.0_f32, 7.0, 9.0].map(|value| 2.0 * value / (1.0 + (-value).exp()));
+    assert_close(graph.tensor(scale_id).unwrap(), &[3], &expected);
 }

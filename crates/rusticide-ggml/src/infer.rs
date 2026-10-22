@@ -13,8 +13,11 @@ type Input<'a> = (&'a [usize], DType);
 /// and dtypes, or the error executing it would raise.
 pub(crate) fn infer_shape_dtype(op: &Op, inputs: &[Input<'_>]) -> Result<(Vec<usize>, DType)> {
     match op {
-        Op::Copy | Op::Cont | Op::Permute => Ok((inputs[0].0.to_vec(), inputs[0].1)),
-        Op::Add => infer_add(inputs[0], inputs[1]),
+        Op::Copy | Op::Cont | Op::Permute | Op::Scale(_) => Ok((inputs[0].0.to_vec(), inputs[0].1)),
+        Op::SoftMax | Op::Silu => Ok((inputs[0].0.to_vec(), DType::F32)),
+        Op::RMSNorm { .. } => infer_rank(inputs[0].0, 1, |rank| rank >= 1),
+        Op::RoPE { .. } => infer_rank(inputs[0].0, 2, |rank| rank == 2),
+        Op::Add | Op::Mul => infer_add(inputs[0], inputs[1]),
         Op::MatMul => infer_matmul(inputs[0].0, inputs[1].0),
         Op::Reshape { shape } => infer_reshape(inputs[0], shape),
         Op::Repeat { shape } => {
@@ -35,6 +38,23 @@ fn infer_add(lhs: Input<'_>, rhs: Input<'_>) -> Result<(Vec<usize>, DType)> {
     }
     let shape = Shape::new(lhs.0).broadcast_with(&Shape::new(rhs.0))?;
     Ok((shape.dims().to_vec(), lhs.1))
+}
+
+/// A float output shaped like the input, provided its rank satisfies
+/// `accepts`; `expected` is the rank reported otherwise.
+fn infer_rank(
+    dims: &[usize],
+    expected: usize,
+    accepts: fn(usize) -> bool,
+) -> Result<(Vec<usize>, DType)> {
+    if !accepts(dims.len()) {
+        return Err(Error::RankMismatch {
+            expected,
+            got: dims.len(),
+        }
+        .into());
+    }
+    Ok((dims.to_vec(), DType::F32))
 }
 
 fn infer_matmul(lhs: &[usize], rhs: &[usize]) -> Result<(Vec<usize>, DType)> {

@@ -180,3 +180,77 @@ fn copy_cont_permute_keep_shape_and_dtype() {
         assert_eq!((shape, dtype), (vec![2, 3], DType::I64), "{op:?}");
     }
 }
+
+#[test]
+fn mul_broadcasts_like_add() {
+    let inputs: [Input<'_>; 2] = [(&[2, 1], DType::F32), (&[1, 3], DType::F32)];
+    let (shape, dtype) = infer_shape_dtype(&Op::Mul, &inputs).unwrap();
+    assert_eq!((shape, dtype), (vec![2, 3], DType::F32));
+}
+
+#[test]
+fn mul_dtype_mismatch() {
+    let inputs: [Input<'_>; 2] = [(&[2], DType::F32), (&[2], DType::I64)];
+    let err = infer_shape_dtype(&Op::Mul, &inputs).unwrap_err();
+    assert!(matches!(
+        tensor_error(err),
+        Error::DTypeMismatch {
+            expected: DType::F32,
+            got: DType::I64
+        }
+    ));
+}
+
+#[test]
+fn scale_keeps_the_input_dtype() {
+    let inputs: [Input<'_>; 1] = [(&[2, 3], DType::F16)];
+    let (shape, dtype) = infer_shape_dtype(&Op::Scale(2.0), &inputs).unwrap();
+    assert_eq!((shape, dtype), (vec![2, 3], DType::F16));
+}
+
+#[test]
+fn softmax_silu_and_norms_yield_f32() {
+    let inputs: [Input<'_>; 1] = [(&[2, 3], DType::F16)];
+    for op in [
+        Op::SoftMax,
+        Op::Silu,
+        Op::RMSNorm { eps: 1e-6 },
+        Op::RoPE {
+            theta: 10000.0,
+            dim_pairs: 1,
+        },
+    ] {
+        let (shape, dtype) = infer_shape_dtype(&op, &inputs).unwrap();
+        assert_eq!((shape, dtype), (vec![2, 3], DType::F32));
+    }
+}
+
+#[test]
+fn rms_norm_requires_rank_1() {
+    let inputs: [Input<'_>; 1] = [(&[], DType::F32)];
+    let err = infer_shape_dtype(&Op::RMSNorm { eps: 1e-6 }, &inputs).unwrap_err();
+    assert!(matches!(
+        tensor_error(err),
+        Error::RankMismatch {
+            expected: 1,
+            got: 0
+        }
+    ));
+}
+
+#[test]
+fn rope_requires_2d() {
+    let op = Op::RoPE {
+        theta: 10000.0,
+        dim_pairs: 1,
+    };
+    let inputs: [Input<'_>; 1] = [(&[2, 3, 4], DType::F32)];
+    let err = infer_shape_dtype(&op, &inputs).unwrap_err();
+    assert!(matches!(
+        tensor_error(err),
+        Error::RankMismatch {
+            expected: 2,
+            got: 3
+        }
+    ));
+}
