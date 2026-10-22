@@ -12,11 +12,8 @@
 
 #![no_main]
 
-mod common;
-
-use common::ScratchFile;
 use libfuzzer_sys::fuzz_target;
-use rusticide_model::Model;
+use rusticide_io::GgufFile;
 use rusticide_tokenizer::Tokenizer;
 
 /// Exercises the byte-fallback path, multi-byte UTF-8, and leading whitespace.
@@ -33,13 +30,10 @@ fuzz_target!(|data: &[u8]| {
         return;
     }
 
-    let Ok(scratch) = ScratchFile::new("tok", data) else {
+    let Ok(file) = GgufFile::from_bytes(data.to_vec()) else {
         return;
     };
-    let Ok(model) = Model::load(scratch.path()) else {
-        return;
-    };
-    let Ok(tokenizer) = Tokenizer::from_gguf(&model) else {
+    let Ok(tokenizer) = Tokenizer::from_gguf(file.metadata()) else {
         return;
     };
 
@@ -54,4 +48,13 @@ fuzz_target!(|data: &[u8]| {
 
     // Ids that no encode call would produce must be rejected, not panic.
     let _ = tokenizer.decode(&[0, 1, 2, u32::MAX]);
+
+    // Ids derived from the input hit arbitrary, mostly out-of-range, pieces.
+    let derived: Vec<u32> = data
+        .iter()
+        .take(16)
+        .map(|&byte| u32::from(byte) * 257)
+        .collect();
+    let _ = tokenizer.decode(&derived);
+    let _ = tokenizer.decode_detokenized(&derived);
 });

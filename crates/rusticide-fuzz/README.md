@@ -15,44 +15,45 @@ It is **its own workspace** (note the bare `[workspace]` table in its
 `Cargo.toml`) and is listed in the root `Cargo.toml` `exclude`. Two reasons:
 
 - `libfuzzer-sys` requires a nightly toolchain and sanitizer `-Z` flags, while
-  the project pins stable 1.97.
+  the project builds on stable.
 - The `fuzz_target!` macro generates an `extern "C"` entry point that cannot
   satisfy the workspace-wide `unsafe_code = "deny"` lint.
 
 Because it sits outside the workspace, `cargo build --workspace`,
 `cargo clippy --all-targets` and `cargo nextest run` never see it, and it needs
-the explicit `--fuzz-dir crates/rusticide-fuzz` flag shown below.
+the explicit `--fuzz-dir .` flag shown below.
 
 ## Targets
 
 | Target | Entry point | Looks for |
 | ------ | ----------- | --------- |
-| `gguf_load` | `Model::load` | Panics, out-of-bounds reads, and unbounded allocations from a malformed GGUF header |
-| `gguf_tokenizer` | `Tokenizer::from_gguf` + `encode`/`decode` | Panics from vocab/score/special-token metadata that disagrees with itself |
+| `gguf_load` | `GgufFile::from_bytes` | Panics, out-of-bounds reads, and unbounded allocations from a malformed GGUF header, then every tensor via `tensor_by_index` |
+| `gguf_tokenizer` | `Tokenizer::from_gguf` + `encode`/`decode` | Panics from vocab/score/special-token metadata that disagrees with itself, including out-of-range ids |
 
-Both write their input to a scratch file first, because `Model::load` takes a
-path rather than a byte slice.
+Both feed the input straight to `GgufFile::from_bytes`; inputs under 24 bytes
+(the GGUF header size) are skipped.
 
 ## Running
 
-Requires nightly: `rustup toolchain install nightly`.
+Requires nightly and cargo-fuzz: `rustup toolchain install nightly` and
+`cargo install cargo-fuzz`. Run from this directory, since the crate is its own
+workspace:
 
 ```sh
-mise run fuzz list                  # show targets
-mise run fuzz run gguf_load         # fuzz until you stop it
-mise run fuzz run gguf_load -- -max_total_time=60
+cd crates/rusticide-fuzz
+cargo +nightly fuzz list --fuzz-dir .
+cargo +nightly fuzz run --fuzz-dir . gguf_load -- -max_total_time=60 -rss_limit_mb=2048
+cargo +nightly fuzz run --fuzz-dir . gguf_tokenizer -- -max_total_time=60 -rss_limit_mb=2048
 ```
 
-Or call cargo-fuzz directly:
-
-```sh
-cargo +nightly fuzz run --fuzz-dir crates/rusticide-fuzz gguf_load
-```
+A random start finds little because almost every input fails the magic check.
+Pass a directory holding a small valid GGUF file as a positional argument
+(before `--`) to seed the corpus.
 
 Replay a single saved input (this is how a reported crash is reproduced):
 
 ```sh
-cargo +nightly fuzz run --fuzz-dir crates/rusticide-fuzz gguf_load artifacts/gguf_load/crash-<hash>
+cargo +nightly fuzz run --fuzz-dir . gguf_load artifacts/gguf_load/crash-<hash>
 ```
 
 ## What a finding means
