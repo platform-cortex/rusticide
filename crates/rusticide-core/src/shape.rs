@@ -29,9 +29,19 @@ impl Shape {
     }
 
     /// Total element count. A zero-dimensional shape holds one element.
+    ///
+    /// A shape with any zero extent holds zero elements, even if the other
+    /// extents would overflow. Otherwise a product that overflows `usize`
+    /// saturates to `usize::MAX`, which no allocation or slice can satisfy.
     #[must_use]
     pub fn numel(&self) -> usize {
-        self.dims.iter().product()
+        if self.dims.contains(&0) {
+            return 0;
+        }
+        self.dims
+            .iter()
+            .try_fold(1usize, |count, &extent| count.checked_mul(extent))
+            .unwrap_or(usize::MAX)
     }
 
     /// `NumPy` broadcasting: align from the right, pad the shorter shape
@@ -77,6 +87,18 @@ impl Shape {
 #[cfg(test)]
 mod tests {
     use super::Shape;
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn numel_saturates_on_overflow() {
+        assert_eq!(Shape::new(&[1 << 32, 1 << 32]).numel(), usize::MAX);
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn numel_is_zero_when_any_dim_is_zero_even_if_the_rest_overflow() {
+        assert_eq!(Shape::new(&[1 << 32, 1 << 32, 0]).numel(), 0);
+    }
 
     #[test]
     fn numel_is_the_product_of_dims() {

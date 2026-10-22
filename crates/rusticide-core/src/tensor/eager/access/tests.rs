@@ -149,3 +149,51 @@ fn ndim_counts_dimensions() {
     let scalar = Tensor::from_slice(&[0.0f32], &[]).expect("scalar");
     assert_eq!(scalar.ndim(), 0);
 }
+
+#[test]
+#[cfg(target_pointer_width = "64")]
+fn from_slice_rejects_an_overflowing_shape() {
+    let err = Tensor::from_slice::<f32>(&[], &[1 << 32, 1 << 32]).expect_err("overflow");
+    assert!(matches!(
+        err,
+        Error::ElementCountMismatch {
+            expected: usize::MAX,
+            got: 0
+        }
+    ));
+}
+
+#[test]
+fn get_with_a_too_long_index_is_out_of_bounds() {
+    let err = matrix()
+        .get::<f32>(&[0, 0, 0])
+        .expect_err("rank 3 on rank 2");
+    let Error::IndexOutOfBounds { index, shape } = err else {
+        panic!("expected IndexOutOfBounds, got {err:?}");
+    };
+    assert_eq!(index, vec![0, 0, 0]);
+    assert_eq!(shape, vec![2, 3]);
+}
+
+#[test]
+fn set_with_the_wrong_rank_is_out_of_bounds() {
+    let t = matrix();
+    let err = t.set(&[1], 1.0f32).expect_err("rank 1 on rank 2");
+    let Error::IndexOutOfBounds { index, shape } = err else {
+        panic!("expected IndexOutOfBounds, got {err:?}");
+    };
+    assert_eq!(index, vec![1]);
+    assert_eq!(shape, vec![2, 3]);
+    assert_eq!(t.version(), 0);
+}
+
+#[test]
+fn get_and_set_round_trip_on_an_f16_tensor() {
+    let t = Tensor::from_slice(&[f16::ZERO; 4], &[2, 2]).expect("valid data");
+    t.set(&[1, 0], f16::from_f32(2.5)).expect("in bounds");
+    assert_eq!(
+        t.get::<f16>(&[1, 0]).expect("in bounds"),
+        f16::from_f32(2.5)
+    );
+    assert_eq!(t.get::<f16>(&[0, 1]).expect("in bounds"), f16::ZERO);
+}

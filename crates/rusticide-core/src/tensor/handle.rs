@@ -123,6 +123,20 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn zeros_rejects_an_overflowing_shape() {
+        let err = Tensor::zeros(&[1 << 32, 1 << 32], DType::F32, Device::cpu())
+            .expect_err("numel saturates");
+        assert!(matches!(
+            err,
+            crate::Error::AllocationSizeOverflow {
+                numel: usize::MAX,
+                dtype: DType::F32
+            }
+        ));
+    }
+
+    #[test]
     fn a_cpu_dense_tensor_carries_the_matching_keys() {
         let t = Tensor::zeros(&[1], DType::F32, Device::cpu()).expect("allocation succeeds");
         let ks = t.key_set();

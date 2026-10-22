@@ -42,6 +42,9 @@ impl Tensor {
 
     /// Read the element at `index`.
     ///
+    /// Relies on the contiguity invariant in the module docs (strides from
+    /// a contiguous layout, `storage_offset == 0`).
+    ///
     /// # Errors
     ///
     /// `Error::DTypeMismatch` if `T` is not this tensor's dtype;
@@ -55,6 +58,9 @@ impl Tensor {
     }
 
     /// Write `value` at `index` in place, then bump the version counter.
+    ///
+    /// Relies on the contiguity invariant in the module docs (strides from
+    /// a contiguous layout, `storage_offset == 0`).
     ///
     /// # Errors
     ///
