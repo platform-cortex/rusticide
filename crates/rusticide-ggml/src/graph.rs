@@ -25,24 +25,30 @@ impl Graph {
         self.tensors.get(id).and_then(Option::as_ref)
     }
 
-    /// Supply the tensor of node `node_id`.
+    /// Supply the tensor of input node `node_id`, replacing any earlier one.
     ///
     /// # Errors
     ///
-    /// `GraphError::NodeNotFound` if `node_id` names no node.
+    /// `GraphError::NodeNotFound` if `node_id` names no node;
+    /// `GraphError::NotAnInput` if it names an operator node, whose tensor
+    /// only `forward` computes.
     pub fn set_input(&mut self, node_id: usize, tensor: Tensor) -> Result<()> {
-        let slot = self
-            .tensors
-            .get_mut(node_id)
+        let node = self
+            .nodes
+            .get(node_id)
             .ok_or(GraphError::NodeNotFound { id: node_id })?;
-        *slot = Some(tensor);
+        if !node.inputs.is_empty() {
+            return Err(GraphError::NotAnInput { id: node_id });
+        }
+        self.tensors[node_id] = Some(tensor);
         Ok(())
     }
 
-    /// Execute every node that has no tensor yet, in id order.
+    /// Recompute every operator node, in id order, from the inputs set now.
     ///
     /// Inputs always precede their node, so id order is a topological
-    /// order. A node with no inputs is a placeholder and is left alone.
+    /// order. Results of an earlier call are replaced, never reused. Input
+    /// nodes keep the tensors set on them.
     ///
     /// # Errors
     ///
@@ -50,7 +56,7 @@ impl Graph {
     /// error an operator raises on the tensors it is given.
     pub fn forward(&mut self) -> Result<()> {
         for (node_id, node) in self.nodes.iter().enumerate() {
-            if self.tensors[node_id].is_some() || node.inputs.is_empty() {
+            if node.inputs.is_empty() {
                 continue;
             }
             let inputs = node

@@ -37,16 +37,29 @@ fn empty_graph_forward_is_ok() {
 }
 
 #[test]
-fn forward_skips_already_computed_nodes() {
+fn set_input_on_a_computed_node_is_not_an_input() {
     let mut builder = GraphBuilder::new();
     let input = builder.add_input(&[2], DType::F32);
     let copy = builder.add(Op::Copy, &[input]).unwrap();
     let mut graph = builder.build();
-    graph
+    let err = graph
         .set_input(copy, f32_tensor(&[7.0, 8.0], &[2]))
-        .unwrap();
+        .unwrap_err();
+    assert!(matches!(err, GraphError::NotAnInput { id } if id == copy));
+}
+
+#[test]
+fn forward_twice_reflects_new_inputs() {
+    let mut builder = GraphBuilder::new();
+    let x = builder.add_input(&[1], DType::F32);
+    let sum = builder.add(Op::Add, &[x, x]).unwrap();
+    let mut graph = builder.build();
+    graph.set_input(x, f32_tensor(&[1.0], &[1])).unwrap();
     graph.forward().unwrap();
-    assert_values(graph.tensor(copy).unwrap(), &[2], &[7.0, 8.0]);
+    assert_values(graph.tensor(sum).unwrap(), &[1], &[2.0]);
+    graph.set_input(x, f32_tensor(&[2.0], &[1])).unwrap();
+    graph.forward().unwrap();
+    assert_values(graph.tensor(sum).unwrap(), &[1], &[4.0]);
 }
 
 #[test]

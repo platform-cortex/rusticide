@@ -9,6 +9,8 @@ pub enum GraphError {
     NodeNotFound { id: usize },
     #[error("input {input_id} for node {node_id} not found")]
     InputNotFound { node_id: usize, input_id: usize },
+    #[error("node {id} is not an input")]
+    NotAnInput { id: usize },
     #[error("operator takes {expected} inputs, got {got}")]
     ArityMismatch { expected: usize, got: usize },
     #[error("row index {value} is not a non-negative integer")]
@@ -37,6 +39,10 @@ mod tests {
             }
             .to_string(),
             "input 1 for node 3 not found"
+        );
+        assert_eq!(
+            GraphError::NotAnInput { id: 4 }.to_string(),
+            "node 4 is not an input"
         );
         assert_eq!(
             GraphError::ArityMismatch {
