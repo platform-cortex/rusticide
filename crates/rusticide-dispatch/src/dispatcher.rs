@@ -135,6 +135,19 @@ mod tests {
     }
 
     #[test]
+    fn registering_another_keyset_keeps_the_existing_kernels() {
+        let dispatcher = Dispatcher::new();
+        let gpu_dense = DispatchKeySet::empty()
+            .with_backend(BackendComponent::Gpu)
+            .with_functionality(DispatchKey::Dense);
+        dispatcher.register("op", cpu_dense(), pushes(1));
+        dispatcher.register("op", gpu_dense, pushes(2));
+        let mut stack = cpu_stack();
+        assert_eq!(dispatcher.call("op", &mut stack), Ok(()));
+        assert_eq!(stack.pop_int(), Some(1));
+    }
+
+    #[test]
     fn an_unknown_operator_is_reported_by_name() {
         let mut stack = cpu_stack();
         assert_eq!(

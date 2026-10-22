@@ -83,6 +83,17 @@ mod tests {
     }
 
     #[test]
+    fn each_backend_registers_into_its_own_slot() {
+        let mut entry = OperatorEntry::new("add");
+        entry.register(keys(BackendComponent::Gpu), constant(2));
+        assert!(entry.lookup(keys(BackendComponent::Cpu)).is_none());
+        assert_eq!(run(&entry, keys(BackendComponent::Gpu)), Some(2));
+        entry.register(keys(BackendComponent::Cpu), constant(1));
+        assert_eq!(run(&entry, keys(BackendComponent::Gpu)), Some(2));
+        assert_eq!(run(&entry, keys(BackendComponent::Cpu)), Some(1));
+    }
+
+    #[test]
     fn registering_the_same_slot_replaces_the_kernel() {
         let mut entry = OperatorEntry::new("add");
         entry.register(keys(BackendComponent::Cpu), constant(1));
