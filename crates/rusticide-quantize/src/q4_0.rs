@@ -7,7 +7,7 @@
 use half::f16;
 use rusticide_core::{Shape, Tensor};
 
-use crate::error::{QuantizationType, QuantizeError, ensure_len};
+use crate::error::{QuantizationType, QuantizeError, ensure_len, zeroed_f32};
 use crate::half_bits::read_f16_le;
 
 pub const Q4_0_BLOCK_SIZE: usize = 32;
@@ -95,7 +95,7 @@ impl Quantizer {
         let num_elements = Shape::new(shape).numel();
         ensure_len(QuantizationType::Q4_0, data, bytes_for_q4_0(num_elements))?;
 
-        let mut values = vec![0.0f32; num_elements];
+        let mut values = zeroed_f32(num_elements)?;
         for (block, out) in data
             .chunks(Q4_0_BLOCK_BYTES)
             .zip(values.chunks_mut(Q4_0_BLOCK_SIZE))

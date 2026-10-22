@@ -46,6 +46,13 @@ pub(crate) const fn ensure_len(
     Ok(())
 }
 
+/// A zero-filled `Vec<f32>` of `numel` elements, reserved fallibly.
+pub(crate) fn zeroed_f32(numel: usize) -> Result<Vec<f32>, QuantizeError> {
+    let mut values = rusticide_core::try_vec_with_capacity(numel)?;
+    values.resize(numel, 0.0);
+    Ok(values)
+}
+
 /// Rejects element counts that are not whole blocks, as ggml requires for
 /// K-quants. A saturated (overflowing) element count is `usize::MAX`, which is
 /// never a multiple of a power-of-two block, so it fails here first.
@@ -84,6 +91,21 @@ mod tests {
                 got: 3,
                 needed: 4
             }
+        ));
+    }
+
+    #[test]
+    fn zeroed_f32_returns_numel_zeros() {
+        assert_eq!(zeroed_f32(3).unwrap(), [0.0, 0.0, 0.0]);
+        assert_eq!(zeroed_f32(0).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn zeroed_f32_maps_a_refused_reservation_to_allocation_failed() {
+        let err = zeroed_f32(usize::MAX).unwrap_err();
+        assert!(matches!(
+            err,
+            QuantizeError::Tensor(rusticide_core::Error::AllocationFailed { bytes: usize::MAX })
         ));
     }
 

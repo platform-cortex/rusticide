@@ -7,7 +7,7 @@
 
 use rusticide_core::{Shape, Tensor};
 
-use crate::error::{QuantizationType, QuantizeError, ensure_aligned, ensure_len};
+use crate::error::{QuantizationType, QuantizeError, ensure_aligned, ensure_len, zeroed_f32};
 use crate::half_bits::read_f16_le;
 
 pub const Q4_K_BLOCK_SIZE: usize = 256;
@@ -85,7 +85,7 @@ pub fn dequantize_q4_k(data: &[u8], shape: &[usize]) -> Result<Tensor, QuantizeE
     ensure_aligned(QuantizationType::Q4K, num_elements, Q4_K_BLOCK_SIZE)?;
     ensure_len(QuantizationType::Q4K, data, bytes_for_q4_k(num_elements))?;
 
-    let mut values = vec![0.0f32; num_elements];
+    let mut values = zeroed_f32(num_elements)?;
     for (block, out) in data
         .chunks(Q4_K_BLOCK_BYTES)
         .zip(values.chunks_mut(Q4_K_BLOCK_SIZE))
