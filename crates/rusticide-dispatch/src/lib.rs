@@ -4,8 +4,11 @@
 
 //! Rusticide dispatch: the boxed calling convention and operator dispatcher.
 
+pub mod aliasing;
 mod ivalue;
+mod kernel;
 mod stack;
 
 pub use ivalue::IValue;
+pub use kernel::KernelFunction;
 pub use stack::Stack;
