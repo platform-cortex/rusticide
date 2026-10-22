@@ -1928,14 +1928,15 @@ mise run version:sync --from-git
 
 # `version:sync` moved the workspace version, which leaves Cargo.lock stale and
 # makes every `--locked` build (release:build, the MSRV job) fail until it is
-# regenerated. `--workspace` rewrites only the workspace members' own entries;
-# `--offline` because no third-party dependency is touched.
-cargo update --workspace --offline
+# regenerated. `--workspace` already limits the update to the members' own
+# entries; it still needs the index, so no `--offline` (a fresh CARGO_HOME
+# has no cache to resolve from).
+cargo update --workspace
 
 # CHANGELOG.md is deliberately NOT written here, and no workflow regenerates
 # it: render it at release time, in the release commit, with
 # `mise run changelog --tag v<version>`. `--check` above previews the entries.
-printf 'release prepared: v%s -- review the version changes, commit and tag.\n' "$version"
+printf 'release prepared: v%s -- review the version changes, commit and merge to main; CI creates the tag.\n' "$version"
 printf '  Cargo.lock was refreshed. CHANGELOG.md was not: run `mise run changelog --tag v%s` and commit it.\n' "$version"
 '''
 shell = "bash -c"
