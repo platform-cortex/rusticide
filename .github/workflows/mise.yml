@@ -54,10 +54,11 @@ jobs:
       - uses: elioseverojunior/rust-toolchain@53d2299d557a901de7517771d4ce9e89b70d4439 # v0.8.0-5
 
       # install: true (the default) is the test: it installs every [tools]
-      # entry from mise.lock and fails on any that no longer resolves.
+      # entry from mise.lock and fails on any that no longer resolves. The cache
+      # is keyed on the mise config and mise.lock, so any change to the tool set
+      # still gets a cold install; an unchanged one skips the ~4 min of source
+      # builds (crates with no prebuilt binary for every platform).
       - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
-        with:
-          cache: false
 
       - name: Every task still parses
         run: mise tasks ls --all >/dev/null
