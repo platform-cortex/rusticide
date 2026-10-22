@@ -5,7 +5,7 @@
 [package]
 authors.workspace = true
 categories = ["text-processing"]
-description = "BPE and SentencePiece tokenizer for LLM text processing"
+description = "BPE and SentencePiece tokenizer built from GGUF metadata"
 edition.workspace = true
 keywords = ["tokenizer", "bpe", "sentencepiece", "tokenization", "nlp"]
 license.workspace = true
@@ -16,7 +16,7 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-rusticide-model.workspace = true
+rusticide-io.workspace = true
 thiserror.workspace = true
 
 [lints]

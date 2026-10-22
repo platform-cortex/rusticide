@@ -8,8 +8,10 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 BPE and SentencePiece tokenizer for LLM text processing.
 
-Encodes text into token IDs and decodes token IDs back to text.
-Supports common LLM tokenizer formats compatible with llama.cpp.
+Builds a `Tokenizer` from the `tokenizer.ggml.*` keys of a GGUF
+`rusticide_io::Metadata` store, encodes text into token IDs and decodes token
+IDs back to text. Supports the `llama` (SentencePiece unigram, Viterbi) and
+`gpt2` (byte-level BPE) models, compatible with llama.cpp.
 
 ## License
 

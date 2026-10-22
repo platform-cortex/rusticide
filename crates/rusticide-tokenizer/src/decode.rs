@@ -1,0 +1,61 @@
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+use crate::error::Result;
+use crate::tokenizer::Tokenizer;
+
+const SPM_MARKER: [u8; 3] = [0xE2, 0x96, 0x81];
+
+impl Tokenizer {
+    /// Decode token IDs back to text by joining their byte sequences.
+    ///
+    /// # Errors
+    ///
+    /// Returns `TokenOutOfRange` if any token ID exceeds the vocabulary.
+    pub fn decode(&self, tokens: &[u32]) -> Result<String> {
+        let bytes = self.decode_to_bytes(tokens)?;
+        Ok(String::from_utf8_lossy(&bytes).to_string())
+    }
+
+    /// Decode token IDs but filter special tokens (BOS/EOS) and join with
+    /// appropriate spacing.
+    ///
+    /// # Errors
+    ///
+    /// Returns `TokenOutOfRange` if any token ID exceeds the vocabulary.
+    pub fn decode_detokenized(&self, tokens: &[u32]) -> Result<String> {
+        let mut bytes = Vec::new();
+        for &tid in tokens {
+            if tid == self.bos_id || tid == self.eos_id {
+                continue;
+            }
+            let piece = self.piece(tid)?;
+            if !bytes.is_empty() && add_space_before(piece) {
+                bytes.push(b' ');
+            }
+            bytes.extend_from_slice(piece);
+        }
+        Ok(String::from_utf8_lossy(&bytes).to_string())
+    }
+
+    fn decode_to_bytes(&self, tokens: &[u32]) -> Result<Vec<u8>> {
+        let mut bytes = Vec::new();
+        for &tid in tokens {
+            bytes.extend_from_slice(self.piece(tid)?);
+        }
+        Ok(bytes)
+    }
+
+    fn piece(&self, tid: u32) -> Result<&[u8]> {
+        Ok(&self.vocab[self.vocab_index(tid)?])
+    }
+}
+
+fn add_space_before(piece: &[u8]) -> bool {
+    piece.starts_with(&SPM_MARKER)
+}
+
+#[cfg(test)]
+#[path = "decode_tests.rs"]
+mod tests;

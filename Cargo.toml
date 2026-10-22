@@ -17,6 +17,7 @@ members = [
   "crates/rusticide-quantize",
   "crates/rusticide-sampling",
   "crates/rusticide-schema",
+  "crates/rusticide-tokenizer",
 ]
 resolver = "3"
 

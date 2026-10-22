@@ -1,0 +1,23 @@
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+#[derive(Debug, thiserror::Error)]
+pub enum TokenizerError {
+    #[error("token {0} out of range (vocab size: {1})")]
+    TokenOutOfRange(u32, usize),
+    #[error("unknown model type: {0}")]
+    UnknownModel(String),
+    #[error("missing required tokenizer metadata: {0}")]
+    MissingMetadata(&'static str),
+    #[error("cannot encode: {0}")]
+    EncodeError(String),
+    #[error("cannot decode: {0}")]
+    DecodeError(String),
+    #[error("invalid token ID (negative): {0}")]
+    InvalidId(i32),
+    #[error("vocabulary size exceeds u32 range")]
+    VocabOverflow,
+}
+
+pub type Result<T> = std::result::Result<T, TokenizerError>;
