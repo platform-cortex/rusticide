@@ -63,6 +63,7 @@ impl fmt::Display for Return {
 #[cfg(test)]
 mod tests {
     use super::Return;
+    use crate::ParseError;
 
     #[test]
     fn a_bare_return_has_no_name_and_round_trips() {
@@ -81,5 +82,36 @@ mod tests {
         let ann = r.annotation.as_ref().expect("has annotation");
         assert!(ann.is_write);
         assert_eq!(r.to_string(), "Tensor(a!) out");
+    }
+
+    /// `)` before `(` used to build a reversed slice range and panic.
+    #[test]
+    fn a_close_paren_before_an_open_paren_is_a_bad_schema() {
+        assert_eq!(
+            Return::parse("a)b( out"),
+            Err(ParseError::BadSchema("a)b(".to_owned()))
+        );
+    }
+
+    #[test]
+    fn an_unclosed_annotation_is_a_bad_schema() {
+        assert_eq!(
+            Return::parse("Tensor(a!"),
+            Err(ParseError::BadSchema("Tensor(a!".to_owned()))
+        );
+    }
+
+    #[test]
+    fn an_unknown_return_type_is_an_unknown_type_error() {
+        assert_eq!(
+            Return::parse("Bogus"),
+            Err(ParseError::UnknownType("Bogus".to_owned()))
+        );
+    }
+
+    #[test]
+    fn an_annotation_precedes_the_list_suffix_when_printed() {
+        let r = Return::parse("Tensor(a!)[]").expect("parses");
+        assert_eq!(r.to_string(), "Tensor(a!)[]");
     }
 }
