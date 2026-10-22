@@ -25,6 +25,12 @@ pub enum GgufError {
     /// `general.alignment` is not a non-zero power-of-two `u32`.
     #[error("invalid general.alignment: {0:?}")]
     InvalidAlignment(GGUFValue),
+    /// Two metadata entries share one key.
+    #[error("duplicate metadata key: {key}")]
+    DuplicateKey {
+        /// The repeated metadata key.
+        key: String,
+    },
     /// Two tensor infos share one name.
     #[error("duplicate tensor name: {name}")]
     DuplicateTensor {

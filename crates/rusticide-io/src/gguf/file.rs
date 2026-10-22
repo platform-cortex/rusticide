@@ -37,11 +37,7 @@ impl GgufFile {
     pub fn from_bytes(data: Vec<u8>) -> Result<Self> {
         let mut cursor = Cursor::new(&data);
         let header = Header::parse(&mut cursor)?;
-        let mut entries = Vec::new();
-        for _ in 0..header.kv_count {
-            entries.push((cursor.string()?, parse_typed_value(&mut cursor)?));
-        }
-        let metadata: Metadata = entries.into_iter().collect();
+        let metadata = parse_metadata(&mut cursor, header.kv_count)?;
         let tensors = parse_tensor_table(&mut cursor, header.tensor_count)?;
         let alignment = metadata.alignment()?;
         ensure_aligned_offsets(&tensors, alignment)?;
@@ -92,6 +88,23 @@ impl GgufFile {
     pub fn tensor_count(&self) -> usize {
         self.tensors.len()
     }
+}
+
+fn parse_metadata(cursor: &mut Cursor<'_>, kv_count: u64) -> Result<Metadata> {
+    let mut entries = HashMap::new();
+    for _ in 0..kv_count {
+        let key = cursor.string()?;
+        let value = parse_typed_value(cursor)?;
+        match entries.entry(key) {
+            Entry::Occupied(taken) => {
+                return Err(GgufError::DuplicateKey {
+                    key: taken.key().clone(),
+                });
+            }
+            Entry::Vacant(slot) => slot.insert(value),
+        };
+    }
+    Ok(entries.into_iter().collect())
 }
 
 fn parse_tensor_table(

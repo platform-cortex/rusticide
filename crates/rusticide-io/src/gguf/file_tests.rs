@@ -21,13 +21,14 @@ fn no_kv_pairs() {
 }
 
 #[test]
-fn metadata_is_parsed_and_the_last_duplicate_key_wins() {
+fn metadata_is_parsed() {
     let bytes = GgufBuilder::new()
-        .kv("k", &GGUFValue::Uint32(1))
         .kv("k", &GGUFValue::Uint32(2))
+        .kv("other", &GGUFValue::Uint32(3))
         .build();
     let file = parse(bytes).unwrap();
     assert_eq!(file.metadata().get("k"), Some(&GGUFValue::Uint32(2)));
+    assert_eq!(file.metadata().len(), 2);
 }
 
 #[test]
@@ -82,6 +83,18 @@ fn tensor_info_not_found() {
             .tensor_info("x")
             .is_none()
     );
+}
+
+#[test]
+fn duplicate_metadata_keys_are_rejected() {
+    let bytes = GgufBuilder::new()
+        .kv("k", &GGUFValue::Uint32(1))
+        .kv("k", &GGUFValue::Uint32(2))
+        .build();
+    assert!(matches!(
+        parse(bytes),
+        Err(GgufError::DuplicateKey { key }) if key == "k"
+    ));
 }
 
 #[test]
