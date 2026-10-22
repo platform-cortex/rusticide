@@ -22,12 +22,10 @@ use crate::error::{GgufError, Result};
 #[derive(Debug)]
 pub struct GgufFile {
     metadata: Metadata,
-    tensors: HashMap<String, TensorInfo>,
-    tensor_names: Vec<String>,
-    #[cfg_attr(not(test), expect(dead_code, reason = "read by tensor loading"))]
-    data_start: usize,
-    #[cfg_attr(not(test), expect(dead_code, reason = "read by tensor loading"))]
-    data: Vec<u8>,
+    pub(super) tensors: HashMap<String, TensorInfo>,
+    pub(super) tensor_names: Vec<String>,
+    pub(super) data_start: usize,
+    pub(super) data: Vec<u8>,
 }
 
 impl GgufFile {
@@ -44,15 +42,13 @@ impl GgufFile {
             entries.push((cursor.string()?, parse_typed_value(&mut cursor)?));
         }
         let metadata: Metadata = entries.into_iter().collect();
-        let mut tensors = HashMap::new();
-        for _ in 0..header.tensor_count {
-            let info = parse_tensor_info(&mut cursor)?;
-            match tensors.entry(info.name.clone()) {
-                Entry::Occupied(_) => return Err(GgufError::DuplicateTensor { name: info.name }),
-                Entry::Vacant(slot) => slot.insert(info),
-            };
+        let tensors = parse_tensor_table(&mut cursor, header.tensor_count)?;
+        let alignment = metadata.alignment()?;
+        ensure_aligned_offsets(&tensors, alignment)?;
+        let data_start = align_up(cursor.position(), alignment)?;
+        if data_start > data.len() {
+            return Err(GgufError::UnexpectedEof);
         }
-        let data_start = align_up(cursor.position(), metadata.alignment()?)?;
         let mut tensor_names: Vec<String> = tensors.keys().cloned().collect();
         tensor_names.sort();
         Ok(Self {
@@ -96,6 +92,32 @@ impl GgufFile {
     pub fn tensor_count(&self) -> usize {
         self.tensors.len()
     }
+}
+
+fn parse_tensor_table(
+    cursor: &mut Cursor<'_>,
+    tensor_count: u64,
+) -> Result<HashMap<String, TensorInfo>> {
+    let mut tensors = HashMap::new();
+    for _ in 0..tensor_count {
+        let info = parse_tensor_info(cursor)?;
+        match tensors.entry(info.name.clone()) {
+            Entry::Occupied(_) => return Err(GgufError::DuplicateTensor { name: info.name }),
+            Entry::Vacant(slot) => slot.insert(info),
+        };
+    }
+    Ok(tensors)
+}
+
+fn ensure_aligned_offsets(tensors: &HashMap<String, TensorInfo>, alignment: u64) -> Result<()> {
+    let misaligned = tensors.values().find(|info| info.offset % alignment != 0);
+    misaligned.map_or(Ok(()), |info| {
+        Err(GgufError::MisalignedTensor {
+            name: info.name.clone(),
+            offset: info.offset,
+            alignment,
+        })
+    })
 }
 
 /// Rounds `position` up to a multiple of the power-of-two `alignment`.

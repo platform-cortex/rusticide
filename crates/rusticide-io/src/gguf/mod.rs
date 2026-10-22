@@ -7,6 +7,7 @@
 mod cursor;
 mod file;
 mod header;
+mod load;
 mod metadata;
 mod tensor_info;
 mod value;

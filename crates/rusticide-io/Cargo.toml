@@ -16,7 +16,9 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+half.workspace = true
 rusticide-core.workspace = true
+rusticide-quantize.workspace = true
 thiserror.workspace = true
 
 [lints]

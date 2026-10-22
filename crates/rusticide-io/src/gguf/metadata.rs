@@ -93,7 +93,7 @@ impl Metadata {
     /// RMS norm epsilon.
     #[must_use]
     pub fn rms_norm_eps(&self) -> Option<f32> {
-        self.arch_float("attn_norm_epsilon")
+        self.arch_float("attention.layer_norm_rms_epsilon")
     }
 
     /// The tensor-data alignment: 32 when `general.alignment` is absent.

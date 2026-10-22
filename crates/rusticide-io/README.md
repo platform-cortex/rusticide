@@ -17,6 +17,9 @@ v3 file. It rejects an invalid `general.alignment`, duplicate tensor names,
 more than four dimensions and element counts that overflow. Metadata arrays
 expand to roughly 24-32 bytes per element in memory.
 
+`GgufFile::tensor` materializes tensors, dequantizing Q4_0, Q4_K and Q6_K to
+F32. Only GGUF version 3 is accepted (llama.cpp also reads v2).
+
 ## License
 
 MIT OR Apache-2.0

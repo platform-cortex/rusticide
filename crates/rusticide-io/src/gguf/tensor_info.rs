@@ -3,6 +3,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_core::{DType, Shape};
+use rusticide_quantize::{
+    Q4_0_BLOCK_BYTES, Q4_0_BLOCK_SIZE, Q4_K_BLOCK_BYTES, Q4_K_BLOCK_SIZE, Q6_K_BLOCK_BYTES,
+    Q6_K_BLOCK_SIZE,
+};
 
 use super::cursor::Cursor;
 use crate::error::{GgufError, Result};
@@ -59,6 +63,22 @@ impl GgmlType {
             Self::F32 | Self::Q4_0 | Self::Q4K | Self::Q6K => DType::F32,
         }
     }
+
+    /// Bytes `numel` elements occupy on disk; `None` on overflow.
+    #[must_use]
+    pub const fn byte_len(self, numel: usize) -> Option<usize> {
+        match self {
+            Self::F32 => numel.checked_mul(4),
+            Self::F16 => numel.checked_mul(2),
+            Self::Q4_0 => block_bytes(numel, Q4_0_BLOCK_SIZE, Q4_0_BLOCK_BYTES),
+            Self::Q4K => block_bytes(numel, Q4_K_BLOCK_SIZE, Q4_K_BLOCK_BYTES),
+            Self::Q6K => block_bytes(numel, Q6_K_BLOCK_SIZE, Q6_K_BLOCK_BYTES),
+        }
+    }
+}
+
+const fn block_bytes(numel: usize, block_size: usize, block_bytes: usize) -> Option<usize> {
+    numel.div_ceil(block_size).checked_mul(block_bytes)
 }
 
 /// One entry of the tensor-info table.

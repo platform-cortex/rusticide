@@ -198,3 +198,37 @@ fn load_of_a_missing_file_is_io() {
     let path = std::env::temp_dir().join("rusticide-io-definitely-missing.gguf");
     assert!(matches!(GgufFile::load(path), Err(GgufError::Io(_))));
 }
+
+#[test]
+fn a_data_section_starting_past_eof_is_rejected() {
+    let mut bytes = GgufBuilder::new().build();
+    bytes.truncate(bytes.len() - 8);
+    assert!(matches!(parse(bytes), Err(GgufError::UnexpectedEof)));
+}
+
+#[test]
+fn a_data_section_starting_exactly_at_eof_is_accepted() {
+    let file = parse(GgufBuilder::new().build()).unwrap();
+    assert_eq!(file.data_start, file.data.len());
+}
+
+#[test]
+fn a_misaligned_tensor_offset_is_rejected() {
+    let mut bytes = header_bytes(3, 1, 0);
+    bytes.extend(tensor_info_bytes("w", &[1], 0, 4));
+    bytes.resize(bytes.len().next_multiple_of(32) + 32, 0);
+    assert!(matches!(
+        parse(bytes),
+        Err(GgufError::MisalignedTensor { name, offset: 4, alignment: 32 }) if name == "w"
+    ));
+}
+
+#[test]
+fn a_tensor_offset_aligned_to_a_custom_alignment_is_accepted() {
+    let bytes = GgufBuilder::new()
+        .alignment(64)
+        .tensor("a", &[1], 0, &[0; 4])
+        .tensor("b", &[1], 0, &[0; 4])
+        .build();
+    assert_eq!(parse(bytes).unwrap().tensor_info("b").unwrap().offset, 64);
+}

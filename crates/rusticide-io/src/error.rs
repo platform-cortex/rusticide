@@ -45,9 +45,28 @@ pub enum GgufError {
         /// The offending tensor name.
         name: String,
     },
+    /// A tensor offset is not a multiple of the file's alignment.
+    #[error("tensor {name} offset {offset} is not a multiple of alignment {alignment}")]
+    MisalignedTensor {
+        /// The offending tensor name.
+        name: String,
+        /// The declared offset.
+        offset: u64,
+        /// The file's tensor-data alignment.
+        alignment: u64,
+    },
     /// The input ended before a read could complete.
     #[error("unexpected end of file")]
     UnexpectedEof,
+    /// No tensor matches the requested name or index.
+    #[error("tensor not found: {0}")]
+    TensorNotFound(String),
+    /// Building the tensor failed.
+    #[error(transparent)]
+    Tensor(#[from] rusticide_core::Error),
+    /// Dequantizing the tensor data failed.
+    #[error(transparent)]
+    Quantize(#[from] rusticide_quantize::QuantizeError),
     /// A value type tag outside the GGUF specification.
     #[error("invalid value type: {0}")]
     InvalidValueType(u32),

@@ -54,7 +54,10 @@ fn each_config_accessor_reads_its_key() {
         ("llama.attention.head_count_kv", GGUFValue::Uint32(5)),
         ("llama.feed_forward_length", GGUFValue::Uint32(6)),
         ("llama.rope.freq_base", GGUFValue::Float32(7.5)),
-        ("llama.attn_norm_epsilon", GGUFValue::Float32(0.25)),
+        (
+            "llama.attention.layer_norm_rms_epsilon",
+            GGUFValue::Float32(0.25),
+        ),
     ]);
     assert_eq!(meta.context_length(), Some(1));
     assert_eq!(meta.embedding_length(), Some(2));

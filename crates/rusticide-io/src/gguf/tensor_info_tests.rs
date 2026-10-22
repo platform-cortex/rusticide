@@ -130,3 +130,29 @@ fn truncated_offset_is_eof() {
         Err(GgufError::UnexpectedEof)
     ));
 }
+
+#[test]
+fn byte_len_matches_the_on_disk_layouts() {
+    assert_eq!(GgmlType::F32.byte_len(0), Some(0));
+    assert_eq!(GgmlType::F32.byte_len(3), Some(12));
+    assert_eq!(GgmlType::F16.byte_len(3), Some(6));
+    assert_eq!(GgmlType::Q4_0.byte_len(32), Some(18));
+    assert_eq!(GgmlType::Q4_0.byte_len(33), Some(36));
+    assert_eq!(GgmlType::Q4K.byte_len(256), Some(144));
+    assert_eq!(GgmlType::Q4K.byte_len(1), Some(144));
+    assert_eq!(GgmlType::Q6K.byte_len(256), Some(210));
+    assert_eq!(GgmlType::Q6K.byte_len(257), Some(420));
+}
+
+#[test]
+fn byte_len_overflow_returns_none() {
+    assert_eq!(GgmlType::F32.byte_len(usize::MAX), None);
+    assert_eq!(GgmlType::F16.byte_len(usize::MAX), None);
+}
+
+#[test]
+fn quantized_byte_len_cannot_overflow_because_blocks_compress() {
+    for ggml_type in [GgmlType::Q4_0, GgmlType::Q4K, GgmlType::Q6K] {
+        assert!(ggml_type.byte_len(usize::MAX).is_some(), "{ggml_type:?}");
+    }
+}
