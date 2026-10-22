@@ -1665,25 +1665,33 @@ shell = "bash -c"
 usage = 'arg "[args]" var=#true help="cargo-pgo args, e.g. build / run / optimize / bench; prints the PGO/BOLT environment when omitted"'
 
 [tasks.fuzz]
-alias = []
-description = "Run a libFuzzer target via cargo-fuzz. REQUIRES a nightly toolchain (sanitizer -Z flags) — the project's stable 1.95 channel cannot build fuzz targets; run `rustup toolchain install nightly` first. e.g. `mise run fuzz run <target>`"
+alias = ["fz"]
+description = "Run a libFuzzer target of crates/rusticide-fuzz via cargo-fuzz. REQUIRES a nightly toolchain (sanitizer -Z flags) -- the pinned stable channel cannot build fuzz targets; see `mise run rustup:nightly`. e.g. `mise run fuzz run gguf_load`"
 run = '''
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
 
-# No fuzz/ directory yet means there are no targets to build or run, so skip
-# cleanly. Once targets exist, cargo-fuzz needs a nightly toolchain (ASan/-Z
-# flags) — the project channel stays stable — so it runs via `cargo +nightly`.
-if [ ! -d fuzz ]; then
-    echo "fuzz: skipping — no fuzz/ directory (no targets yet)." >&2
+# crates/rusticide-fuzz is its own workspace (excluded from the root one), so
+# cargo-fuzz runs from inside it with `--fuzz-dir .`, as its README documents.
+# The project channel stays stable, so cargo-fuzz runs via `cargo +nightly`.
+fuzz_crate="crates/rusticide-fuzz"
+if [ ! -d "${fuzz_crate}" ]; then
+    echo "fuzz: skipping -- no ${fuzz_crate} directory." >&2
     exit 0
 fi
+if [ "${usage_verbose:-false}" = "true" ]; then
+    set -x
+fi
 eval "args=(${usage_args:-list})"
-cargo +nightly fuzz "${args[@]}"
+cd "${fuzz_crate}"
+cargo +nightly fuzz "${args[0]}" --fuzz-dir . "${args[@]:1}"
 '''
 shell = "bash -c"
-usage = 'arg "[args]" var=#true help="cargo-fuzz args; defaults to `list` when omitted"'
+usage = '''
+arg "[args]" var=#true help="cargo-fuzz args, subcommand first; defaults to `list` when omitted"
+flag "-v --verbose" help="Trace the commands being run"
+'''
 
 [tasks."cargo:mutants"]
 alias = []
@@ -2821,23 +2829,20 @@ shell = "bash -c"
 # -- Fuzz (single-target run lives in [tasks.fuzz] above) --
 
 [tasks."fuzz:all"]
-alias = []
-description = "Run every cargo-fuzz target sequentially (FUZZ_TIME seconds each, default 60). Requires nightly — see `mise run rustup:nightly`. Skips cleanly when no fuzz/ targets exist"
+alias = ["fza"]
+description = "Run every cargo-fuzz target of crates/rusticide-fuzz sequentially (FUZZ_TIME seconds each, default 60). Requires nightly -- see `mise run rustup:nightly`"
 run = '''
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
 
-# Mirror the single-target `fuzz` task's guard: no fuzz/ directory means no
-# targets, so skip cleanly. Otherwise discover targets dynamically (so this
-# never drifts from fuzz_targets/) and fuzz each for FUZZ_TIME seconds.
-# `crates/comply-fuzz` until now, which never existed -- so this skipped
-# unconditionally while the `fuzz` task looked at `fuzz/`. cargo-fuzz's own
-# convention is `fuzz/` beside the workspace root, which is where the targets
-# actually live.
-if [ ! -d fuzz ]; then
-    echo "fuzz:all: skipping — no fuzz/ directory (no targets yet)." >&2
+fuzz_crate="crates/rusticide-fuzz"
+if [ ! -d "${fuzz_crate}" ]; then
+    echo "fuzz:all: skipping -- no ${fuzz_crate} directory." >&2
     exit 0
+fi
+if [ "${usage_verbose:-false}" = "true" ]; then
+    set -x
 fi
 time_budget="${FUZZ_TIME:-60}"
 # `--target` is NOT optional. cargo-fuzz bakes its default triple in at ITS OWN
@@ -2849,12 +2854,16 @@ time_budget="${FUZZ_TIME:-60}"
 # and "can't find crate for `core`" (no musl std installed). It is invisible on
 # macOS, where the downloaded binary's triple happens to match the host.
 host="$(rustc +nightly -vV | awk '/^host:/{print $2}')"
-for target in $(cargo +nightly fuzz list); do
-  echo "▶ fuzzing ${target} for ${time_budget}s on ${host}"
-  cargo +nightly fuzz run "$target" --target "$host" -- -max_total_time="$time_budget"
+cd "${fuzz_crate}"
+for target in $(cargo +nightly fuzz list --fuzz-dir .); do
+  echo "fuzzing ${target} for ${time_budget}s on ${host}"
+  cargo +nightly fuzz run --fuzz-dir . "$target" --target "$host" -- -max_total_time="$time_budget"
 done
 '''
 shell = "bash -c"
+usage = '''
+flag "-v --verbose" help="Trace the commands being run"
+'''
 
 # -- Pre-commit hooks (hk replaces the legacy pre-commit tool) --
 

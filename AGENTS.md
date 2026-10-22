@@ -23,10 +23,8 @@ file; edit here, never there.
 ## Workspace
 
 - Virtual workspace (root `Cargo.toml` is `[workspace]` only, resolver 3).
-  `members` is an **explicit list**: `rusticide` (the binary), `rusticide-alloc`,
-  `rusticide-core`, `rusticide-dispatch`, `rusticide-ggml`, `rusticide-io`,
-  `rusticide-quantize`, `rusticide-sampling`, `rusticide-schema`,
-  `rusticide-tokenizer`. A new crate must be added to it by hand.
+  `members = ["crates/*"]` is a glob, so a new crate under `crates/` is picked
+  up automatically.
 - `crates/rusticide` is the library facade (re-exports `rusticide-core`, never
   `EagerOps`) plus the `rusticide` binary, built only with the `cli` feature
   (clap). CLI logic lives in `src/cli` and is unit-tested against injected
@@ -34,10 +32,8 @@ file; edit here, never there.
   coverage by `tarpaulin.toml`.
 - `crates/rusticide-fuzz` is `exclude`d and is its own workspace: libfuzzer
   needs nightly and its generated entry point cannot satisfy
-  `unsafe_code = "deny"`. It stays in `exclude` whatever `members` says.
-- The explicit `members` list is temporary. Every crate on disk except
-  `rusticide-fuzz` is a member, so plan Task 20 restores
-  `members = ["crates/*"]` (with the fuzz `exclude`).
+  `unsafe_code = "deny"`. It must stay in `exclude`, or the glob would pull
+  it in.
 
 ## Toolchain
 

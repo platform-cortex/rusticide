@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 Feedback and contributions are very welcome!
 
-This document explains how to contribute to rusticide, a Rust port of llama.cpp for CPU-first LLM inference.
+This document explains how to contribute to rusticide, a pure-Rust deep learning framework modelled on PyTorch's design.
 
 ## Table of Contents
 
@@ -42,12 +42,13 @@ The `docs/` directory has information you may find helpful:
 
 - [`docs/guidelines/contribution.md`](docs/guidelines/contribution.md) - AI usage policy and contribution guidelines
 - [`docs/plan/2026-08-21-rusticide-framework-design.md`](docs/plan/2026-08-21-rusticide-framework-design.md) - Architecture and roadmap
-- [`instructions.md`](instructions.md) - Quick start and installation guide
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - Crate graph and layering
+- [`AGENTS.md`](AGENTS.md) - Workspace layout, commands, and code rules
 
 If you want to *change* the criteria (architecture decisions), see [`docs/plan/2026-08-21-rusticide-framework-design.md`](docs/plan/2026-08-21-rusticide-framework-design.md).
 
-The [`instructions.md`](instructions.md) file explains how to install the program locally
-(highly recommended if you're going to make code changes).
+Run `mise run setup` in a fresh clone to install the toolchain, the dev tools,
+and the git hooks (highly recommended if you're going to make code changes).
 
 If you're new to the project (or FLOSS in general), the
 "good first issue" labeled issues are smaller tasks that may typically take 1-3 days.
@@ -231,31 +232,17 @@ When uncertain, err toward minimal assistance.
 Before submitting changes, you *must* run the quality checks and fix all issues:
 
 ```bash
-# Format check
-cargo fmt --all -- --check
-
-# Linting (clippy with -D warnings)
-cargo clippy --all-targets --all-features -- -D warnings
-
-# TOML formatting
-taplo fmt --check --diff
-
-# Markdown linting
-rumdl check
-
-# YAML linting
-yaml-lint .
-
-# Security audit
-cargo audit
-cargo deny check
-
-# Run tests
-cargo nextest run
-
-# Coverage (optional)
-cargo tarpaulin --workspace --out Xml --out Lcov
+mise run fmt            # format Rust, Cargo.toml ordering, and TOML (writes)
+mise run lint           # fmt check + clippy with -D warnings
+mise run markdownlint   # rumdl check
+mise run yamllint       # YAML lint
+mise run security       # cargo audit + cargo deny
+mise run test           # tests + doctests under the 100% coverage gate
+mise run comply         # SPDX/REUSE headers
 ```
+
+`mise run ci:quick` runs the gate CI runs on every push; `mise run ci` is the
+full pipeline.
 
 All CI pipelines must pass before a PR can be merged.
 
@@ -277,23 +264,18 @@ Never write production code first. If we need to change existing code without TD
 ### Test Commands
 
 ```bash
-# All tests
-cargo nextest run
+# Everything, with the coverage gate (includes doctests)
+mise run test
 
-# Single test
-cargo nextest run <test_name>
-
-# With coverage
-cargo tarpaulin --workspace --out Xml --out Lcov
-
-# Documentation tests
-cargo test --doc --workspace
+# A single test
+cargo test -p <crate> <test_name_substring>
 ```
 
 ### Coverage Requirements
 
-- Statement coverage >= 80% (enforced by cargo-tarpaulin in CI)
-- New code must have tests
+- Line coverage must be 100% (enforced by cargo-tarpaulin in CI; doctests
+  count)
+- New code must have tests; a line no test can detect is dead and is deleted
 
 ## Governance
 
