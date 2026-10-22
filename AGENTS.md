@@ -30,7 +30,11 @@ file; edit here, never there.
   coverage by `tarpaulin.toml`.
 - `crates/rusticide-fuzz` is `exclude`d and is its own workspace: libfuzzer
   needs nightly and its generated entry point cannot satisfy
-  `unsafe_code = "deny"`. Do not turn `members` back into a `crates/*` glob.
+  `unsafe_code = "deny"`. It stays in `exclude` whatever `members` says.
+- The explicit `members` list is temporary: plan Task 20 restores
+  `members = ["crates/*"]` (with the fuzz `exclude`) once Tasks 17-18 have
+  rewired the leftover crates below. Until then a `crates/*` glob would pull
+  in crates that do not build.
 - `crates/rusticide-ggml`, `-tokenizer`, `-sampling`, `-quantize` are
   pre-reset leftovers: on disk, not members, never built. They get rewired
   once the core types they import exist.
@@ -162,6 +166,6 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 ## Licensing
 
 - Code and docs carry `MIT OR Apache-2.0` SPDX headers (inline, or via the
-  `REUSE.toml` aggregate annotation). `mise run reuse` enforces it in CI.
+  `REUSE.toml` aggregate annotation). `mise run comply` enforces it in CI.
 - Background and the July 2026 rationale:
   `docs/history/2026-07-agent-session-notes.md`.

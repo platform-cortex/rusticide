@@ -3359,6 +3359,17 @@ git commit -S -m "refactor(fuzz): rename and retarget at rusticide-io"
 
 ## Task 19: The rusticide facade and CLI
 
+> **Amended 2026-10-22.** `crates/rusticide` already exists: a workspace
+> member with a dependency-free `--help`/`--version` CLI (`src/lib.rs`
+> `run()`, unit-tested; thin `src/main.rs`), added so the release pipeline
+> had a binary to ship. This task reshapes that crate instead of creating
+> it: the steps below still apply, but "Create" means "rewrite", and the
+> existing `run()` tests are replaced by the `clap` CLI's. One contract is
+> new and binding: `rusticide --version` must print exactly
+> `rusticide <version>`, because `mise run release:build` smoke-runs every
+> release binary against that string. `--version` must therefore work
+> with the `cli` feature, which is how release builds compile the binary.
+
 **Files:**
 
 - Create: `crates/rusticide/Cargo.toml`
@@ -3487,6 +3498,21 @@ requires the cli feature, so library consumers do not pull clap."
 
 ## Task 20: Restore the glob, refresh docs, and green the gate
 
+> **Amended 2026-10-22.** Parts of this task landed early, outside the plan:
+>
+> - Step 2: `AGENTS.md` and `CLAUDE.md` already describe rusticide;
+>   `CLAUDE.md` is now a one-line `@AGENTS.md` import, so only `AGENTS.md`
+>   (plus `README.md` and `CONTRIBUTING.md`) needs the rewrite.
+>   `CHANGELOG.md` must NOT be reset to an unreleased 0.1.0: v0.1.0 was
+>   published (a release of the placeholder binary). SP1 ships as 0.2.0,
+>   bumped with `mise run release:prepare`.
+> - Step 4: `crates-publish.yml` no longer exists. `publish.yml` (called
+>   from `cicd.yml`) publishes with `cargo publish --workspace`, which
+>   orders crates by dependency on its own, so no crate list is needed;
+>   only `parity.yml` remains to reduce.
+> - Step 5: `mise run ci` is unchanged, and `cicd.yml` runs
+>   `mise run ci:quick` on every push, so a green CI run is the check.
+
 **Files:**
 
 - Modify: `Cargo.toml`
@@ -3571,6 +3597,13 @@ until SP2 brings the oracle."
 ---
 
 ## Task 21: Squash the import commits into one
+
+> **Cancelled 2026-10-22.** The branch was merged to `main` and pushed,
+> `main` is public, and the signed, attested v0.1.0 release points at
+> commits this task would rewrite. Squashing now means force-pushing a
+> public branch and orphaning a release's provenance, which costs far more
+> than the tidier history it buys. The steps below are kept for the record
+> only; do not run them.
 
 **This task rewrites history and MUST run last**, after Task 20 and after
 every review is closed. It renumbers every commit on the branch, so
