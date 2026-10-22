@@ -9,7 +9,15 @@ use crate::error::{Result, SamplingError};
 pub(crate) fn extract_logits(tensor: &Tensor) -> Result<Vec<f32>> {
     let dims = tensor.shape().dims();
     match dims {
-        [_] | [1, _] => Ok(tensor.to_vec::<f32>()?),
+        [_] | [1, _] => {
+            let mut logits = tensor.to_vec::<f32>()?;
+            for logit in &mut logits {
+                if logit.is_nan() {
+                    *logit = f32::NEG_INFINITY;
+                }
+            }
+            Ok(logits)
+        }
         _ => Err(SamplingError::InvalidShape(dims.to_vec())),
     }
 }

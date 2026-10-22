@@ -27,11 +27,7 @@ pub(crate) fn apply_top_k(logits: &mut [f32], k: u32) {
         return;
     }
     let mut indices: Vec<usize> = (0..logits.len()).collect();
-    indices.select_nth_unstable_by(k - 1, |&a, &b| {
-        logits[b]
-            .partial_cmp(&logits[a])
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    indices.select_nth_unstable_by(k - 1, |&a, &b| logits[b].total_cmp(&logits[a]));
     let threshold = logits[indices[k - 1]];
     for logit in logits.iter_mut() {
         if *logit < threshold {
@@ -43,11 +39,7 @@ pub(crate) fn apply_top_k(logits: &mut [f32], k: u32) {
 pub(crate) fn apply_top_p(logits: &mut [f32], p: f32) {
     let n = logits.len();
     let mut indices: Vec<usize> = (0..n).collect();
-    indices.sort_unstable_by(|&a, &b| {
-        logits[b]
-            .partial_cmp(&logits[a])
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    indices.sort_unstable_by(|&a, &b| logits[b].total_cmp(&logits[a]));
 
     let Some(&best) = indices.first() else {
         return;
@@ -93,7 +85,7 @@ pub(crate) fn argmax(logits: &[f32]) -> Option<usize> {
     logits
         .iter()
         .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .max_by(|(_, a), (_, b)| a.total_cmp(b))
         .map(|(idx, _)| idx)
 }
 

@@ -267,3 +267,34 @@ fn sample_with_temp_rejects_nan_logits() {
     let result = Sampler::new(1).sample_with_temp(&logits, 1.0);
     assert!(matches!(result, Err(SamplingError::NoValidTokens)));
 }
+
+#[test]
+fn mixed_nan_logits_never_panic_and_never_pick_a_nan_slot() {
+    let mut state = 0x9E37_79B9_u32;
+    for seed in 0..200_u64 {
+        let data: Vec<f32> = (0..64)
+            .map(|_| {
+                state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                if state >> 28 < 5 {
+                    f32::NAN
+                } else {
+                    f32::from(u16::try_from(state >> 16).unwrap_or(0)) / 1000.0
+                }
+            })
+            .collect();
+        let logits = Tensor::from_slice(&data, &[64]).unwrap();
+        let token = Sampler::new(seed)
+            .sample(&logits, &SamplingParams::default())
+            .unwrap();
+        assert!(!data[token as usize].is_nan());
+    }
+}
+
+#[test]
+fn small_mixed_nan_logits_sample_a_finite_slot() {
+    let logits = Tensor::from_slice(&[1.0, f32::NAN, 0.5, f32::NAN], &[4]).unwrap();
+    let token = Sampler::new(3)
+        .sample(&logits, &SamplingParams::default())
+        .unwrap();
+    assert!(token == 0 || token == 2);
+}
