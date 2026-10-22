@@ -58,7 +58,8 @@ impl Sampler {
     /// # Errors
     ///
     /// Returns an error if the logits are not an `f32` vector of shape `[V]`
-    /// or `[1, V]`, or if the chosen index does not fit a `u32`.
+    /// or `[1, V]`, if no logit is finite (empty, all NaN or all infinite),
+    /// or if the chosen index does not fit a `u32`.
     pub fn sample_greedy(&self, logits: &Tensor) -> Result<u32> {
         let logits = extract_logits(logits)?;
         greedy_token(&logits)
@@ -70,7 +71,8 @@ impl Sampler {
     /// # Errors
     ///
     /// Returns an error if the logits are not an `f32` vector of shape `[V]`
-    /// or `[1, V]`, or if the chosen index does not fit a `u32`.
+    /// or `[1, V]`, if no token is valid (for a zero temperature: no logit
+    /// is finite), or if the chosen index does not fit a `u32`.
     pub fn sample_with_temp(&mut self, logits: &Tensor, temperature: f32) -> Result<u32> {
         if temperature == 0.0 {
             return self.sample_greedy(logits);
@@ -101,8 +103,14 @@ impl Sampler {
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod non_finite_tests;
+
 fn greedy_token(logits: &[f32]) -> Result<u32> {
-    token_id(argmax(logits).ok_or(SamplingError::NoValidTokens)?)
+    match argmax(logits) {
+        Some(index) if logits.iter().any(|logit| logit.is_finite()) => token_id(index),
+        _ => Err(SamplingError::NoValidTokens),
+    }
 }
 
 fn valid_probabilities(logits: &[f32]) -> Result<Vec<f32>> {
