@@ -4,7 +4,8 @@
 
 # taplo does not read .gitignore: without this it formats build output, e.g.
 # the target/package/*/Cargo.toml that `cargo publish --dry-run` writes.
-exclude = ["**/target/**", "dist/**", "**/worktrees/**"]
+# mise.local.toml is generated per machine by `mise run setup` and git-ignored.
+exclude = ["**/target/**", "dist/**", "**/worktrees/**", "mise.local.toml"]
 
 [formatting]
 indent_string = "  "
