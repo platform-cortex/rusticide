@@ -38,6 +38,7 @@ mod tests {
         assert_eq!(copy.to_vec::<f32>().expect("f32"), [9.0, 2.0]);
         assert!(!original.shares_storage_with(&copy));
         assert_eq!(copy.version(), 1);
+        assert_eq!(original.version(), 0);
     }
 
     #[test]

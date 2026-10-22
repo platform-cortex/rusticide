@@ -66,6 +66,18 @@ mod tests {
     }
 
     #[test]
+    fn reshape_rejects_a_dims_product_that_overflows() {
+        let err = matrix().reshape(&[usize::MAX, 2]).expect_err("saturated");
+        assert!(matches!(
+            err,
+            Error::ElementCountMismatch {
+                expected: 6,
+                got: usize::MAX
+            }
+        ));
+    }
+
+    #[test]
     fn contiguous_aliases_its_source() {
         let source = matrix();
         let c = source.contiguous();
