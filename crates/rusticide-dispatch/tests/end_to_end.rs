@@ -19,11 +19,11 @@ fn register_add() {
         cpu_dense(),
         KernelFunction::new(|stack: &mut Stack| {
             let (Some(rhs), Some(lhs)) = (stack.pop_tensor(), stack.pop_tensor()) else {
-                return;
+                return Err(DispatchError::KernelFailed(
+                    "add expects two tensors".to_owned(),
+                ));
             };
-            let Ok(out) = Tensor::zeros(lhs.shape().dims(), lhs.dtype(), lhs.device()) else {
-                return;
-            };
+            let out = Tensor::zeros(lhs.shape().dims(), lhs.dtype(), lhs.device())?;
             {
                 let a = lhs.storage().read();
                 let b = rhs.storage().read();
@@ -33,6 +33,7 @@ fn register_add() {
                 }
             }
             stack.push(IValue::Tensor(out));
+            Ok(())
         }),
     );
 }
@@ -57,6 +58,20 @@ fn add_dispatches_to_the_cpu_kernel() {
 }
 
 #[test]
+fn a_kernel_reports_a_missing_argument_instead_of_returning_silently() {
+    register_add();
+    let only = Tensor::zeros(&[4], DType::U8, Device::cpu()).expect("allocation succeeds");
+    let mut stack = Stack::new();
+    stack.push(IValue::Tensor(only));
+    assert_eq!(
+        Dispatcher::global().call("add", &mut stack),
+        Err(DispatchError::KernelFailed(
+            "add expects two tensors".to_owned()
+        ))
+    );
+}
+
+#[test]
 fn calling_an_unregistered_operator_is_an_error() {
     let mut stack = Stack::new();
     assert_eq!(
@@ -74,7 +89,7 @@ fn a_kernel_may_re_enter_the_dispatcher() {
             Dispatcher::global().register(
                 "registered_inside",
                 cpu_dense(),
-                KernelFunction::new(|_| {}),
+                KernelFunction::new(|_| Ok(())),
             );
             let mut inner = Stack::new();
             let result = Dispatcher::global().call("registered_inside", &mut inner);
@@ -84,6 +99,7 @@ fn a_kernel_may_re_enter_the_dispatcher() {
                     operator: "registered_inside".to_owned()
                 })
             );
+            Ok(())
         }),
     );
     let t = Tensor::zeros(&[1], DType::U8, Device::cpu()).expect("allocation succeeds");

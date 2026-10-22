@@ -64,12 +64,15 @@ mod tests {
     }
 
     fn constant(value: i64) -> KernelFunction {
-        KernelFunction::new(move |stack: &mut Stack| stack.push(IValue::Int(value)))
+        KernelFunction::new(move |stack: &mut Stack| {
+            stack.push(IValue::Int(value));
+            Ok(())
+        })
     }
 
     fn run(entry: &OperatorEntry, keyset: DispatchKeySet) -> Option<i64> {
         let mut stack = Stack::new();
-        entry.lookup(keyset)?.call(&mut stack);
+        entry.lookup(keyset)?.call(&mut stack).ok()?;
         stack.pop_int()
     }
 

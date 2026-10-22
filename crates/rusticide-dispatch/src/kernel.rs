@@ -4,28 +4,35 @@
 
 use std::sync::Arc;
 
-use crate::Stack;
+use crate::{DispatchError, Stack};
+
+type KernelBody = dyn Fn(&mut Stack) -> Result<(), DispatchError> + Send + Sync;
 
 /// A registered kernel, called through the boxed convention.
 ///
 /// A kernel pops its arguments from the [`Stack`] and pushes its results
-/// back. Cloning is cheap: clones share one function.
+/// back, or returns a [`DispatchError`] when it cannot run. Cloning is cheap:
+/// clones share one function.
 #[derive(Clone)]
-pub struct KernelFunction(Arc<dyn Fn(&mut Stack) + Send + Sync>);
+pub struct KernelFunction(Arc<KernelBody>);
 
 impl KernelFunction {
     /// Wraps a function as a kernel.
     #[must_use]
     pub fn new<F>(function: F) -> Self
     where
-        F: Fn(&mut Stack) + Send + Sync + 'static,
+        F: Fn(&mut Stack) -> Result<(), DispatchError> + Send + Sync + 'static,
     {
         Self(Arc::new(function))
     }
 
     /// Runs the kernel against the stack.
-    pub fn call(&self, stack: &mut Stack) {
-        (self.0)(stack);
+    ///
+    /// # Errors
+    ///
+    /// Whatever [`DispatchError`] the kernel returns.
+    pub fn call(&self, stack: &mut Stack) -> Result<(), DispatchError> {
+        (self.0)(stack)
     }
 }
 
@@ -38,13 +45,14 @@ impl core::fmt::Debug for KernelFunction {
 #[cfg(test)]
 mod tests {
     use super::KernelFunction;
-    use crate::{IValue, Stack};
+    use crate::{DispatchError, IValue, Stack};
 
     fn doubling_kernel() -> KernelFunction {
         KernelFunction::new(|stack: &mut Stack| {
             if let Some(value) = stack.pop_int() {
                 stack.push(IValue::Int(value * 2));
             }
+            Ok(())
         })
     }
 
@@ -52,7 +60,7 @@ mod tests {
     fn calling_a_kernel_transforms_the_stack() {
         let mut stack = Stack::new();
         stack.push(IValue::Int(21));
-        doubling_kernel().call(&mut stack);
+        assert_eq!(doubling_kernel().call(&mut stack), Ok(()));
         assert_eq!(stack.len(), 1);
         assert_eq!(stack.pop_int(), Some(42));
     }
@@ -63,9 +71,23 @@ mod tests {
         let copy = kernel.clone();
         let mut stack = Stack::new();
         stack.push(IValue::Int(1));
-        copy.call(&mut stack);
-        kernel.call(&mut stack);
+        copy.call(&mut stack).unwrap();
+        kernel.call(&mut stack).unwrap();
         assert_eq!(stack.pop_int(), Some(4));
+    }
+
+    #[test]
+    fn a_failing_kernel_reports_its_error_and_leaves_the_stack() {
+        let kernel = KernelFunction::new(|_stack: &mut Stack| {
+            Err(DispatchError::KernelFailed("no input".to_owned()))
+        });
+        let mut stack = Stack::new();
+        stack.push(IValue::Int(1));
+        assert_eq!(
+            kernel.call(&mut stack),
+            Err(DispatchError::KernelFailed("no input".to_owned()))
+        );
+        assert_eq!(stack.len(), 1);
     }
 
     #[test]

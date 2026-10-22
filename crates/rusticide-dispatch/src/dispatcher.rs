@@ -52,7 +52,8 @@ impl Dispatcher {
     ///
     /// [`DispatchError::UnknownOperator`] if the operator was never
     /// registered; [`DispatchError::NoKernel`] if it has no kernel for the
-    /// computed keyset (including a stack without tensors).
+    /// computed keyset (including a stack without tensors); whatever error
+    /// the kernel itself returns.
     pub fn call(&self, operator: &str, stack: &mut Stack) -> Result<(), DispatchError> {
         let keys = stack.key_set();
         let operators = self.read();
@@ -69,8 +70,7 @@ impl Dispatcher {
             }
             Some(Some(kernel)) => kernel,
         };
-        kernel.call(stack);
-        Ok(())
+        kernel.call(stack)
     }
 
     // A poisoned lock is recovered, as in `Storage::read`: a registry map
@@ -106,7 +106,10 @@ mod tests {
     }
 
     fn pushes(value: i64) -> KernelFunction {
-        KernelFunction::new(move |stack: &mut Stack| stack.push(IValue::Int(value)))
+        KernelFunction::new(move |stack: &mut Stack| {
+            stack.push(IValue::Int(value));
+            Ok(())
+        })
     }
 
     fn cpu_stack() -> Stack {
@@ -167,6 +170,20 @@ mod tests {
         });
         assert_eq!(dispatcher.call("op", &mut stack), expected);
         assert_eq!(dispatcher.call("op", &mut Stack::new()), expected);
+    }
+
+    #[test]
+    fn a_kernel_error_is_propagated_to_the_caller() {
+        let dispatcher = Dispatcher::new();
+        let failing = KernelFunction::new(|_stack: &mut Stack| {
+            Err(DispatchError::KernelFailed("bad input".to_owned()))
+        });
+        dispatcher.register("op", cpu_dense(), failing);
+        let mut stack = cpu_stack();
+        assert_eq!(
+            dispatcher.call("op", &mut stack),
+            Err(DispatchError::KernelFailed("bad input".to_owned()))
+        );
     }
 
     #[test]
