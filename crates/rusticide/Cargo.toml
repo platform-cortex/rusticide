@@ -16,7 +16,25 @@ repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
+[[bin]]
+name = "rusticide"
+path = "src/main.rs"
+required-features = ["cli"]
+
 [dependencies]
+anyhow = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+rusticide-core.workspace = true
+rusticide-dispatch = { workspace = true, optional = true }
+rusticide-io = { workspace = true, optional = true }
+rusticide-schema = { workspace = true, optional = true }
+
+[features]
+cli = ["schema", "dispatch", "dep:anyhow", "dep:clap"]
+default = ["dispatch", "schema"]
+dispatch = ["dep:rusticide-dispatch"]
+io = ["dep:rusticide-io"]
+schema = ["dep:rusticide-schema"]
 
 [lints]
 workspace = true

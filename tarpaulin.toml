@@ -16,7 +16,12 @@
 # llvm's 549/549) and miscounts integration-test files, so it never reaches the
 # 100% gate even when every line is exercised. It needs the `llvm-tools` rustup
 # component, declared in rust-toolchain.toml.
+#
+# `all-features = true` builds and measures feature-gated code too: the
+# `rusticide` crate's CLI sits behind its `cli` feature, so without it the
+# command line would be neither compiled nor counted.
 [default]
+all-features = true
 engine = "Llvm"
 ignore-tests = true
 out = ["Stdout", "Xml", "Lcov"]

@@ -87,6 +87,7 @@ redundant_pub_crate = "allow"
 
 [workspace.dependencies]
 ### Crates Dependencies
+anyhow = ">=1,<2.0.0"
 byteorder = "1"
 clap = { version = ">=4,<5.0.0", features = ["derive"] }
 dirs = { version = ">=7,<8.0.0" }

@@ -5,8 +5,9 @@
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    let outcome = rusticide::run(std::env::args().skip(1));
-    print!("{}", outcome.stdout);
-    eprint!("{}", outcome.stderr);
-    ExitCode::from(outcome.code)
+    ExitCode::from(rusticide::cli::run(
+        std::env::args(),
+        &mut std::io::stdout().lock(),
+        &mut std::io::stderr().lock(),
+    ))
 }

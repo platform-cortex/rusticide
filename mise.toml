@@ -2073,7 +2073,7 @@ host="$(rustup run "$channel" rustc -vV | sed -n 's/^host: //p')"
 target="${usage_target:-$host}"
 version="$(mise run -q release:check)"
 rustup target add --toolchain "$channel" "$target" >/dev/null
-rustup run "$channel" cargo build --release --locked -p rusticide --bin rusticide --target "$target"
+rustup run "$channel" cargo build --release --locked -p rusticide --bin rusticide --features cli --target "$target"
 out="target/$target/release"
 case "$target" in *-linux-gnu) mise run release:build:glibc --binary "$out/rusticide" ;; esac
 # The matrix builds every target on a native runner, so the binary runs here.

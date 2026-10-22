@@ -27,8 +27,10 @@ file; edit here, never there.
   `rusticide-core`, `rusticide-dispatch`, `rusticide-ggml`, `rusticide-io`,
   `rusticide-quantize`, `rusticide-sampling`, `rusticide-schema`,
   `rusticide-tokenizer`. A new crate must be added to it by hand.
-- `crates/rusticide` is the shipped binary: all behavior lives in its `lib.rs`
-  (unit-tested); `main.rs` only forwards `std::env::args` and is excluded from
+- `crates/rusticide` is the library facade (re-exports `rusticide-core`, never
+  `EagerOps`) plus the `rusticide` binary, built only with the `cli` feature
+  (clap). CLI logic lives in `src/cli` and is unit-tested against injected
+  writers; `main.rs` only forwards the process streams and is excluded from
   coverage by `tarpaulin.toml`.
 - `crates/rusticide-fuzz` is `exclude`d and is its own workspace: libfuzzer
   needs nightly and its generated entry point cannot satisfy
