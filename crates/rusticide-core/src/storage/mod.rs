@@ -2,50 +2,15 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock};
 
 use rusticide_alloc::Buffer;
 
+mod guard;
+
+pub use guard::{StorageReadGuard, StorageWriteGuard};
+
 use crate::{DType, Device, Error, Result};
-
-/// A shared view of a [`Storage`]'s bytes.
-///
-/// Derefs only to `[u8]`, never to the underlying buffer: the buffer's
-/// length is fixed at `numel * dtype.size_in_bytes()` when the storage is
-/// created, and handing out the buffer itself would let safe code replace
-/// it and break that invariant.
-#[derive(Debug)]
-pub struct StorageReadGuard<'a>(RwLockReadGuard<'a, Buffer>);
-
-impl Deref for StorageReadGuard<'_> {
-    type Target = [u8];
-
-    fn deref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-/// An exclusive view of a [`Storage`]'s bytes.
-///
-/// Derefs only to `[u8]`, so `guard.len() == numel * dtype.size_in_bytes()`
-/// holds for as long as the storage lives; see [`StorageReadGuard`].
-#[derive(Debug)]
-pub struct StorageWriteGuard<'a>(RwLockWriteGuard<'a, Buffer>);
-
-impl Deref for StorageWriteGuard<'_> {
-    type Target = [u8];
-
-    fn deref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl DerefMut for StorageWriteGuard<'_> {
-    fn deref_mut(&mut self) -> &mut [u8] {
-        &mut self.0
-    }
-}
 
 /// The buffer backing one or more tensors.
 ///
@@ -96,7 +61,7 @@ impl Storage {
     /// on differently.
     #[must_use]
     pub fn read(&self) -> StorageReadGuard<'_> {
-        StorageReadGuard(match self.buffer.read() {
+        StorageReadGuard::new(match self.buffer.read() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
         })
@@ -108,7 +73,7 @@ impl Storage {
     /// than propagated.
     #[must_use]
     pub fn write(&self) -> StorageWriteGuard<'_> {
-        StorageWriteGuard(match self.buffer.write() {
+        StorageWriteGuard::new(match self.buffer.write() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
         })
@@ -127,6 +92,14 @@ impl Storage {
     #[must_use]
     pub const fn numel(&self) -> usize {
         self.numel
+    }
+
+    /// A stable per-allocation key; clones that alias share it.
+    ///
+    /// Callers that must hold read guards on two storages at once acquire
+    /// them in ascending key order so concurrent pairs cannot deadlock.
+    pub(crate) fn lock_order_key(&self) -> usize {
+        Arc::as_ptr(&self.buffer).addr()
     }
 
     /// Whether two storages are backed by the same allocation.
@@ -163,6 +136,16 @@ mod tests {
         let _: StorageReadGuard<'_> = s.read();
         assert_eq!(s.read().len(), 12);
         assert!(s.read().iter().all(|&byte| byte == 2));
+    }
+
+    #[test]
+    fn lock_order_key_is_stable_and_distinguishes_storages() {
+        let a = Storage::new(DType::U8, Device::cpu(), 4).expect("allocation succeeds");
+        let alias = a.clone();
+        let other = Storage::new(DType::U8, Device::cpu(), 4).expect("allocation succeeds");
+        assert_eq!(a.lock_order_key(), a.lock_order_key());
+        assert_eq!(a.lock_order_key(), alias.lock_order_key());
+        assert_ne!(a.lock_order_key(), other.lock_order_key());
     }
 
     #[test]

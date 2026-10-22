@@ -7,11 +7,14 @@ use crate::{Error, Result};
 /// An empty `Vec<T>` with room for exactly `capacity` elements, reserved
 /// fallibly.
 ///
+/// Workspace-internal; removed once SP2 decodes directly into Tensor storage.
+///
 /// # Errors
 ///
 /// `Error::AllocationFailed` if the allocator refuses the request or
 /// `capacity * size_of::<T>()` exceeds the address space. `bytes` saturates
 /// at `usize::MAX` in the latter case.
+#[doc(hidden)]
 pub fn try_vec_with_capacity<T>(capacity: usize) -> Result<Vec<T>> {
     let mut vec = Vec::new();
     vec.try_reserve_exact(capacity)

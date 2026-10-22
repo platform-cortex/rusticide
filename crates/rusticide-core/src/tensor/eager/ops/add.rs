@@ -94,6 +94,16 @@ mod tests {
     }
 
     #[test]
+    fn add_gives_the_same_values_in_either_operand_order() {
+        let matrix = f32s(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3]);
+        let row = f32s(&[10.0, 20.0, 30.0], &[3]);
+        let expected = [11.0, 22.0, 33.0, 14.0, 25.0, 36.0];
+        for sum in [matrix.add(&row), row.add(&matrix)] {
+            assert_eq!(sum.expect("add").to_vec::<f32>().expect("f32"), expected);
+        }
+    }
+
+    #[test]
     fn add_rejects_non_broadcastable_shapes() {
         let err = f32s(&[0.0; 3], &[3])
             .add(&f32s(&[0.0; 2], &[2]))

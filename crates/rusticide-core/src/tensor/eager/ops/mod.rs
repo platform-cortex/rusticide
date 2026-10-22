@@ -127,13 +127,25 @@ pub(super) fn with_f32_pair<R>(
     rhs: &Tensor,
     body: impl FnOnce(&F32Reader<'_>, &F32Reader<'_>) -> R,
 ) -> R {
-    let left = lhs.storage().read();
     if lhs.shares_storage_with(rhs) {
-        let reader = F32Reader(&left);
+        let guard = lhs.storage().read();
+        let reader = F32Reader(&guard);
         return body(&reader, &reader);
     }
-    let right = rhs.storage().read();
-    body(&F32Reader(&left), &F32Reader(&right))
+    // Lock-order invariant: one guard for shared storage, otherwise the two
+    // guards are acquired in ascending `lock_order_key` order, whatever the
+    // caller's (lhs, rhs) order, so concurrent `a.op(b)` and `b.op(a)` with
+    // queued writers cannot form a wait cycle.
+    let lhs_first = lhs.storage().lock_order_key() < rhs.storage().lock_order_key();
+    let (first, second) = if lhs_first { (lhs, rhs) } else { (rhs, lhs) };
+    let first_guard = first.storage().read();
+    let second_guard = second.storage().read();
+    let (left, right) = if lhs_first {
+        (&first_guard, &second_guard)
+    } else {
+        (&second_guard, &first_guard)
+    };
+    body(&F32Reader(left), &F32Reader(right))
 }
 
 /// Allocate a CPU `F32` tensor of `dims` fallibly and fill element `flat`

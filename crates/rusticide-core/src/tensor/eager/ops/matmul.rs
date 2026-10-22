@@ -76,6 +76,20 @@ mod tests {
     }
 
     #[test]
+    fn matmul_is_not_commutative_in_either_operand_order() {
+        let a = f32s(&[1.0, 2.0, 3.0, 4.0], &[2, 2]);
+        let b = f32s(&[0.0, 1.0, 1.0, 0.0], &[2, 2]);
+        assert_eq!(
+            a.matmul(&b).expect("matmul").to_vec::<f32>().expect("f32"),
+            [2.0, 1.0, 4.0, 3.0]
+        );
+        assert_eq!(
+            b.matmul(&a).expect("matmul").to_vec::<f32>().expect("f32"),
+            [3.0, 4.0, 1.0, 2.0]
+        );
+    }
+
+    #[test]
     fn matmul_rejects_a_1d_lhs() {
         let err = f32s(&[1.0, 2.0], &[2])
             .matmul(&f32s(&[1.0, 2.0], &[2, 1]))
