@@ -7,9 +7,8 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 # Architecture
 
 This is the map of the workspace as it stands at the end of milestone 1 of
-`rusticide run`. The reasoning
-behind it -- why the framework is shaped like PyTorch, what the oracle is, how
-the sub-projects are cut -- lives in the
+`rusticide run`. The reasoning behind it -- why the framework is shaped like
+PyTorch, what the oracle is, how the sub-projects are cut -- lives in the
 [design document](plan/2026-08-21-rusticide-framework-design.md), and the
 crate list there ("Crate graph") describes the target state. This page
 describes what is on disk.

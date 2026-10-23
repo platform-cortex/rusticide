@@ -35,10 +35,11 @@ exists:
 
 Operators are not generated, there is no autograd and no GPU backend, and the
 legacy eager tensor API is slated for removal in SP2. The next milestones of
-`rusticide run` add Qwen and BitNet; see the
-[run design](docs/plan/2026-10-22-rusticide-run-design.md). See the [design](docs/plan/2026-08-21-rusticide-framework-design.md)
-for the roadmap and [ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the crates
-fit together.
+`rusticide run` add Qwen and BitNet. See the
+[run design](docs/plan/2026-10-22-rusticide-run-design.md) and the
+[framework design](docs/plan/2026-08-21-rusticide-framework-design.md) for the
+roadmap, and [ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the crates fit
+together.
 
 ## Crates
 
