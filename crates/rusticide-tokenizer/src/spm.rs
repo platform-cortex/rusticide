@@ -100,15 +100,22 @@ impl Tokenizer {
     fn build_byte_fallback(&self) -> [Option<u32>; 256] {
         let mut fallback = [None; 256];
         for (id, bytes) in self.vocab.iter().enumerate() {
-            if let [b'<', b'0', b'x', high, low, b'>'] = bytes[..] {
-                if let (Some(h), Some(l)) = (hex_nibble(high), hex_nibble(low)) {
-                    fallback[usize::from((h << 4) | l)] =
-                        Some(u32::try_from(id).unwrap_or(u32::MAX));
-                }
+            if let Some(byte) = byte_piece(bytes) {
+                fallback[usize::from(byte)] = Some(u32::try_from(id).unwrap_or(u32::MAX));
             }
         }
         fallback
     }
+}
+
+/// The byte a `SentencePiece` byte-fallback piece (`<0xHH>`) stands for.
+pub(crate) const fn byte_piece(piece: &[u8]) -> Option<u8> {
+    if let [b'<', b'0', b'x', high, low, b'>'] = *piece {
+        if let (Some(h), Some(l)) = (hex_nibble(high), hex_nibble(low)) {
+            return Some((h << 4) | l);
+        }
+    }
+    None
 }
 
 const fn hex_nibble(b: u8) -> Option<u8> {

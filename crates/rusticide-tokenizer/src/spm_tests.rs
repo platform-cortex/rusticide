@@ -22,7 +22,7 @@ fn test_encode_decode_llama_basic() {
     );
     let encoded = tok.encode("hello world").unwrap();
     let decoded = tok.decode(&encoded).unwrap();
-    assert_eq!(decoded, "\u{2581}hello\u{2581}world");
+    assert_eq!(decoded, " hello world");
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn test_encode_decode_utf8() {
         false,
     );
     let encoded = tok.encode("caf\u{00E9}").unwrap();
-    assert_eq!(tok.decode(&encoded).unwrap(), "\u{2581}caf\u{00E9}");
+    assert_eq!(tok.decode(&encoded).unwrap(), " caf\u{00E9}");
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn test_viterbi_equal_scores() {
         false,
     );
     let encoded = tok.encode("hello").unwrap();
-    assert_eq!(tok.decode(&encoded).unwrap(), "\u{2581}hello");
+    assert_eq!(tok.decode(&encoded).unwrap(), " hello");
 }
 
 #[test]
@@ -151,10 +151,7 @@ fn test_byte_fallback_unknown_bytes() {
     );
     let encoded = tok.encode("ab").unwrap();
     assert_eq!(encoded, &[2, 3, 4, 5, 6]);
-    assert_eq!(
-        tok.decode(&encoded).unwrap(),
-        "<0xE2><0x96><0x81><0x61><0x62>"
-    );
+    assert_eq!(tok.decode(&encoded).unwrap(), "\u{2581}ab");
 }
 
 #[test]
@@ -165,7 +162,7 @@ fn test_new_tokenizer_roundtrip() {
         false,
     );
     let encoded = tok.encode("hello world").unwrap();
-    assert_eq!(tok.decode(&encoded).unwrap(), "\u{2581}hello\u{2581}world");
+    assert_eq!(tok.decode(&encoded).unwrap(), " hello world");
 }
 
 #[test]
@@ -176,7 +173,7 @@ fn test_non_ascii_roundtrip() {
         false,
     );
     let encoded = tok.encode("\u{00E9}\u{2603}").unwrap();
-    assert_eq!(tok.decode(&encoded).unwrap(), "\u{2581}\u{00E9}\u{2603}");
+    assert_eq!(tok.decode(&encoded).unwrap(), " \u{00E9}\u{2603}");
 }
 
 #[test]

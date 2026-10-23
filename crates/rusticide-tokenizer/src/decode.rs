@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::error::Result;
+use crate::model::TokenizerModel;
+use crate::spm::byte_piece;
 use crate::tokenizer::Tokenizer;
 
 const SPM_MARKER: [u8; 3] = [0xE2, 0x96, 0x81];
@@ -42,7 +44,11 @@ impl Tokenizer {
     fn decode_to_bytes(&self, tokens: &[u32]) -> Result<Vec<u8>> {
         let mut bytes = Vec::new();
         for &tid in tokens {
-            bytes.extend_from_slice(self.piece(tid)?);
+            let piece = self.piece(tid)?;
+            match self.model {
+                TokenizerModel::LLaMA => push_spm_text(&mut bytes, piece),
+                TokenizerModel::GPT2 => bytes.extend_from_slice(piece),
+            }
         }
         Ok(bytes)
     }
@@ -54,6 +60,28 @@ impl Tokenizer {
 
 fn add_space_before(piece: &[u8]) -> bool {
     piece.starts_with(&SPM_MARKER)
+}
+
+/// llama.cpp's piece-to-text for `SentencePiece`: a byte piece is its byte,
+/// any other piece has each space marker turned back into a space.
+fn push_spm_text(bytes: &mut Vec<u8>, piece: &[u8]) {
+    if let Some(byte) = byte_piece(piece) {
+        bytes.push(byte);
+        return;
+    }
+    let mut rest = piece;
+    while let Some(index) = find_marker(rest) {
+        bytes.extend_from_slice(&rest[..index]);
+        bytes.push(b' ');
+        rest = &rest[index + SPM_MARKER.len()..];
+    }
+    bytes.extend_from_slice(rest);
+}
+
+fn find_marker(piece: &[u8]) -> Option<usize> {
+    piece
+        .windows(SPM_MARKER.len())
+        .position(|window| window == SPM_MARKER)
 }
 
 #[cfg(test)]

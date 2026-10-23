@@ -62,3 +62,36 @@ fn decode_detokenized_out_of_range() {
         Err(TokenizerError::TokenOutOfRange(7, 2))
     ));
 }
+
+#[test]
+fn llama_decode_turns_the_space_marker_into_a_space() {
+    let tok = llama(
+        vec!["<s>", "</s>", "\u{2581}there", "\u{2581}was"],
+        None,
+        true,
+    );
+    assert_eq!(tok.decode(&[2, 3]).unwrap(), " there was");
+}
+
+#[test]
+fn llama_decode_turns_byte_pieces_into_their_bytes() {
+    let tok = llama(
+        vec!["<s>", "</s>", "<0x0A>", "<0xC3>", "<0xA9>"],
+        None,
+        true,
+    );
+    assert_eq!(tok.decode(&[2, 3, 4]).unwrap(), "\n\u{e9}");
+}
+
+#[test]
+fn gpt2_decode_keeps_pieces_verbatim() {
+    let tok = Tokenizer::new(
+        TokenizerModel::GPT2,
+        vec!["\u{2581}a", "<0x0A>"],
+        None,
+        0,
+        1,
+        false,
+    );
+    assert_eq!(tok.decode(&[0, 1]).unwrap(), "\u{2581}a<0x0A>");
+}
