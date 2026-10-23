@@ -151,6 +151,31 @@ fn config_rejects_values_that_do_not_fit_usize_arithmetic() {
     invalid(&wide, "model dimensions are too large");
 }
 
+fn wide(entries: &[(&str, u64)]) -> InMemorySource {
+    entries
+        .iter()
+        .fold(TinySource::new(), |source, (key, value)| {
+            source.with_metadata(key, GGUFValue::Uint64(*value))
+        })
+        .build()
+}
+
+#[test]
+fn config_rejects_an_embedding_square_that_overflows() {
+    let source = wide(&[
+        ("llama.embedding_length", 1 << 32),
+        ("llama.attention.head_count", 1 << 16),
+        ("llama.attention.head_count_kv", 1),
+    ]);
+    invalid(&source, "model dimensions are too large");
+}
+
+#[test]
+fn config_rejects_an_embedding_by_feed_forward_product_that_overflows() {
+    let source = wide(&[("llama.feed_forward_length", 1 << 63)]);
+    invalid(&source, "model dimensions are too large");
+}
+
 #[test]
 fn config_rejects_a_mis_shaped_token_embedding() {
     let reason = "token_embd.weight must have shape [vocab, embedding length]";
