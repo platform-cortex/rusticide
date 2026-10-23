@@ -26,6 +26,8 @@ rusticide-model.workspace = true
 
 [dev-dependencies]
 rusticide-tokenizer.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

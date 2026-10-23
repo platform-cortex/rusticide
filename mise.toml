@@ -1521,6 +1521,28 @@ flag "-t --threshold <threshold>" help="Coverage threshold" default="100" env="R
 arg "[args]" var=#true help="Extra arguments forwarded to cargo-tarpaulin (e.g. --out Html)"
 '''
 
+[tasks."test:reference"]
+alias = ["tref"]
+depends = []
+depends_post = []
+description = "Check greedy-token parity with llama.cpp on the reference models in $RUSTICIDE_MODELS. Fails fast when it is unset, where the bare cargo test would silently skip."
+run = '''
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
+
+: "${RUSTICIDE_MODELS:?set RUSTICIDE_MODELS to the directory holding the reference models}"
+export RUSTICIDE_MODELS
+
+cargo test --release -p rusticide-llama --test reference -- --nocapture
+'''
+shell = "bash -c"
+usage = '''
+flag "-v --verbose" help="Trace each command before running it (set -x)"
+'''
+
 [tasks.codecov]
 alias = []
 depends = ["coverage"]
