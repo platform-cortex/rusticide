@@ -171,7 +171,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -183,11 +183,11 @@ dependencies = [
 
 [[package]]
 name = "rusticide-alloc"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "rusticide-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "half",
  "rusticide-alloc",
@@ -196,7 +196,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-dispatch"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rusticide-core",
  "thiserror",
@@ -204,7 +204,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-ggml"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "half",
  "rusticide-core",
@@ -213,7 +213,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-io"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "half",
  "rusticide-core",
@@ -223,7 +223,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-quantize"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "half",
  "rusticide-core",
@@ -232,7 +232,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-sampling"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "fastrand",
  "rusticide-core",
@@ -241,14 +241,14 @@ dependencies = [
 
 [[package]]
 name = "rusticide-schema"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "rusticide-tokenizer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rusticide-io",
  "thiserror",
