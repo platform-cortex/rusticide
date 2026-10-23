@@ -6,10 +6,14 @@
 
 mod cache;
 mod error;
+mod model;
+mod registry;
 mod source;
 mod weights;
 
 pub use cache::KvCache;
 pub use error::{ModelError, Result};
+pub use model::Model;
+pub use registry::{Loader, Registry};
 pub use source::{InMemorySource, ModelSource};
 pub use weights::{Matrix, load_vector};
