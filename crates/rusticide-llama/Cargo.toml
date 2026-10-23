@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+authors.workspace = true
+categories = ["algorithms"]
+description = "Llama-family architecture for rusticide: configuration and f32 weights"
+edition.workspace = true
+keywords = ["llm", "llama", "inference", "gguf", "weights"]
+license.workspace = true
+name = "rusticide-llama"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[features]
+testing = []
+
+[dependencies]
+rusticide-core.workspace = true
+rusticide-io.workspace = true
+rusticide-model.workspace = true
+
+[dev-dependencies]
+rusticide-tokenizer.workspace = true
+
+[lints]
+workspace = true

@@ -281,6 +281,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusticide-llama"
+version = "0.2.0"
+dependencies = [
+ "rusticide-core",
+ "rusticide-io",
+ "rusticide-model",
+ "rusticide-tokenizer",
+]
+
+[[package]]
 name = "rusticide-model"
 version = "0.2.0"
 dependencies = [

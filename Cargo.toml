@@ -93,6 +93,7 @@ rusticide-dispatch = { path = "crates/rusticide-dispatch", version = "0.2.0" }
 rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.2.0" }
 rusticide-io = { path = "crates/rusticide-io", version = "0.2.0" }
 rusticide-kernels = { path = "crates/rusticide-kernels", version = "0.2.0" }
+rusticide-llama = { path = "crates/rusticide-llama", version = "0.2.0" }
 rusticide-model = { path = "crates/rusticide-model", version = "0.2.0" }
 rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.2.0" }
 rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.2.0" }
