@@ -86,7 +86,7 @@ fn test_from_gguf_bos_eos_default_gpt2() {
 
 #[test]
 fn from_gguf_short_scores_are_padded() {
-    let entries = tokenizer_meta("llama", &["<s>", "</s>", "\u{2581}hi", "x"]);
+    let entries = tokenizer_meta("llama", &["<s>", "</s>", "\u{2581}hi", "\u{2581}h"]);
     let entries = with(entries, "tokenizer.ggml.scores", float_array(&[0.5]));
     let tok = build(&entries);
     assert_eq!(tok.scores, vec![0.5, 0.0, 0.0, 0.0]);

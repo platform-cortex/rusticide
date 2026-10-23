@@ -13,11 +13,37 @@ fn llama(vocab: Vec<&str>, scores: Vec<f32>, add_bos: bool) -> Tokenizer {
     Tokenizer::new(TokenizerModel::LLaMA, vocab, Some(scores), 0, 1, add_bos)
 }
 
+/// `<s>`, `</s>`, then "\u{2581}hello" (id 2) and the pieces that merge to it.
+fn hello_vocab() -> Vec<&'static str> {
+    vec![
+        "<s>",
+        "</s>",
+        "\u{2581}hello",
+        "\u{2581}h",
+        "\u{2581}he",
+        "\u{2581}hel",
+        "\u{2581}hell",
+    ]
+}
+
 #[test]
 fn test_encode_decode_llama_basic() {
     let tok = llama(
-        vec!["<s>", "</s>", "\u{2581}hell", "o", "\u{2581}world"],
-        vec![0.0; 5],
+        vec![
+            "<s>",
+            "</s>",
+            "\u{2581}hell",
+            "o",
+            "\u{2581}world",
+            "\u{2581}h",
+            "\u{2581}he",
+            "\u{2581}hel",
+            "\u{2581}w",
+            "\u{2581}wo",
+            "\u{2581}wor",
+            "\u{2581}worl",
+        ],
+        vec![0.0; 12],
         false,
     );
     let encoded = tok.encode("hello world").unwrap();
@@ -27,7 +53,7 @@ fn test_encode_decode_llama_basic() {
 
 #[test]
 fn test_encode_decode_llama_with_bos() {
-    let tok = llama(vec!["<s>", "</s>", "\u{2581}hello"], vec![0.0; 3], true);
+    let tok = llama(hello_vocab(), vec![0.0; 7], true);
     let encoded = tok.encode("hello").unwrap();
     assert_eq!(encoded.first(), Some(&0));
     assert!(tok.decode(&encoded).unwrap().contains("hello"));
@@ -35,7 +61,7 @@ fn test_encode_decode_llama_with_bos() {
 
 #[test]
 fn test_encode_without_bos() {
-    let tok = llama(vec!["<s>", "</s>", "\u{2581}hello"], vec![0.0; 3], false);
+    let tok = llama(hello_vocab(), vec![0.0; 7], false);
     assert_eq!(tok.encode("hello").unwrap(), &[2]);
 }
 
@@ -47,25 +73,39 @@ fn test_encode_llama_applies_spm_space_normalization() {
             "</s>",
             "\u{2581}hello",
             "\u{2581}world",
-            "h",
-            "e",
-            "l",
-            "o",
-            "w",
-            "r",
-            "d",
+            "\u{2581}h",
+            "\u{2581}he",
+            "\u{2581}hel",
+            "\u{2581}hell",
+            "\u{2581}w",
+            "\u{2581}wo",
+            "\u{2581}wor",
+            "\u{2581}worl",
             "<0x20>",
         ],
-        vec![
-            0.0, 0.0, -10.0, -10.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-        ],
+        vec![0.0; 13],
         false,
     );
     assert_eq!(tok.encode("hello world").unwrap(), &[2, 3]);
 }
 
 fn space_prefix_tokenizer(add_space_prefix: Option<bool>) -> Tokenizer {
-    let entries = tokenizer_meta("llama", &["<s>", "</s>", "\u{2581}hello", "hello"]);
+    let entries = tokenizer_meta(
+        "llama",
+        &[
+            "<s>",
+            "</s>",
+            "\u{2581}hello",
+            "hello",
+            "\u{2581}h",
+            "\u{2581}he",
+            "\u{2581}hel",
+            "\u{2581}hell",
+            "he",
+            "hel",
+            "hell",
+        ],
+    );
     let entries = with(entries, "tokenizer.ggml.scores", float_array(&[0.0; 4]));
     let entries = with(
         entries,
@@ -110,8 +150,15 @@ fn test_encode_empty_with_bos() {
 #[test]
 fn test_encode_decode_utf8() {
     let tok = llama(
-        vec!["<s>", "</s>", "\u{2581}caf", "\u{00E9}"],
-        vec![0.0; 4],
+        vec![
+            "<s>",
+            "</s>",
+            "\u{2581}caf",
+            "\u{00E9}",
+            "\u{2581}c",
+            "\u{2581}ca",
+        ],
+        vec![0.0; 6],
         false,
     );
     let encoded = tok.encode("caf\u{00E9}").unwrap();
@@ -119,23 +166,21 @@ fn test_encode_decode_utf8() {
 }
 
 #[test]
-fn test_viterbi_chooses_optimal_segmentation() {
+fn merged_pieces_keep_merging_with_their_neighbours() {
     let tok = llama(
         vec!["\u{2581}ab", "\u{2581}a", "b", "cd"],
         vec![-10.0, -1.0, -1.0, -10.0],
         false,
     );
-    assert_eq!(tok.encode("ab").unwrap(), &[1, 2]);
-    assert_eq!(tok.encode("abcd").unwrap(), &[1, 2, 3]);
+    assert_eq!(tok.encode("ab").unwrap(), &[0]);
+    assert_eq!(tok.encode("abcd").unwrap(), &[0, 3]);
 }
 
 #[test]
-fn test_viterbi_equal_scores() {
-    let tok = llama(
-        vec!["<s>", "</s>", "\u{2581}hello", "\u{2581}hell", "o"],
-        vec![0.0; 5],
-        false,
-    );
+fn equal_scores_still_merge_up_to_the_whole_word() {
+    let mut vocab = hello_vocab();
+    vocab.push("o");
+    let tok = llama(vocab, vec![0.0; 8], false);
     let encoded = tok.encode("hello").unwrap();
     assert_eq!(tok.decode(&encoded).unwrap(), " hello");
 }
@@ -157,8 +202,21 @@ fn test_byte_fallback_unknown_bytes() {
 #[test]
 fn test_new_tokenizer_roundtrip() {
     let tok = llama(
-        vec!["<s>", "</s>", "\u{2581}hello", "\u{2581}world"],
-        vec![0.0; 4],
+        vec![
+            "<s>",
+            "</s>",
+            "\u{2581}hello",
+            "\u{2581}world",
+            "\u{2581}h",
+            "\u{2581}he",
+            "\u{2581}hel",
+            "\u{2581}hell",
+            "\u{2581}w",
+            "\u{2581}wo",
+            "\u{2581}wor",
+            "\u{2581}worl",
+        ],
+        vec![0.0; 12],
         false,
     );
     let encoded = tok.encode("hello world").unwrap();
@@ -177,48 +235,10 @@ fn test_non_ascii_roundtrip() {
 }
 
 #[test]
-fn test_hex_nibble_valid() {
-    assert_eq!(super::hex_nibble(b'0'), Some(0));
-    assert_eq!(super::hex_nibble(b'9'), Some(9));
-    assert_eq!(super::hex_nibble(b'a'), Some(10));
-    assert_eq!(super::hex_nibble(b'f'), Some(15));
-    assert_eq!(super::hex_nibble(b'A'), Some(10));
-    assert_eq!(super::hex_nibble(b'F'), Some(15));
-}
-
-#[test]
-fn test_hex_nibble_invalid() {
-    assert_eq!(super::hex_nibble(b'g'), None);
-    assert_eq!(super::hex_nibble(b'z'), None);
-    assert_eq!(super::hex_nibble(b'@'), None);
-    assert_eq!(super::hex_nibble(b' '), None);
-}
-
-#[test]
 fn encode_error_variant_is_reachable_through_unmatched_input() {
     let tok = llama(vec!["a"], vec![0.0], false);
     let err = tok.encode("z").unwrap_err();
     assert!(matches!(err, TokenizerError::EncodeError(_)));
-}
-
-#[test]
-fn byte_fallback_ignores_invalid_hex() {
-    let tok = llama(
-        vec!["<0xZZ>", "<0x6g>", "<0x6>", "[0x61]", "<0x62>"],
-        vec![0.0; 5],
-        false,
-    );
-    let table = tok.build_byte_fallback();
-    assert_eq!(table.iter().flatten().count(), 1);
-    assert_eq!(table[0x62], Some(4));
-}
-
-#[test]
-fn byte_fallback_reads_mixed_case_hex() {
-    let tok = llama(vec!["<0xaB>", "<0xCd>"], vec![0.0; 2], false);
-    let table = tok.build_byte_fallback();
-    assert_eq!(table[0xAB], Some(0));
-    assert_eq!(table[0xCD], Some(1));
 }
 
 #[test]
@@ -228,23 +248,17 @@ fn empty_vocabulary_entries_never_match() {
 }
 
 #[test]
-fn nan_scores_make_the_input_unencodable_not_a_panic() {
-    let tok = llama(vec!["\u{2581}a"], vec![f32::NAN], false);
-    assert!(matches!(
-        tok.encode("a"),
-        Err(TokenizerError::EncodeError(_))
-    ));
+fn nan_scores_cannot_panic_the_merge() {
+    let tok = llama(vec!["\u{2581}a", "b"], vec![f32::NAN, 0.0], false);
+    assert_eq!(tok.encode("ab").unwrap(), &[0, 1]);
 }
 
 #[test]
-fn infinite_scores_are_an_encode_error_not_a_panic() {
+fn infinite_scores_cannot_panic_the_merge() {
     let tok = llama(
         vec!["\u{2581}a", "b", "<0x62>"],
         vec![f32::INFINITY, 0.0, 0.0],
         false,
     );
-    assert!(matches!(
-        tok.encode("ab"),
-        Err(TokenizerError::EncodeError(_))
-    ));
+    assert_eq!(tok.encode("ab").unwrap(), &[0, 1]);
 }

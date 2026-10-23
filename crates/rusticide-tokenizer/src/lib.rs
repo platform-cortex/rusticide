@@ -10,6 +10,7 @@ mod error;
 mod from_gguf;
 mod model;
 mod spm;
+mod spm_merge;
 mod tokenizer;
 mod trie;
 mod value_ext;

@@ -8,47 +8,6 @@ use crate::tokenizer::Tokenizer;
 
 const SPACE_MARKER: &str = "\u{2581}";
 
-struct Lattice {
-    cost: Vec<f32>,
-    back: Vec<(u32, usize)>,
-}
-
-impl Lattice {
-    fn new(len: usize) -> Self {
-        let mut cost = vec![f32::INFINITY; len + 1];
-        cost[0] = 0.0;
-        Self {
-            cost,
-            back: vec![(0, 0); len + 1],
-        }
-    }
-
-    fn relax(&mut self, from: usize, span: usize, token: u32, score: f32) {
-        let candidate = self.cost[from] - score;
-        if candidate < self.cost[from + span] {
-            self.cost[from + span] = candidate;
-            self.back[from + span] = (token, span);
-        }
-    }
-
-    fn backtrack(&self) -> Result<Vec<u32>> {
-        let mut pos = self.cost.len() - 1;
-        if !self.cost[pos].is_finite() {
-            return Err(TokenizerError::EncodeError(
-                "Viterbi could not find a valid tokenization path".to_string(),
-            ));
-        }
-        let mut result = Vec::new();
-        while pos > 0 {
-            let (token, span) = self.back[pos];
-            result.push(token);
-            pos -= span;
-        }
-        result.reverse();
-        Ok(result)
-    }
-}
-
 impl Tokenizer {
     /// Encode text to token IDs.
     ///
@@ -73,28 +32,26 @@ impl Tokenizer {
         }
     }
 
-    /// `LLaMA` / `SentencePiece` unigram encoding via Viterbi DP.
-    ///
-    /// Cost is O(input bytes x longest vocabulary entry x log2 fan-out); the
-    /// piece lookup is built once at construction.
+    /// `LLaMA` / `SentencePiece` encoding as llama.cpp does it: merge pieces
+    /// by score, then spell any symbol that is not a piece as byte pieces.
     fn encode_llama(&self, text: &str) -> Result<Vec<u32>> {
         let prefix = if self.add_space_prefix { " " } else { "" };
         let normalized = format!("{prefix}{text}").replace(' ', SPACE_MARKER);
-        let bytes = normalized.as_bytes();
         let byte_fallback = self.build_byte_fallback();
-        let mut lattice = Lattice::new(bytes.len());
-        for start in 0..bytes.len() {
-            let matches = self.pieces.prefixes(bytes, start, &self.scores);
-            if matches.is_empty() {
-                if let Some(id) = byte_fallback[bytes[start] as usize] {
-                    lattice.relax(start, 1, id, self.scores[id as usize]);
-                }
+        let mut tokens = Vec::new();
+        for piece in self.merge_symbols(&normalized) {
+            if let Some(token) = self.piece_id(piece) {
+                tokens.push(token);
+                continue;
             }
-            for (token, span, score) in matches {
-                lattice.relax(start, span, token, score);
+            for &byte in piece {
+                let token = byte_fallback[usize::from(byte)].ok_or_else(|| {
+                    TokenizerError::EncodeError(format!("no piece for byte 0x{byte:02X}"))
+                })?;
+                tokens.push(token);
             }
         }
-        lattice.backtrack()
+        Ok(tokens)
     }
 
     fn build_byte_fallback(&self) -> [Option<u32>; 256] {
@@ -134,3 +91,7 @@ mod tests;
 #[cfg(test)]
 #[path = "spm_ranking_tests.rs"]
 mod ranking_tests;
+
+#[cfg(test)]
+#[path = "spm_byte_tests.rs"]
+mod byte_tests;

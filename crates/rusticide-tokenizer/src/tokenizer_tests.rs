@@ -19,13 +19,13 @@ fn accessors_report_the_constructor_arguments() {
 fn new_with_short_scores_is_padded() {
     let tok = Tokenizer::new(
         TokenizerModel::LLaMA,
-        vec!["<s>", "</s>", "\u{2581}hi"],
+        vec!["<s>", "</s>", "\u{2581}hi", "\u{2581}h"],
         Some(vec![0.5]),
         0,
         1,
         false,
     );
-    assert_eq!(tok.scores, vec![0.5, 0.0, 0.0]);
+    assert_eq!(tok.scores, vec![0.5, 0.0, 0.0, 0.0]);
     assert_eq!(tok.encode("hi").unwrap(), vec![2]);
 }
 
