@@ -6,13 +6,16 @@
 
 mod cache;
 mod error;
+mod generate;
 mod model;
 mod registry;
 mod source;
+mod stream;
 mod weights;
 
 pub use cache::KvCache;
 pub use error::{ModelError, Result};
+pub use generate::{GenerateOptions, Generation, generate};
 pub use model::Model;
 pub use registry::{Loader, Registry};
 pub use source::{InMemorySource, ModelSource};
