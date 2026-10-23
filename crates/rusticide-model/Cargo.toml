@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+authors.workspace = true
+categories = ["algorithms"]
+description = "Family-independent model runtime for rusticide: sources, f32 weights and the KV cache"
+edition.workspace = true
+keywords = ["llm", "inference", "gguf", "kv-cache", "weights"]
+license.workspace = true
+name = "rusticide-model"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+half.workspace = true
+rusticide-core.workspace = true
+rusticide-io.workspace = true
+rusticide-kernels.workspace = true
+rusticide-sampling.workspace = true
+rusticide-tokenizer.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

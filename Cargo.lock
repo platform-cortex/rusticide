@@ -281,6 +281,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusticide-model"
+version = "0.2.0"
+dependencies = [
+ "half",
+ "rusticide-core",
+ "rusticide-io",
+ "rusticide-kernels",
+ "rusticide-sampling",
+ "rusticide-tokenizer",
+ "thiserror",
+]
+
+[[package]]
 name = "rusticide-quantize"
 version = "0.2.0"
 dependencies = [
