@@ -16,17 +16,7 @@ pub(super) fn softmax(input: &Tensor) -> Result<Tensor> {
         return Ok(Tensor::zeros(dims, DType::F32, Device::cpu())?);
     }
     for row in values.chunks_mut(row_len) {
-        let max = row
-            .iter()
-            .fold(f32::NEG_INFINITY, |acc, &value| acc.max(value));
-        let mut sum = 0.0;
-        for value in row.iter_mut() {
-            *value = (*value - max).exp();
-            sum += *value;
-        }
-        for value in row.iter_mut() {
-            *value /= sum;
-        }
+        rusticide_kernels::softmax(row);
     }
     Ok(Tensor::from_slice(&values, dims)?)
 }
@@ -43,22 +33,9 @@ pub(super) fn rms_norm(input: &Tensor, eps: f32) -> Result<Tensor> {
         .into());
     };
     for row in values.chunks_mut(row_len.max(1)) {
-        let mean_square =
-            row.iter().map(|&value| value * value).sum::<f32>() / row_len_as_f32(row_len);
-        let rms = (mean_square + eps).sqrt();
-        for value in row.iter_mut() {
-            *value /= rms;
-        }
+        rusticide_kernels::rms_norm(row, eps);
     }
     Ok(Tensor::from_slice(&values, dims)?)
-}
-
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "row lengths beyond 2^24 lose low bits of the mean, an accepted f32 rounding"
-)]
-const fn row_len_as_f32(row_len: usize) -> f32 {
-    row_len as f32
 }
 
 #[cfg(test)]

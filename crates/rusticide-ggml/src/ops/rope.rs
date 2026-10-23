@@ -21,23 +21,9 @@ pub(super) fn rope(input: &Tensor, theta: f32, dim_pairs: usize) -> Result<Tenso
         .into());
     };
     for (position, row) in values.chunks_mut(columns.max(1)).enumerate() {
-        for pair in 0..dim_pairs.min(columns / 2) {
-            let frequency = theta.powf(-lossy(2 * pair) / lossy(columns));
-            let (sin, cos) = (lossy(position) * frequency).sin_cos();
-            let (low, high) = (row[2 * pair], row[2 * pair + 1]);
-            row[2 * pair] = low.mul_add(cos, -high * sin);
-            row[2 * pair + 1] = high.mul_add(cos, low * sin);
-        }
+        rusticide_kernels::rope_adjacent(row, position, theta, dim_pairs);
     }
     Ok(Tensor::from_slice(&values, dims)?)
-}
-
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "positions and widths beyond 2^24 lose low bits of the angle, an accepted f32 rounding"
-)]
-const fn lossy(count: usize) -> f32 {
-    count as f32
 }
 
 #[cfg(test)]

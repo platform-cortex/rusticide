@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+authors.workspace = true
+categories = ["algorithms"]
+description = "Slice-level f32 kernels (dot, matvec, norms, rope, activations) shared by rusticide crates"
+edition.workspace = true
+keywords = ["kernels", "matvec", "softmax", "rope", "f32"]
+license.workspace = true
+name = "rusticide-kernels"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+rayon.workspace = true
+
+[lints]
+workspace = true

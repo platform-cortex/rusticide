@@ -11,7 +11,7 @@ pub(super) fn scale(input: &Tensor, factor: f32) -> Result<Tensor> {
 }
 
 pub(super) fn silu(input: &Tensor) -> Result<Tensor> {
-    map_f32(input, |value| value / (1.0 + (-value).exp()))
+    map_f32(input, rusticide_kernels::silu)
 }
 
 /// Applies `function` to every element, in place on the fallibly allocated
