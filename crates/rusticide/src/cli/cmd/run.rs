@@ -60,7 +60,8 @@ pub(crate) fn run_source(
     let mut sampler = Sampler::new(seed);
     let mut write_failure = None;
     let mut emit = |text: &str| -> Result<(), ModelError> {
-        out.write_all(text.as_bytes()).map_err(|error| {
+        let streamed = out.write_all(text.as_bytes()).and_then(|()| out.flush());
+        streamed.map_err(|error| {
             write_failure = Some(error);
             ModelError::InvalidConfig {
                 reason: "output write failed",
@@ -79,9 +80,10 @@ pub(crate) fn run_source(
         return Err(error.into());
     }
     let generation = generated?;
+    out.flush()?;
     writeln!(
         err,
-        "prompt: {} tokens, generated: {} tokens, {:.2} tokens/s",
+        "\nprompt: {} tokens, generated: {} tokens, {:.2} tokens/s",
         generation.prompt_tokens.len(),
         generation.generated_tokens.len(),
         tokens_per_second(generation.generated_tokens.len(), generation.elapsed),

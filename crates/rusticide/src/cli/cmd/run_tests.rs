@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::cell::RefCell;
 use std::io::{self, Write};
+use std::rc::Rc;
 use std::time::Duration;
 
 use rusticide_io::GGUFValue;
@@ -31,28 +33,11 @@ fn generate_with(args: &RunArgs) -> (String, String) {
     )
 }
 
-struct Broken;
-
-impl Write for Broken {
-    fn write(&mut self, _: &[u8]) -> io::Result<usize> {
-        Err(io::Error::other("closed"))
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-#[test]
-fn the_broken_stream_flushes_cleanly() {
-    assert!(Broken.flush().is_ok());
-}
-
 #[test]
 fn streams_text_from_a_tiny_model() {
     let (out, err) = generate_with(&args(Some(1)));
     assert_ne!(out, "");
-    assert!(err.starts_with("prompt: "), "{err}");
+    assert!(err.starts_with("\nprompt: "), "{err}");
     assert!(err.contains(" tokens, generated: 4 tokens, "), "{err}");
     assert!(err.ends_with(" tokens/s\n"), "{err}");
 }
@@ -93,15 +78,25 @@ fn reports_a_tokenizer_failure() {
 
 #[test]
 fn reports_a_failing_output_stream() {
-    let error =
-        run_source(&tiny_source(), &args(Some(1)), &mut Broken, &mut Vec::new()).unwrap_err();
+    let error = run_source(
+        &tiny_source(),
+        &args(Some(1)),
+        &mut Recorder::broken(&Log::default()),
+        &mut Vec::new(),
+    )
+    .unwrap_err();
     assert_eq!(format!("{error:#}"), "closed");
 }
 
 #[test]
 fn reports_a_failing_error_stream() {
-    let error =
-        run_source(&tiny_source(), &args(Some(1)), &mut Vec::new(), &mut Broken).unwrap_err();
+    let error = run_source(
+        &tiny_source(),
+        &args(Some(1)),
+        &mut Vec::new(),
+        &mut Recorder::broken(&Log::default()),
+    )
+    .unwrap_err();
     assert_eq!(format!("{error:#}"), "closed");
 }
 
@@ -126,4 +121,102 @@ fn rate_is_tokens_over_seconds() {
 #[test]
 fn rate_is_zero_when_no_time_elapsed() {
     assert!(tokens_per_second(10, Duration::ZERO).abs() < f64::EPSILON);
+}
+
+type Log = Rc<RefCell<Vec<String>>>;
+
+struct Recorder {
+    name: &'static str,
+    log: Log,
+    fail_write: bool,
+    fail_flush_at: Option<usize>,
+    flushes: usize,
+}
+
+impl Recorder {
+    fn new(name: &'static str, log: &Log) -> Self {
+        Self {
+            name,
+            log: Rc::clone(log),
+            fail_write: false,
+            fail_flush_at: None,
+            flushes: 0,
+        }
+    }
+
+    fn broken(log: &Log) -> Self {
+        Self {
+            fail_write: true,
+            ..Self::new("broken", log)
+        }
+    }
+}
+
+impl Write for Recorder {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        if self.fail_write {
+            return Err(io::Error::other("closed"));
+        }
+        let text = String::from_utf8_lossy(bytes);
+        self.log
+            .borrow_mut()
+            .push(format!("{} write {text}", self.name));
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.flushes += 1;
+        self.log.borrow_mut().push(format!("{} flush", self.name));
+        if self.fail_flush_at == Some(self.flushes) {
+            return Err(io::Error::other("flush closed"));
+        }
+        Ok(())
+    }
+}
+
+fn recorded_run(out: &mut Recorder, err: &mut Recorder) -> anyhow::Result<()> {
+    run_source(&tiny_source(), &args(Some(1)), out, err)
+}
+
+#[test]
+fn flushes_every_chunk_and_before_the_stats_line() {
+    let log = Log::default();
+    let (mut out, mut err) = (Recorder::new("out", &log), Recorder::new("err", &log));
+    recorded_run(&mut out, &mut err).unwrap();
+    let events = log.borrow();
+    let stats = events
+        .iter()
+        .position(|event| event.starts_with("err write"))
+        .unwrap();
+    assert!(
+        events[stats].starts_with("err write \nprompt: "),
+        "{events:?}"
+    );
+    assert_eq!(events[stats - 1], "out flush");
+    for (index, event) in events[..stats].iter().enumerate() {
+        if event.starts_with("out write") {
+            assert_eq!(events[index + 1], "out flush", "{events:?}");
+        }
+    }
+}
+
+#[test]
+fn reports_a_failing_chunk_flush() {
+    let log = Log::default();
+    let (mut out, mut err) = (Recorder::new("out", &log), Recorder::new("err", &log));
+    out.fail_flush_at = Some(1);
+    let error = recorded_run(&mut out, &mut err).unwrap_err();
+    assert_eq!(format!("{error:#}"), "flush closed");
+}
+
+#[test]
+fn reports_a_failing_final_flush() {
+    let log = Log::default();
+    let (mut out, mut err) = (Recorder::new("out", &log), Recorder::new("err", &log));
+    recorded_run(&mut out, &mut err).unwrap();
+    let total = out.flushes;
+    let (mut out, mut err) = (Recorder::new("out", &log), Recorder::new("err", &log));
+    out.fail_flush_at = Some(total);
+    let error = recorded_run(&mut out, &mut err).unwrap_err();
+    assert_eq!(format!("{error:#}"), "flush closed");
 }
