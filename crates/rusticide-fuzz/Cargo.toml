@@ -24,6 +24,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 rusticide-io = { path = "../rusticide-io" }
+rusticide-llama = { path = "../rusticide-llama" }
+rusticide-model = { path = "../rusticide-model" }
 rusticide-tokenizer = { path = "../rusticide-tokenizer" }
 
 [workspace]
@@ -40,4 +42,11 @@ bench = false
 doc = false
 name = "gguf_tokenizer"
 path = "fuzz_targets/gguf_tokenizer.rs"
+test = false
+
+[[bin]]
+bench = false
+doc = false
+name = "llama_load"
+path = "fuzz_targets/llama_load.rs"
 test = false

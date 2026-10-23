@@ -286,6 +286,7 @@ version = "0.2.0"
 dependencies = [
  "rusticide-core",
  "rusticide-io",
+ "rusticide-kernels",
  "rusticide-model",
  "rusticide-tokenizer",
 ]

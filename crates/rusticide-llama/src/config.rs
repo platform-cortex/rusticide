@@ -136,6 +136,17 @@ impl LlamaConfig {
             rms_norm_eps: metadata.rms_norm_eps().unwrap_or(DEFAULT_RMS_NORM_EPS),
         })
     }
+
+    /// Width of one key or value row: `head_count_kv * head_dim`.
+    ///
+    /// # Errors
+    ///
+    /// `InvalidConfig` when the product overflows.
+    pub fn kv_dim(&self) -> Result<usize> {
+        self.head_count_kv
+            .checked_mul(self.head_dim)
+            .ok_or(ModelError::InvalidConfig { reason: TOO_LARGE })
+    }
 }
 
 fn sizes_fit(embedding: usize, feed_forward: usize, kv_heads: usize, head_dim: usize) -> bool {

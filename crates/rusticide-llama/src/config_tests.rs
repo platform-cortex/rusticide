@@ -187,3 +187,21 @@ fn config_requires_the_token_embedding() {
         other => panic!("unexpected: {other:?}"),
     }
 }
+
+#[test]
+fn kv_dim_is_kv_heads_times_head_dim() {
+    let config = LlamaConfig::from_source(&tiny_source()).unwrap();
+    assert_eq!(config.kv_dim().unwrap(), 2);
+}
+
+#[test]
+fn kv_dim_reports_an_overflow() {
+    let mut config = LlamaConfig::from_source(&tiny_source()).unwrap();
+    config.head_count_kv = usize::MAX;
+    match config.kv_dim() {
+        Err(ModelError::InvalidConfig { reason }) => {
+            assert_eq!(reason, "model dimensions are too large");
+        }
+        other => panic!("unexpected: {other:?}"),
+    }
+}

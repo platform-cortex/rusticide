@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_model::{Matrix, ModelError, ModelSource, Result, load_vector};
+use rusticide_model::{Matrix, ModelSource, Result, load_vector};
 
 use crate::config::LlamaConfig;
 
@@ -63,13 +63,7 @@ impl BlockWeights {
     fn load(source: &dyn ModelSource, config: &LlamaConfig, index: usize) -> Result<Self> {
         let embedding = config.embedding_length;
         let feed_forward = config.feed_forward_length;
-        let kv_dim =
-            config
-                .head_count_kv
-                .checked_mul(config.head_dim)
-                .ok_or(ModelError::InvalidConfig {
-                    reason: "model dimensions are too large",
-                })?;
+        let kv_dim = config.kv_dim()?;
         let name = |part: &str| format!("blk.{index}.{part}.weight");
         let matrix =
             |part: &str, rows: usize, cols: usize| Matrix::load(source, &name(part), rows, cols);

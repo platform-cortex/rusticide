@@ -29,9 +29,10 @@ the explicit `--fuzz-dir .` flag shown below.
 | ------ | ----------- | --------- |
 | `gguf_load` | `GgufFile::from_bytes` | Panics, out-of-bounds reads, and unbounded allocations from a malformed GGUF header, then every tensor via `tensor_by_index` |
 | `gguf_tokenizer` | `Tokenizer::from_gguf` + `encode`/`decode` | Panics from vocab/score/special-token metadata that disagrees with itself, including out-of-range ids |
+| `llama_load` | `rusticide_llama::load` + one `forward` | Panics from llama hyperparameters or tensor shapes that are zero, overflow, or disagree with each other |
 
-Both feed the input straight to `GgufFile::from_bytes`; inputs under 24 bytes
-(the GGUF header size) are skipped.
+All three feed the input straight to `GgufFile::from_bytes`; inputs under 24
+bytes (the GGUF header size) are skipped.
 
 ## Running
 
