@@ -43,12 +43,12 @@ rusticide-model    -> core, io, kernels, sampling, tokenizer
 rusticide-llama    -> core, io, kernels, model
 rusticide-ggml     -> core, kernels
 
-rusticide-fuzz (own workspace) -> rusticide-io, rusticide-tokenizer
+rusticide-fuzz (own workspace) -> io, llama, model, tokenizer
 ```
 
 The `cli` feature enables `schema`, `dispatch` and `models`; `models` enables
-`io` and pulls in the model crates. `rusticide-io` is reachable
-through the facade's `io` feature but is not part of `cli`.
+`io` and pulls in the model crates, so `rusticide-io` is part of `cli`. The
+facade's `io` feature also exposes it without the CLI.
 
 ## Layers
 
@@ -70,7 +70,8 @@ From the bottom up:
    one implementation; `rusticide-ggml` delegates to it. `rusticide-model`
    defines the `Model` contract, the architecture registry, the KV cache and
    the streaming `generate` loop. `rusticide-llama` implements the llama
-   family against that contract and registers itself in the registry.
+   family against that contract. It does not register itself: the CLI registers
+   it in `crates/rusticide/src/cli/registry.rs`, one line in one place.
 6. **Facade.** `rusticide` re-exports the public API of the layers below
    behind feature gates and embeds the CLI. Only `rusticide-core` is a
    non-optional dependency, so a library consumer never builds `clap`.

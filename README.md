@@ -60,8 +60,8 @@ Everything lives under `crates/`:
   and streaming generation loop.
 - `rusticide-llama` -- the llama model family: configuration, weights and the
   forward pass.
-- `rusticide-fuzz` -- libFuzzer targets for the GGUF reader and tokenizer; its
-  own workspace, not published.
+- `rusticide-fuzz` -- libFuzzer targets for the GGUF reader, the tokenizer and
+  loading a llama model (`llama_load`); its own workspace, not published.
 
 ## Getting started
 
