@@ -548,6 +548,12 @@ into sub-projects, each getting its own spec, plan, and implementation
 cycle. This document designs the whole; only SP0 and SP1 are planned
 immediately.
 
+> **Amended 2026-10-22.** The three milestones of
+> [`rusticide run`](2026-10-22-rusticide-run-design.md) (TinyLlama, then
+> Qwen, then BitNet) come before SP2-SP7. They build the model contract and
+> the first inference path on the SP1 foundation; the sub-projects below
+> follow in their stated order afterwards.
+
 - **SP0 -- Rename and restructure.** `rusticide-*` becomes `rusticide-*`;
   package metadata, git remote, and documentation follow. The facade
   crate is created. Single-file crates are split into modules under 300

@@ -6,7 +6,8 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Architecture
 
-This is the map of the workspace as it stands at the end of SP1. The reasoning
+This is the map of the workspace as it stands at the end of milestone 1 of
+`rusticide run`. The reasoning
 behind it -- why the framework is shaped like PyTorch, what the oracle is, how
 the sub-projects are cut -- lives in the
 [design document](plan/2026-08-21-rusticide-framework-design.md), and the
@@ -24,6 +25,9 @@ rusticide (facade)
   |-- rusticide-dispatch -> core          feature "dispatch"
   |-- rusticide-io -> core, quantize      feature "io"
   |-- rusticide-schema                    feature "schema"
+  |-- rusticide-tokenizer                 feature "models"
+  |-- rusticide-sampling                  feature "models"
+  |-- rusticide-model, rusticide-llama    feature "models"
   `-- clap, anyhow                        feature "cli"
 
 rusticide-core -> rusticide-alloc
@@ -32,14 +36,19 @@ rusticide-schema   -> (no workspace crates)
 
 rusticide-quantize -> rusticide-core
 rusticide-io       -> rusticide-core, rusticide-quantize
-rusticide-ggml     -> rusticide-core
 rusticide-sampling -> rusticide-core
 rusticide-tokenizer -> rusticide-io
+
+rusticide-kernels  -> (no workspace crates)
+rusticide-model    -> core, io, kernels, sampling, tokenizer
+rusticide-llama    -> core, io, kernels, model
+rusticide-ggml     -> core, kernels
 
 rusticide-fuzz (own workspace) -> rusticide-io, rusticide-tokenizer
 ```
 
-The `cli` feature enables `schema` and `dispatch`. `rusticide-io` is reachable
+The `cli` feature enables `schema`, `dispatch` and `models`; `models` enables
+`io` and pulls in the model crates. `rusticide-io` is reachable
 through the facade's `io` feature but is not part of `cli`.
 
 ## Layers
@@ -58,13 +67,20 @@ From the bottom up:
    types: it parses and prints operator schemas and nothing else.
 4. **Formats.** `rusticide-quantize` defines the block quantization formats;
    `rusticide-io` reads GGUF files and dequantizes through it.
-5. **Facade.** `rusticide` re-exports the public API of the layers below
+5. **Models.** `rusticide-kernels` holds the f32 kernels, each with exactly
+   one implementation; `rusticide-ggml` delegates to it. `rusticide-model`
+   defines the `Model` contract, the architecture registry, the KV cache and
+   the streaming `generate` loop. `rusticide-llama` implements the llama
+   family against that contract and registers itself in the registry.
+6. **Facade.** `rusticide` re-exports the public API of the layers below
    behind feature gates and embeds the CLI. Only `rusticide-core` is a
    non-optional dependency, so a library consumer never builds `clap`.
 
 `rusticide-ggml`, `rusticide-sampling` and `rusticide-tokenizer` sit beside
 the layers rather than in them. They are consumers of the framework: nothing
-in the graph depends on them.
+in the framework layers depends on them. The model crates build on
+`rusticide-sampling` and `rusticide-tokenizer` rather than the other way
+round.
 
 ## SP1 foundation versus rewired legacy
 
@@ -77,6 +93,12 @@ The crates fall in two groups.
 - `rusticide-dispatch`
 - `rusticide-schema`
 - `rusticide` (the facade and its CLI)
+
+**Written for `rusticide run` milestone 1:**
+
+- `rusticide-kernels`
+- `rusticide-model`
+- `rusticide-llama`
 
 **Legacy crates, rewired onto the new core:**
 

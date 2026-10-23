@@ -80,7 +80,13 @@ including one non-ASCII prompt (e.g. Portuguese with accents).
 Speed is secondary: the target is at least **2 tokens/s** for TinyLlama on
 the development machine (Apple Silicon, many cores, 128 GiB). It is a
 target, not a release blocker and not a CI gate: each milestone measures
-and records tokens/s in its release notes. Parallelizing the matrix
+and records tokens/s in its release notes.
+
+> **Amended 2026-10-23.** The development machine is not Apple Silicon:
+> it is an Intel Xeon W-2150B (10 cores / 20 threads, 128 GiB, macOS
+> x86_64). The 2 tokens/s target stands unchanged.
+
+Parallelizing the matrix
 products with rayon (already a workspace dependency) is part of milestone 1
 regardless, because it is cheap.
 

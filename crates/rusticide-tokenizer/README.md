@@ -10,8 +10,8 @@ BPE and SentencePiece tokenizer for LLM text processing.
 
 Builds a `Tokenizer` from the `tokenizer.ggml.*` keys of a GGUF
 `rusticide_io::Metadata` store, encodes text into token IDs and decodes token
-IDs back to text. Supports the `llama` (SentencePiece unigram, Viterbi) and
-`gpt2` (byte-level BPE) models, compatible with llama.cpp.
+IDs back to text. Supports the `llama` (SentencePiece unigram, encoded with llama.cpp's score-ordered pair
+merging) and `gpt2` (byte-level BPE) models, compatible with llama.cpp.
 
 ## License
 
