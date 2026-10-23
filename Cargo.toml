@@ -21,7 +21,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/platform-cortex/rusticide"
 rust-version = "1.88"
-version = "0.2.0"
+version = "0.3.0"
 
 [workspace.lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
@@ -87,18 +87,18 @@ num-traits = { version = ">=0,<1" }
 rayon = { version = ">=1,<2.0.0" }
 reqwest = { version = ">=0,<1.0.0", features = ["json", "__tls"] }
 ### Workspaced Crates
-rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.2.0" }
-rusticide-core = { path = "crates/rusticide-core", version = "0.2.0" }
-rusticide-dispatch = { path = "crates/rusticide-dispatch", version = "0.2.0" }
-rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.2.0" }
-rusticide-io = { path = "crates/rusticide-io", version = "0.2.0" }
-rusticide-kernels = { path = "crates/rusticide-kernels", version = "0.2.0" }
-rusticide-llama = { path = "crates/rusticide-llama", version = "0.2.0" }
-rusticide-model = { path = "crates/rusticide-model", version = "0.2.0" }
-rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.2.0" }
-rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.2.0" }
-rusticide-schema = { path = "crates/rusticide-schema", version = "0.2.0" }
-rusticide-tokenizer = { path = "crates/rusticide-tokenizer", version = "0.2.0" }
+rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.3.0" }
+rusticide-core = { path = "crates/rusticide-core", version = "0.3.0" }
+rusticide-dispatch = { path = "crates/rusticide-dispatch", version = "0.3.0" }
+rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.3.0" }
+rusticide-io = { path = "crates/rusticide-io", version = "0.3.0" }
+rusticide-kernels = { path = "crates/rusticide-kernels", version = "0.3.0" }
+rusticide-llama = { path = "crates/rusticide-llama", version = "0.3.0" }
+rusticide-model = { path = "crates/rusticide-model", version = "0.3.0" }
+rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.3.0" }
+rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.3.0" }
+rusticide-schema = { path = "crates/rusticide-schema", version = "0.3.0" }
+rusticide-tokenizer = { path = "crates/rusticide-tokenizer", version = "0.3.0" }
 serde = { version = ">=1,<2.0.0", features = ["derive"] }
 serde_json = { version = ">=1,<2.0.0" }
 thiserror = { version = ">=2,<3.0.0" }

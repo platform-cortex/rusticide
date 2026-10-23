@@ -12,7 +12,7 @@ Pure-Rust deep learning framework: the facade crate and its command line.
 
 ```toml
 [dependencies]
-rusticide = "0.2"
+rusticide = "0.3"
 ```
 
 ```rust

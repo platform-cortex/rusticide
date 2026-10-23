@@ -2,7 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.0] - 2026-10-22
+## [0.3.0] - 2026-10-23
+
+### Features
+
+- **kernels:** add shared f32 kernels and route ggml through them
+- **model:** add model sources, f32 weights and the KV cache
+- **model:** add the Model contract and architecture registry
+- **model:** add the streaming generation loop
+- **llama:** read llama configuration and weights
+- **llama:** run the llama forward pass with a KV cache
+- **rusticide:** add the run subcommand
+
+### Bug Fixes
+
+- **tokenizer:** decode SentencePiece pieces to text like llama.cpp
+- **tokenizer:** encode SentencePiece text with llama.cpp's merge order
+- **rusticide:** flush streamed text as it is generated
+
+### Documentation
+
+- **plan:** design end-to-end text generation with rusticide run
+- **plan:** plan milestone 1 of rusticide run (TinyLlama)
+- document rusticide run and the reordered roadmap
+- fix the crate graph and wrap long lines
+- correct the crate graph and fuzz coverage
+
+### Testing
+
+- **llama:** pin greedy parity with llama.cpp on TinyLlama
+- **llama:** pin the embedding overflow checks
+## [0.2.0] - 2026-10-23
 
 ### Features
 
@@ -44,6 +74,7 @@ All notable changes to this project will be documented in this file.
 - **tokenizer:** binary-search sorted trie edges
 - **mise:** resolve the lockfile online in release:prepare
 - **sampling:** reject non-finite logits in greedy sampling
+- **changelog:** give git-cliff a body template and a [git] table
 
 ### Refactor
 
