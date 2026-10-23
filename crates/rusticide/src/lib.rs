@@ -29,6 +29,8 @@ pub use rusticide_core::{
 pub use rusticide_dispatch as dispatch;
 #[cfg(feature = "io")]
 pub use rusticide_io as io;
+#[cfg(feature = "models")]
+pub use rusticide_model as model;
 #[cfg(feature = "schema")]
 pub use rusticide_schema as schema;
 

@@ -5,9 +5,11 @@
 //! The clap command line behind the `cli` feature.
 
 mod cmd;
+mod registry;
 
 use std::ffi::OsString;
 use std::io::Write;
+use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
@@ -25,6 +27,29 @@ enum Command {
     Schema {
         /// The schema, e.g. `add.Tensor(Tensor self, Tensor other) -> Tensor`
         schema: String,
+    },
+    /// Generate text from a GGUF model
+    Run {
+        /// The GGUF model file
+        model: PathBuf,
+        /// The prompt to complete
+        #[arg(long)]
+        prompt: String,
+        /// The maximum number of tokens to generate
+        #[arg(short = 'n', long, default_value_t = 128)]
+        max_tokens: usize,
+        /// The sampling temperature; 0 means greedy
+        #[arg(long, default_value_t = 0.8)]
+        temperature: f32,
+        /// Keep only the k most likely tokens
+        #[arg(long, default_value_t = 40)]
+        top_k: u32,
+        /// Nucleus sampling probability mass
+        #[arg(long, default_value_t = 0.95)]
+        top_p: f32,
+        /// The sampler seed; random when absent
+        #[arg(long)]
+        seed: Option<u64>,
     },
     /// Print the version
     Version,
@@ -51,7 +76,7 @@ where
             return 0;
         }
     };
-    match execute(cli.command, out) {
+    match execute(cli.command, out, err) {
         Ok(()) => 0,
         Err(error) => {
             let _ = writeln!(err, "error: {error:#}");
@@ -60,8 +85,29 @@ where
     }
 }
 
-fn execute(command: Command, out: &mut impl Write) -> anyhow::Result<()> {
+fn execute(command: Command, out: &mut impl Write, err: &mut impl Write) -> anyhow::Result<()> {
     match command {
+        Command::Run {
+            model,
+            prompt,
+            max_tokens,
+            temperature,
+            top_k,
+            top_p,
+            seed,
+        } => cmd::run::run(
+            &cmd::run::RunArgs {
+                model,
+                prompt,
+                max_tokens,
+                temperature,
+                top_k,
+                top_p,
+                seed,
+            },
+            out,
+            err,
+        ),
         Command::Schema { schema } => cmd::schema::run(&schema, out),
         Command::Version => Ok(cmd::version::run(out)?),
     }

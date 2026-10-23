@@ -229,7 +229,11 @@ dependencies = [
  "rusticide-core",
  "rusticide-dispatch",
  "rusticide-io",
+ "rusticide-llama",
+ "rusticide-model",
+ "rusticide-sampling",
  "rusticide-schema",
+ "rusticide-tokenizer",
 ]
 
 [[package]]

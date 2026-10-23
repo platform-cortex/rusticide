@@ -43,7 +43,10 @@ fn the_version_subcommand_prints_the_same_line() {
 fn help_lists_the_subcommands_on_stdout() {
     let (code, out, err) = invoke(&["rusticide", "--help"]);
     assert_eq!(code, 0);
-    assert!(out.contains("schema") && out.contains("version"), "{out}");
+    assert!(
+        out.contains("schema") && out.contains("version") && out.contains("run"),
+        "{out}"
+    );
     assert_eq!(err, "");
 }
 
@@ -78,4 +81,32 @@ fn an_invalid_schema_fails_with_the_parse_error_on_stderr() {
     assert_eq!(code, 1);
     assert_eq!(out, "");
     assert_eq!(err, "error: malformed schema: not a schema\n");
+}
+
+#[test]
+fn run_reports_a_missing_file() {
+    let (code, out, err) = invoke(&["rusticide", "run", "/nonexistent.gguf", "--prompt", "x"]);
+    assert_eq!(code, 1);
+    assert_eq!(out, "");
+    assert!(err.starts_with("error: "), "{err}");
+}
+
+#[test]
+fn run_reports_a_non_gguf_file() {
+    let path = std::env::temp_dir().join(format!("rusticide-junk-{}.gguf", std::process::id()));
+    std::fs::write(&path, b"this is not a gguf file").unwrap();
+    let path_text = path.to_str().unwrap().to_owned();
+    let (code, out, err) = invoke(&["rusticide", "run", &path_text, "--prompt", "x"]);
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(code, 1);
+    assert_eq!(out, "");
+    assert!(err.starts_with("error: cannot load "), "{err}");
+}
+
+#[test]
+fn run_requires_a_prompt() {
+    let (code, out, err) = invoke(&["rusticide", "run", "model.gguf"]);
+    assert_eq!(code, 2);
+    assert_eq!(out, "");
+    assert!(err.contains("--prompt"), "{err}");
 }
