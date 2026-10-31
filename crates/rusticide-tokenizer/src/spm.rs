@@ -4,6 +4,7 @@
 
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
+use crate::special::{Fragment, partition};
 use crate::tokenizer::Tokenizer;
 
 const SPACE_MARKER: &str = "\u{2581}";
@@ -11,29 +12,38 @@ const SPACE_MARKER: &str = "\u{2581}";
 impl Tokenizer {
     /// Encode text to token IDs.
     ///
+    /// Like llama.cpp with `parse_special`, the text of every special token
+    /// (unknown, control or user-defined) becomes that token's id; only the
+    /// text between them is tokenized.
+    ///
     /// # Errors
     ///
     /// Returns `EncodeError` if the text cannot be encoded.
     pub fn encode(&self, text: &str) -> Result<Vec<u32>> {
-        let tokens = if text.is_empty() {
-            Vec::new()
-        } else {
-            match self.model {
-                TokenizerModel::LLaMA => self.encode_llama(text)?,
-                TokenizerModel::GPT2 => self.encode_gpt2(text)?,
-            }
-        };
+        let mut tokens = Vec::new();
         if self.add_bos {
-            let mut result = vec![self.bos_id];
-            result.extend(tokens);
-            Ok(result)
-        } else {
-            Ok(tokens)
+            tokens.push(self.bos_id);
+        }
+        for fragment in partition(text, &self.special_tokens) {
+            match fragment {
+                Fragment::Token(token) => tokens.push(token),
+                Fragment::Text(piece) => tokens.extend(self.encode_text(piece)?),
+            }
+        }
+        Ok(tokens)
+    }
+
+    fn encode_text(&self, text: &str) -> Result<Vec<u32>> {
+        match self.model {
+            TokenizerModel::LLaMA => self.encode_llama(text),
+            TokenizerModel::GPT2 => self.encode_gpt2(text),
         }
     }
 
     /// `LLaMA` / `SentencePiece` encoding as llama.cpp does it: merge pieces
     /// by score, then spell any symbol that is not a piece as byte pieces.
+    /// llama.cpp prefixes every text fragment, not only the first: each one
+    /// starts the prompt or follows a special token.
     fn encode_llama(&self, text: &str) -> Result<Vec<u32>> {
         let prefix = if self.add_space_prefix { " " } else { "" };
         let normalized = format!("{prefix}{text}").replace(' ', SPACE_MARKER);

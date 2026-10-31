@@ -44,6 +44,7 @@ pub struct Tokenizer {
     pub(crate) byte_tokens: [Option<u32>; 256],
     pub(crate) pre: Option<PreTokenizer>,
     pub(crate) end_of_generation: Vec<u32>,
+    pub(crate) special_tokens: Vec<(String, u32)>,
 }
 
 impl Tokenizer {
@@ -86,6 +87,7 @@ impl Tokenizer {
             add_space_prefix,
             merge_info: HashMap::new(),
             end_of_generation: vec![eos_id],
+            special_tokens: Vec::new(),
         }
     }
 

@@ -12,6 +12,7 @@ mod error;
 mod from_gguf;
 mod model;
 mod pre_tokenizer;
+mod special;
 mod spm;
 mod spm_merge;
 mod tokenizer;

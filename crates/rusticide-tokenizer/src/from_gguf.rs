@@ -10,6 +10,7 @@ use crate::end_of_generation::end_of_generation_ids;
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
 use crate::pre_tokenizer::PreTokenizer;
+use crate::special::special_tokens;
 use crate::tokenizer::{MergeLookup, Tokenizer, byte_tokens_for, pad_scores, token_id};
 use crate::trie::Trie;
 use crate::value_ext::GGUFValueExt;
@@ -67,6 +68,14 @@ fn read_scores(metadata: &Metadata) -> Result<Vec<f32>> {
             Err(_) => Ok(0.0),
         })
         .collect()
+}
+
+fn read_special_tokens(metadata: &Metadata, vocab: &[String]) -> Result<Vec<(String, u32)>> {
+    metadata
+        .get("tokenizer.ggml.token_type")
+        .map_or(Ok(Vec::new()), |types| {
+            Ok(special_tokens(vocab, types.as_array()?))
+        })
 }
 
 fn read_id(metadata: &Metadata, key: &str, default: u32) -> Result<u32> {
@@ -152,6 +161,7 @@ impl Tokenizer {
         let add_bos = read_flag(metadata, "tokenizer.ggml.add_bos_token", is_llama);
         let add_space_prefix = read_flag(metadata, "tokenizer.ggml.add_space_prefix", is_llama);
         let merge_info = read_merges(metadata, model, &vocab_strings)?;
+        let special_tokens = read_special_tokens(metadata, &vocab_strings)?;
         let vocab: Vec<Vec<u8>> = vocab_strings.into_iter().map(String::into_bytes).collect();
         let byte_tokens = byte_tokens_for(model, &vocab);
         require_byte_tokens(model, &byte_tokens)?;
@@ -169,6 +179,7 @@ impl Tokenizer {
             add_bos,
             add_space_prefix,
             merge_info,
+            special_tokens,
         })
     }
 
