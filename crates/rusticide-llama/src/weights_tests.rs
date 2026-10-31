@@ -6,11 +6,12 @@ use rusticide_core::Tensor;
 use rusticide_model::{InMemorySource, ModelError};
 
 use super::LlamaWeights;
+use crate::Variant;
 use crate::config::LlamaConfig;
 use crate::testing::{TINY_VOCAB, TinySource, tiny_source};
 
 fn load(source: &InMemorySource) -> rusticide_model::Result<LlamaWeights> {
-    let config = LlamaConfig::from_source(source)?;
+    let config = LlamaConfig::from_source(source, Variant::Llama)?;
     LlamaWeights::load(source, &config)
 }
 
@@ -100,7 +101,7 @@ fn weights_load_a_huge_block_count_without_allocating_for_it() {
 
 #[test]
 fn weights_reject_a_config_whose_kv_dimension_overflows() {
-    let mut config = LlamaConfig::from_source(&tiny_source()).unwrap();
+    let mut config = LlamaConfig::from_source(&tiny_source(), Variant::Llama).unwrap();
     config.head_count_kv = usize::MAX;
     match LlamaWeights::load(&tiny_source(), &config) {
         Err(ModelError::InvalidConfig { reason }) => {

@@ -17,7 +17,7 @@ mod test_support;
 pub use dot::{dot, matvec};
 pub use elementwise::{add_assign, mul_assign, silu};
 pub use norm::{rms_norm, softmax};
-pub use rope::rope_adjacent;
+pub use rope::{rope_adjacent, rope_half_split};
 
 #[expect(
     clippy::cast_precision_loss,

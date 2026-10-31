@@ -5,9 +5,12 @@
 use rusticide_io::{GGUFValue, Metadata};
 use rusticide_model::{ModelError, ModelSource, Result};
 
+use crate::variant::Variant;
+
 /// Hyperparameters of a llama model, validated against its source.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LlamaConfig {
+    pub variant: Variant,
     pub vocab_size: usize,
     pub embedding_length: usize,
     pub block_count: usize,
@@ -21,7 +24,6 @@ pub struct LlamaConfig {
 }
 
 const TOO_LARGE: &str = "model dimensions are too large";
-const ROPE_DIMENSION_KEY: &str = "llama.rope.dimension_count";
 const DEFAULT_ROPE_FREQ_BASE: f32 = 10_000.0;
 const DEFAULT_RMS_NORM_EPS: f32 = 1e-5;
 
@@ -29,9 +31,9 @@ fn to_usize(value: u64) -> Result<usize> {
     usize::try_from(value).map_err(|_| ModelError::InvalidConfig { reason: TOO_LARGE })
 }
 
-fn required(value: Option<u64>, key: &str) -> Result<usize> {
+fn required(value: Option<u64>, variant: Variant, suffix: &str) -> Result<usize> {
     to_usize(value.ok_or_else(|| ModelError::MissingMetadata {
-        key: key.to_owned(),
+        key: format!("{}.{suffix}", variant.architecture()),
     })?)
 }
 
@@ -43,8 +45,9 @@ const fn ensure(condition: bool, reason: &'static str) -> Result<()> {
     }
 }
 
-fn ensure_rope_dimension(metadata: &Metadata, head_dim: usize) -> Result<()> {
-    let Some(value) = metadata.get(ROPE_DIMENSION_KEY) else {
+fn ensure_rope_dimension(metadata: &Metadata, variant: Variant, head_dim: usize) -> Result<()> {
+    let key = format!("{}.rope.dimension_count", variant.architecture());
+    let Some(value) = metadata.get(&key) else {
         return Ok(());
     };
     let dimension = match *value {
@@ -86,14 +89,17 @@ impl LlamaConfig {
     /// `MissingMetadata` for an absent required key, `MissingTensor` without
     /// `token_embd.weight`, and `InvalidConfig` for any inconsistent or
     /// overflowing dimension.
-    pub fn from_source(source: &dyn ModelSource) -> Result<Self> {
+    pub fn from_source(source: &dyn ModelSource, variant: Variant) -> Result<Self> {
         let metadata = source.metadata();
-        let context_length = required(metadata.context_length(), "llama.context_length")?;
-        let embedding_length = required(metadata.embedding_length(), "llama.embedding_length")?;
-        let block_count = required(metadata.block_count(), "llama.block_count")?;
-        let feed_forward_length =
-            required(metadata.feed_forward_length(), "llama.feed_forward_length")?;
-        let head_count = required(metadata.head_count(), "llama.attention.head_count")?;
+        let context_length = required(metadata.context_length(), variant, "context_length")?;
+        let embedding_length = required(metadata.embedding_length(), variant, "embedding_length")?;
+        let block_count = required(metadata.block_count(), variant, "block_count")?;
+        let feed_forward_length = required(
+            metadata.feed_forward_length(),
+            variant,
+            "feed_forward_length",
+        )?;
+        let head_count = required(metadata.head_count(), variant, "attention.head_count")?;
         let head_count_kv = metadata.head_count_kv().map_or(Ok(head_count), to_usize)?;
         ensure(head_count != 0, "head count must be non-zero")?;
         ensure(
@@ -122,8 +128,9 @@ impl LlamaConfig {
             ),
             TOO_LARGE,
         )?;
-        ensure_rope_dimension(metadata, head_dim)?;
+        ensure_rope_dimension(metadata, variant, head_dim)?;
         Ok(Self {
+            variant,
             vocab_size: vocab_size(source, embedding_length)?,
             embedding_length,
             block_count,
@@ -161,3 +168,7 @@ fn sizes_fit(embedding: usize, feed_forward: usize, kv_heads: usize, head_dim: u
 #[cfg(test)]
 #[path = "config_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "config_qwen2_tests.rs"]
+mod qwen2_tests;

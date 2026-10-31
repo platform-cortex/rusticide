@@ -7,10 +7,11 @@ use rusticide_io::GGUFValue;
 use rusticide_model::{InMemorySource, ModelError};
 
 use super::LlamaConfig;
+use crate::Variant;
 use crate::testing::{TINY_VOCAB, TinySource, tiny_source};
 
 fn invalid(source: &InMemorySource, expected: &'static str) {
-    let result = LlamaConfig::from_source(source);
+    let result = LlamaConfig::from_source(source, Variant::Llama);
     assert!(
         matches!(&result, Err(ModelError::InvalidConfig { reason }) if *reason == expected),
         "unexpected: {result:?}"
@@ -25,7 +26,7 @@ fn with(key: &str, value: u32) -> InMemorySource {
 
 #[test]
 fn config_reads_tiny_source() {
-    let config = LlamaConfig::from_source(&tiny_source()).unwrap();
+    let config = LlamaConfig::from_source(&tiny_source(), Variant::Llama).unwrap();
     assert_eq!(config.vocab_size, TINY_VOCAB);
     assert_eq!(config.embedding_length, 4);
     assert_eq!(config.block_count, 1);
@@ -37,7 +38,7 @@ fn config_reads_tiny_source() {
 
 #[test]
 fn config_defaults_rope_base_and_eps() {
-    let config = LlamaConfig::from_source(&tiny_source()).unwrap();
+    let config = LlamaConfig::from_source(&tiny_source(), Variant::Llama).unwrap();
     assert!((config.rope_freq_base - 10000.0).abs() < f32::EPSILON);
     assert!((config.rms_norm_eps - 1e-5).abs() < f32::EPSILON);
 }
@@ -52,7 +53,7 @@ fn config_reads_explicit_rope_base_eps_and_kv_heads() {
         )
         .without_metadata("llama.attention.head_count_kv")
         .build();
-    let config = LlamaConfig::from_source(&source).unwrap();
+    let config = LlamaConfig::from_source(&source, Variant::Llama).unwrap();
     assert!((config.rope_freq_base - 500.0).abs() < f32::EPSILON);
     assert!((config.rms_norm_eps - 1e-6).abs() < f32::EPSILON);
     assert_eq!(config.head_count_kv, 2);
@@ -63,7 +64,7 @@ fn config_requires_context_length() {
     let source = TinySource::new()
         .without_metadata("llama.context_length")
         .build();
-    match LlamaConfig::from_source(&source) {
+    match LlamaConfig::from_source(&source, Variant::Llama) {
         Err(ModelError::MissingMetadata { key }) => assert_eq!(key, "llama.context_length"),
         other => panic!("unexpected: {other:?}"),
     }
@@ -119,11 +120,13 @@ fn config_rejects_a_mismatched_rope_dimension() {
 
 #[test]
 fn config_accepts_a_matching_rope_dimension() {
-    assert!(LlamaConfig::from_source(&with("llama.rope.dimension_count", 2)).is_ok());
+    assert!(
+        LlamaConfig::from_source(&with("llama.rope.dimension_count", 2), Variant::Llama).is_ok()
+    );
     let wide = TinySource::new()
         .with_metadata("llama.rope.dimension_count", GGUFValue::Uint64(2))
         .build();
-    assert!(LlamaConfig::from_source(&wide).is_ok());
+    assert!(LlamaConfig::from_source(&wide, Variant::Llama).is_ok());
 }
 
 #[test]
@@ -207,7 +210,7 @@ fn config_requires_the_token_embedding() {
     let source = TinySource::new()
         .without_tensor("token_embd.weight")
         .build();
-    match LlamaConfig::from_source(&source) {
+    match LlamaConfig::from_source(&source, Variant::Llama) {
         Err(ModelError::MissingTensor { name }) => assert_eq!(name, "token_embd.weight"),
         other => panic!("unexpected: {other:?}"),
     }
@@ -215,13 +218,13 @@ fn config_requires_the_token_embedding() {
 
 #[test]
 fn kv_dim_is_kv_heads_times_head_dim() {
-    let config = LlamaConfig::from_source(&tiny_source()).unwrap();
+    let config = LlamaConfig::from_source(&tiny_source(), Variant::Llama).unwrap();
     assert_eq!(config.kv_dim().unwrap(), 2);
 }
 
 #[test]
 fn kv_dim_reports_an_overflow() {
-    let mut config = LlamaConfig::from_source(&tiny_source()).unwrap();
+    let mut config = LlamaConfig::from_source(&tiny_source(), Variant::Llama).unwrap();
     config.head_count_kv = usize::MAX;
     match config.kv_dim() {
         Err(ModelError::InvalidConfig { reason }) => {

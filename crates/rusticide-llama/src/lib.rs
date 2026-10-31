@@ -8,6 +8,7 @@ mod attention;
 mod config;
 mod feed_forward;
 mod model;
+mod variant;
 mod weights;
 
 #[cfg(any(test, feature = "testing"))]
@@ -18,4 +19,5 @@ mod test_support;
 
 pub use config::LlamaConfig;
 pub use model::{Llama, load};
+pub use variant::{RopeStyle, Variant};
 pub use weights::{BlockWeights, LlamaWeights};

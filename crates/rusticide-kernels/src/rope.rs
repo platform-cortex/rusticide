@@ -19,6 +19,22 @@ pub fn rope_adjacent(row: &mut [f32], position: usize, theta: f32, dim_pairs: us
     }
 }
 
+/// Rotates the half-split pairs `(p, p + row.len() / 2)` for
+/// `p < min(dim_pairs, row.len() / 2)` by angle
+/// `position * theta^(-2p / row.len())`.
+pub fn rope_half_split(row: &mut [f32], position: usize, theta: f32, dim_pairs: usize) {
+    let columns = lossy(row.len());
+    let position = lossy(position);
+    let (first, second) = row.split_at_mut(row.len() / 2);
+    for (pair, (low, high)) in first.iter_mut().zip(second).take(dim_pairs).enumerate() {
+        let frequency = theta.powf(-lossy(2 * pair) / columns);
+        let (sin, cos) = (position * frequency).sin_cos();
+        let (old_low, old_high) = (*low, *high);
+        *low = old_low.mul_add(cos, -old_high * sin);
+        *high = old_high.mul_add(cos, old_low * sin);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -54,5 +70,37 @@ mod tests {
         let mut row = [1.0, 0.0, 7.0];
         rope_adjacent(&mut row, 1, 10000.0, 4);
         assert_eq!(row[2], 7.0);
+    }
+
+    #[test]
+    fn rope_half_split_rotates_halves() {
+        let mut row = [1.0, 1.0, 0.0, 0.0];
+        rope_half_split(&mut row, 1, 10000.0, 2);
+        let slow = 10000.0_f32.powf(-2.0 / 4.0);
+        assert_close(
+            &row,
+            &[1.0_f32.cos(), slow.cos(), 1.0_f32.sin(), slow.sin()],
+        );
+    }
+
+    #[test]
+    fn rope_half_split_at_position_zero_is_identity() {
+        let mut row = [1.0, 2.0, 3.0, 4.0];
+        rope_half_split(&mut row, 0, 10000.0, 2);
+        assert_close(&row, &[1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn rope_half_split_rotates_only_dim_pairs_pairs() {
+        let mut row = [1.0, 1.0, 0.0, 0.0];
+        rope_half_split(&mut row, 1, 10000.0, 1);
+        assert_close(&row, &[1.0_f32.cos(), 1.0, 1.0_f32.sin(), 0.0]);
+    }
+
+    #[test]
+    fn rope_half_split_ignores_a_trailing_unpaired_column() {
+        let mut row = [1.0, 0.0, 0.0, 7.0, 0.0];
+        rope_half_split(&mut row, 1, 10000.0, 4);
+        assert_eq!(row[4], 0.0);
     }
 }

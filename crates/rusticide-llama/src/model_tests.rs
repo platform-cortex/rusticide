@@ -7,6 +7,7 @@ use rusticide_io::GGUFValue;
 use rusticide_model::{InMemorySource, Model};
 
 use super::Llama;
+use crate::Variant;
 use crate::test_support::{assert_close, identity, normed, picker, tensor, zeros};
 use crate::testing::TinySource;
 
@@ -68,7 +69,7 @@ fn quiet() -> TinySource {
 }
 
 fn model(source: &InMemorySource) -> Llama {
-    Llama::from_source(source).unwrap()
+    Llama::from_source(source, Variant::Llama).unwrap()
 }
 
 fn logits_for(hidden: &[f32], output: &[[f32; 4]; 7]) -> Vec<f32> {

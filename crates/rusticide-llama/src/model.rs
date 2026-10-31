@@ -8,6 +8,7 @@ use rusticide_model::{KvCache, Model, ModelError, ModelSource, Result};
 use crate::attention::Attention;
 use crate::config::LlamaConfig;
 use crate::feed_forward::FeedForward;
+use crate::variant::Variant;
 use crate::weights::LlamaWeights;
 
 /// A llama model running one token at a time over a KV cache.
@@ -29,8 +30,8 @@ impl Llama {
     /// # Errors
     ///
     /// Any error from [`LlamaConfig::from_source`] or [`LlamaWeights::load`].
-    pub fn from_source(source: &dyn ModelSource) -> Result<Self> {
-        let config = LlamaConfig::from_source(source)?;
+    pub fn from_source(source: &dyn ModelSource, variant: Variant) -> Result<Self> {
+        let config = LlamaConfig::from_source(source, variant)?;
         let weights = LlamaWeights::load(source, &config)?;
         let width = config.embedding_length;
         Ok(Self {
@@ -114,7 +115,7 @@ impl Model for Llama {
 ///
 /// Any error from [`Llama::from_source`].
 pub fn load(source: &dyn ModelSource) -> Result<Box<dyn Model>> {
-    Ok(Box::new(Llama::from_source(source)?))
+    Ok(Box::new(Llama::from_source(source, Variant::Llama)?))
 }
 
 #[cfg(test)]

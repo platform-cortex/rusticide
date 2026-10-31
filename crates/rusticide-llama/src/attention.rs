@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_kernels::{dot, rope_adjacent, softmax};
+use rusticide_kernels::{dot, softmax};
 use rusticide_model::{KvCache, Result};
 
 use crate::config::LlamaConfig;
+use crate::variant::RopeStyle;
 use crate::weights::BlockWeights;
 
 /// Grouped-query self-attention for one token, with reusable scratch buffers.
@@ -16,6 +17,7 @@ pub(crate) struct Attention {
     kv_dim: usize,
     scale: f32,
     rope_freq_base: f32,
+    rope: RopeStyle,
     query: Vec<f32>,
     key: Vec<f32>,
     value: Vec<f32>,
@@ -37,6 +39,7 @@ impl Attention {
             kv_dim,
             scale: head_dim.sqrt(),
             rope_freq_base: config.rope_freq_base,
+            rope: config.variant.rope(),
             query: vec![0.0; config.embedding_length],
             key: vec![0.0; kv_dim],
             value: vec![0.0; kv_dim],
@@ -65,7 +68,7 @@ impl Attention {
             .chunks_exact_mut(self.head_dim)
             .chain(self.key.chunks_exact_mut(self.head_dim))
         {
-            rope_adjacent(head, position, self.rope_freq_base, pairs);
+            self.rope.apply(head, position, self.rope_freq_base, pairs);
         }
         cache.store(layer, position, &self.key, &self.value)?;
         let (keys, values) = (cache.keys(layer), cache.values(layer));

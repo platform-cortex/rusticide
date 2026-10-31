@@ -5,10 +5,11 @@
 use rusticide_model::{Loader, Model, ModelError};
 
 use super::{Llama, load};
+use crate::Variant;
 use crate::testing::{TINY_VOCAB, TinySource, tiny_source};
 
 fn stock() -> Llama {
-    Llama::from_source(&tiny_source()).unwrap()
+    Llama::from_source(&tiny_source(), Variant::Llama).unwrap()
 }
 
 #[test]

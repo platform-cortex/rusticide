@@ -4,11 +4,15 @@
 
 use rusticide_core::Tensor;
 use rusticide_io::GGUFValue;
-use rusticide_model::{InMemorySource, Model};
+use rusticide_kernels::rope_half_split;
+use rusticide_model::{InMemorySource, KvCache, Model};
 
-use crate::Llama;
+use crate::attention::Attention;
+use crate::config::LlamaConfig;
 use crate::test_support::{assert_close, identity, normed, picker, rotated, tensor, zeros};
 use crate::testing::{TinySource, tiny_tensor};
+use crate::weights::LlamaWeights;
+use crate::{Llama, Variant};
 
 const WIDTH: usize = 8;
 
@@ -46,7 +50,7 @@ fn wide(heads: u32, kv_heads: u32, kv_dim: usize) -> TinySource {
 }
 
 fn model(source: &InMemorySource) -> Llama {
-    Llama::from_source(source).unwrap()
+    Llama::from_source(source, Variant::Llama).unwrap()
 }
 
 fn added(base: &[f32], delta: &[f32]) -> Vec<f32> {
@@ -105,4 +109,40 @@ fn attention_uses_queries_and_keys_rotated_per_head() {
         value_refs,
     ));
     assert_close(&logits, &normed(&added(&row(2), &mixed)));
+}
+
+#[test]
+fn qwen2_attention_uses_half_split_rope() {
+    let source = wide(1, 1, WIDTH)
+        .with_tensor("blk.0.attn_q.weight", identity(WIDTH))
+        .with_tensor("blk.0.attn_k.weight", identity(WIDTH))
+        .with_tensor("blk.0.attn_v.weight", identity(WIDTH))
+        .build();
+    let mut config = LlamaConfig::from_source(&source, Variant::Llama).unwrap();
+    config.variant = Variant::Qwen2;
+    let weights = LlamaWeights::load(&source, &config).unwrap();
+    let mut attention = Attention::new(&config).unwrap();
+    let mut cache = KvCache::new(1, WIDTH, config.context_length);
+    let (first, second) = (row(1), row(2));
+    let mut output = vec![0.0; WIDTH];
+    attention
+        .forward(&weights.blocks[0], &mut cache, 0, 0, &first, &mut output)
+        .unwrap();
+    attention
+        .forward(&weights.blocks[0], &mut cache, 0, 1, &second, &mut output)
+        .unwrap();
+    let mut rotated = second.clone();
+    rope_half_split(&mut rotated, 1, config.rope_freq_base, WIDTH / 2);
+    let mixed = attend_wide(&rotated, [&first, &rotated], [&first, &second]);
+    assert_close(&output, &mixed);
+}
+
+fn attend_wide(query: &[f32], keys: [&[f32]; 2], values: [&[f32]; 2]) -> Vec<f32> {
+    let scores = keys.map(|key| dot(query, key) / 8.0_f32.sqrt());
+    let top = scores[0].max(scores[1]);
+    let weights = scores.map(|score| (score - top).exp());
+    let total = weights[0] + weights[1];
+    (0..WIDTH)
+        .map(|index| weights[1].mul_add(values[1][index], weights[0] * values[0][index]) / total)
+        .collect()
 }
