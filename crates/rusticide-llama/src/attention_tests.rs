@@ -180,21 +180,48 @@ fn qwen2_adds_the_value_bias() {
 }
 
 #[test]
-fn qwen2_query_and_key_biases_change_the_scores() {
-    let inputs = [[1.0, 2.0, 3.0, 4.0], [-2.0, 0.5, 1.0, -1.0]];
-    let biased = qwen2_outputs(&TinySource::qwen2().build(), &inputs);
-    let plain = TinySource::qwen2()
-        .with_tensor("blk.0.attn_q.bias", zeros(&[4]))
+fn qwen2_adds_query_and_key_biases_before_rope() {
+    let query_bias = [0.5, -1.0, 0.25, 2.0, -0.5, 1.5, 0.75, -0.25];
+    let key_bias = [1.0, 0.5, -0.5, 0.25, -1.5, 0.75, 2.0, -1.0];
+    let source = wide(1, 1, WIDTH)
+        .with_tensor("blk.0.attn_q.weight", identity(WIDTH))
+        .with_tensor("blk.0.attn_k.weight", identity(WIDTH))
+        .with_tensor("blk.0.attn_v.weight", identity(WIDTH))
+        .with_tensor("blk.0.attn_q.bias", tensor(&[WIDTH], &query_bias))
+        .with_tensor("blk.0.attn_k.bias", tensor(&[WIDTH], &key_bias))
         .build();
-    let without_query = qwen2_outputs(&plain, &inputs);
-    let without_key = qwen2_outputs(
-        &TinySource::qwen2()
-            .with_tensor("blk.0.attn_k.bias", zeros(&[2]))
-            .build(),
-        &inputs,
-    );
-    let differs =
-        |left: &[f32], right: &[f32]| left.iter().zip(right).any(|(a, b)| (a - b).abs() > 1e-4);
-    assert!(differs(&biased, &without_query));
-    assert!(differs(&biased, &without_key));
+    let mut config = LlamaConfig::from_source(&source, Variant::Llama).unwrap();
+    let weights = LlamaWeights::load(&source, &config).unwrap();
+    config.variant = Variant::Qwen2;
+    let mut attention = Attention::new(&config).unwrap();
+    let mut cache = KvCache::new(1, WIDTH, config.context_length);
+    let (first, second) = (row(1), row(2));
+    let mut output = vec![0.0; WIDTH];
+    for (position, input) in [&first, &second].into_iter().enumerate() {
+        attention
+            .forward(
+                &weights.blocks[0],
+                &mut cache,
+                0,
+                position,
+                input,
+                &mut output,
+            )
+            .unwrap();
+    }
+    let base = config.rope_freq_base;
+    let rotate = |vector: &[f32]| {
+        let mut out = vector.to_vec();
+        rope_half_split(&mut out, 1, base, WIDTH / 2);
+        out
+    };
+    let query = rotate(&added(&second, &query_bias));
+    let first_key = added(&first, &key_bias);
+    let second_key = rotate(&added(&second, &key_bias));
+    let expected = attend_wide(&query, [&first_key, &second_key], [&first, &second]);
+    assert_close(&output, &expected);
+    let late_query = added(&rotate(&second), &query_bias);
+    let late_key = added(&rotate(&second), &key_bias);
+    let late = attend_wide(&late_query, [&first_key, &late_key], [&first, &second]);
+    assert!(output.iter().zip(&late).any(|(a, b)| (a - b).abs() > 1e-3));
 }
