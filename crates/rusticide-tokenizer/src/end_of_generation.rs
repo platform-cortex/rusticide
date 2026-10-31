@@ -4,7 +4,7 @@
 
 /// Token texts llama.cpp treats as end of generation
 /// (`llama-vocab.cpp` at 8642541b2, lines 3257-3281).
-const END_TEXTS: &[&str] = &[
+pub(crate) const END_TEXTS: &[&str] = &[
     "<|eot_id|>",
     "<|eot|>",
     "<|im_end|>",

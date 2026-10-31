@@ -7,6 +7,7 @@ use std::ops::RangeInclusive;
 
 use rusticide_io::GGUFValue;
 
+use crate::end_of_generation::END_TEXTS;
 use crate::value_ext::GGUFValueExt;
 
 /// The token types llama.cpp partitions prompts on: UNKNOWN, CONTROL and
@@ -21,13 +22,16 @@ pub(crate) enum Fragment<'t> {
 }
 
 /// The special tokens' texts and ids, longest text first. The sort is stable,
-/// so equal lengths stay in id order.
+/// so equal lengths stay in id order. Like llama.cpp, a token whose text is an
+/// end-of-generation text counts as special whatever its declared type.
 pub(crate) fn special_tokens(vocab: &[String], types: &[GGUFValue]) -> Vec<(String, u32)> {
     let mut specials: Vec<(String, u32)> = vocab
         .iter()
         .zip(types)
         .enumerate()
-        .filter(|(_, (token, kind))| !token.is_empty() && is_special_type(kind))
+        .filter(|(_, (token, kind))| {
+            !token.is_empty() && (is_special_type(kind) || END_TEXTS.contains(&token.as_str()))
+        })
         .filter_map(|(index, (token, _))| Some((token.clone(), u32::try_from(index).ok()?)))
         .collect();
     specials.sort_by_key(|(text, _)| Reverse(text.len()));

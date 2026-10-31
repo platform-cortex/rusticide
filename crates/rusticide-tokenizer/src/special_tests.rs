@@ -108,3 +108,18 @@ fn a_non_integer_token_type_is_an_ordinary_token() {
     ));
     assert_eq!(tok.encode("<x>").unwrap(), bytes("<x>"));
 }
+
+#[test]
+fn an_ordinary_end_of_generation_text_is_special_like_in_llama_cpp() {
+    let tok = gpt2_typed(&["</s>"], &[1]);
+    let mut expected = bytes("a");
+    expected.push(256);
+    expected.extend(bytes("b"));
+    assert_eq!(tok.encode("a</s>b").unwrap(), expected);
+}
+
+#[test]
+fn every_listed_end_of_generation_text_is_promoted() {
+    let tok = gpt2_typed(&["<|im_end|>", "<|endoftext|>"], &[1, 0]);
+    assert_eq!(tok.encode("<|endoftext|><|im_end|>").unwrap(), [257, 256]);
+}
