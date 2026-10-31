@@ -58,7 +58,7 @@ jobs:
       # is keyed on the mise config and mise.lock, so any change to the tool set
       # still gets a cold install; an unchanged one skips the ~4 min of source
       # builds (crates with no prebuilt binary for every platform).
-      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
 
       - name: Every task still parses
         run: mise tasks ls --all >/dev/null
