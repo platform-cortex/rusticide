@@ -5,9 +5,6 @@
 //! `Q6_K`: 256 elements per block, 128 low-nibble bytes, 64 high-bit bytes,
 //! 16 signed scales and an f16 `d`.
 
-use rusticide_core::{Shape, Tensor};
-
-use crate::error::{QuantizationType, QuantizeError, ensure_aligned, ensure_len, zeroed_f32};
 use crate::half_bits::read_f16_le;
 
 pub const Q6_K_BLOCK_SIZE: usize = 256;
@@ -37,7 +34,7 @@ fn dequantize_half(low: &[u8], high: &[u8], scales: &[u8], d: f32, out: &mut [f3
     }
 }
 
-fn dequantize_block(block: &[u8], out: &mut [f32]) {
+pub(crate) fn dequantize_block(block: &[u8], out: &mut [f32]) {
     let d = read_f16_le(block, 208);
     for (half_index, half_out) in out.chunks_mut(128).enumerate() {
         dequantize_half(
@@ -50,34 +47,17 @@ fn dequantize_block(block: &[u8], out: &mut [f32]) {
     }
 }
 
-/// Dequantizes `Q6_K` data to F32. Row length must be a multiple of 256
-/// (llama.cpp guarantees this for K-quant tensors).
-///
-/// # Errors
-///
-/// Returns [`QuantizeError::UnalignedShape`] if the element count is not a
-/// multiple of 256 (checked first, so an overflowing shape lands here), or
-/// [`QuantizeError::DataTooShort`] if `data` is too short for the `shape`.
-pub fn dequantize_q6_k(data: &[u8], shape: &[usize]) -> Result<Tensor, QuantizeError> {
-    let num_elements = Shape::new(shape).numel();
-    ensure_aligned(QuantizationType::Q6K, num_elements, Q6_K_BLOCK_SIZE)?;
-    ensure_len(QuantizationType::Q6K, data, bytes_for_q6_k(num_elements))?;
-
-    let mut values = zeroed_f32(num_elements)?;
-    for (block, out) in data
-        .chunks(Q6_K_BLOCK_BYTES)
-        .zip(values.chunks_mut(Q6_K_BLOCK_SIZE))
-    {
-        dequantize_block(block, out);
-    }
-    Ok(Tensor::from_slice(&values, shape)?)
-}
-
 #[cfg(test)]
 mod tests {
     use half::f16;
+    use rusticide_core::Tensor;
 
     use super::*;
+    use crate::{QuantizeError, block_format};
+
+    fn dequantize_q6_k(data: &[u8], shape: &[usize]) -> Result<Tensor, QuantizeError> {
+        block_format(14).unwrap().dequantize(data, shape)
+    }
 
     #[test]
     fn q6_k_all_zero_quants_dequantize_to_minus_32() {
@@ -98,7 +78,7 @@ mod tests {
         assert!(matches!(
             err,
             QuantizeError::DataTooShort {
-                format: QuantizationType::Q6K,
+                format: "Q6_K",
                 got: 209,
                 needed: 210
             }
@@ -142,7 +122,7 @@ mod tests {
         assert!(matches!(
             err,
             QuantizeError::UnalignedShape {
-                format: QuantizationType::Q6K,
+                format: "Q6_K",
                 numel: 1,
                 block: 256
             }
@@ -156,7 +136,7 @@ mod tests {
         assert!(matches!(
             err,
             QuantizeError::UnalignedShape {
-                format: QuantizationType::Q6K,
+                format: "Q6_K",
                 numel: usize::MAX,
                 block: 256
             }

@@ -5,7 +5,7 @@
 [package]
 authors.workspace = true
 categories = ["compression"]
-description = "Model quantization formats (Q4_0, Q4_K, Q6_K)"
+description = "Model quantization formats behind one block-format table (Q4_0, Q4_K, Q6_K)"
 edition.workspace = true
 keywords = ["quantization", "q4_0", "q4_k", "q6_k", "model"]
 license.workspace = true

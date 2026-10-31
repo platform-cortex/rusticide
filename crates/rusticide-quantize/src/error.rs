@@ -2,28 +2,20 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Error and format tag shared by every quantization format.
-
-/// A supported quantization format.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QuantizationType {
-    Q4_0,
-    Q4K,
-    Q6K,
-}
+//! Error shared by every quantization format.
 
 /// Failure while quantizing or dequantizing.
 #[derive(Debug, thiserror::Error)]
 pub enum QuantizeError {
-    #[error("{format:?} data too short: {got} bytes, need {needed}")]
+    #[error("{format} data too short: {got} bytes, need {needed}")]
     DataTooShort {
-        format: QuantizationType,
+        format: &'static str,
         got: usize,
         needed: usize,
     },
-    #[error("{format:?} needs a multiple of {block} elements, got {numel}")]
+    #[error("{format} needs a multiple of {block} elements, got {numel}")]
     UnalignedShape {
-        format: QuantizationType,
+        format: &'static str,
         numel: usize,
         block: usize,
     },
@@ -32,7 +24,7 @@ pub enum QuantizeError {
 }
 
 pub(crate) const fn ensure_len(
-    format: QuantizationType,
+    format: &'static str,
     data: &[u8],
     needed: usize,
 ) -> Result<(), QuantizeError> {
@@ -57,7 +49,7 @@ pub(crate) fn zeroed_f32(numel: usize) -> Result<Vec<f32>, QuantizeError> {
 /// K-quants. A saturated (overflowing) element count is `usize::MAX`, which is
 /// never a multiple of a power-of-two block, so it fails here first.
 pub(crate) const fn ensure_aligned(
-    format: QuantizationType,
+    format: &'static str,
     numel: usize,
     block: usize,
 ) -> Result<(), QuantizeError> {
@@ -77,17 +69,17 @@ mod tests {
 
     #[test]
     fn ensure_len_accepts_exact_and_longer_data() {
-        assert!(ensure_len(QuantizationType::Q6K, &[0; 4], 4).is_ok());
-        assert!(ensure_len(QuantizationType::Q6K, &[0; 5], 4).is_ok());
+        assert!(ensure_len("Q6_K", &[0; 4], 4).is_ok());
+        assert!(ensure_len("Q6_K", &[0; 5], 4).is_ok());
     }
 
     #[test]
     fn ensure_len_rejects_short_data() {
-        let err = ensure_len(QuantizationType::Q4K, &[0; 3], 4).unwrap_err();
+        let err = ensure_len("Q4_K", &[0; 3], 4).unwrap_err();
         assert!(matches!(
             err,
             QuantizeError::DataTooShort {
-                format: QuantizationType::Q4K,
+                format: "Q4_K",
                 got: 3,
                 needed: 4
             }
@@ -111,11 +103,11 @@ mod tests {
 
     #[test]
     fn ensure_aligned_checks_the_remainder() {
-        assert!(ensure_aligned(QuantizationType::Q4K, 512, 256).is_ok());
+        assert!(ensure_aligned("Q4_K", 512, 256).is_ok());
         assert!(matches!(
-            ensure_aligned(QuantizationType::Q4K, 1, 256).unwrap_err(),
+            ensure_aligned("Q4_K", 1, 256).unwrap_err(),
             QuantizeError::UnalignedShape {
-                format: QuantizationType::Q4K,
+                format: "Q4_K",
                 numel: 1,
                 block: 256
             }
@@ -125,7 +117,7 @@ mod tests {
     #[test]
     fn display_names_the_format_and_sizes() {
         let err = QuantizeError::DataTooShort {
-            format: QuantizationType::Q4_0,
+            format: "Q4_0",
             got: 5,
             needed: 36,
         };

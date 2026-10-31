@@ -5,9 +5,6 @@
 //! `Q4_K`: 256 elements per block, f16 `d` and `dmin`, 12 packed 6-bit
 //! scale/min bytes and 128 bytes of nibbles.
 
-use rusticide_core::{Shape, Tensor};
-
-use crate::error::{QuantizationType, QuantizeError, ensure_aligned, ensure_len, zeroed_f32};
 use crate::half_bits::read_f16_le;
 
 pub const Q4_K_BLOCK_SIZE: usize = 256;
@@ -43,7 +40,7 @@ fn dequantize_sub_block(out: &mut [f32], quants: impl Iterator<Item = u8>, scale
     }
 }
 
-fn dequantize_block(block: &[u8], out: &mut [f32]) {
+pub(crate) fn dequantize_block(block: &[u8], out: &mut [f32]) {
     let d = read_f16_le(block, 0);
     let dmin = read_f16_le(block, 2);
     let scales = &block[4..16];
@@ -73,33 +70,17 @@ fn dequantize_block(block: &[u8], out: &mut [f32]) {
     }
 }
 
-/// Dequantizes `Q4_K` data to F32. Row length must be a multiple of 256.
-///
-/// # Errors
-///
-/// Returns [`QuantizeError::UnalignedShape`] if the element count is not a
-/// multiple of 256 (checked first, so an overflowing shape lands here), or
-/// [`QuantizeError::DataTooShort`] if `data` is too short for the `shape`.
-pub fn dequantize_q4_k(data: &[u8], shape: &[usize]) -> Result<Tensor, QuantizeError> {
-    let num_elements = Shape::new(shape).numel();
-    ensure_aligned(QuantizationType::Q4K, num_elements, Q4_K_BLOCK_SIZE)?;
-    ensure_len(QuantizationType::Q4K, data, bytes_for_q4_k(num_elements))?;
-
-    let mut values = zeroed_f32(num_elements)?;
-    for (block, out) in data
-        .chunks(Q4_K_BLOCK_BYTES)
-        .zip(values.chunks_mut(Q4_K_BLOCK_SIZE))
-    {
-        dequantize_block(block, out);
-    }
-    Ok(Tensor::from_slice(&values, shape)?)
-}
-
 #[cfg(test)]
 mod tests {
     use half::f16;
+    use rusticide_core::Tensor;
 
     use super::*;
+    use crate::{QuantizeError, block_format};
+
+    fn dequantize_q4_k(data: &[u8], shape: &[usize]) -> Result<Tensor, QuantizeError> {
+        block_format(12).unwrap().dequantize(data, shape)
+    }
 
     fn set_f16(block: &mut [u8], offset: usize, value: f32) {
         block[offset..offset + 2].copy_from_slice(&f16::from_f32(value).to_bits().to_le_bytes());
@@ -161,7 +142,7 @@ mod tests {
         assert!(matches!(
             err,
             QuantizeError::DataTooShort {
-                format: QuantizationType::Q4K,
+                format: "Q4_K",
                 got: 143,
                 needed: 144
             }
@@ -182,7 +163,7 @@ mod tests {
         assert!(matches!(
             err,
             QuantizeError::UnalignedShape {
-                format: QuantizationType::Q4K,
+                format: "Q4_K",
                 numel: 1,
                 block: 256
             }
@@ -196,7 +177,7 @@ mod tests {
         assert!(matches!(
             err,
             QuantizeError::UnalignedShape {
-                format: QuantizationType::Q4K,
+                format: "Q4_K",
                 numel: usize::MAX,
                 block: 256
             }

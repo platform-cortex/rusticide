@@ -4,7 +4,7 @@
 
 use half::f16;
 use rusticide_core::{Element, Shape, Tensor, try_vec_with_capacity};
-use rusticide_quantize::{Quantizer, dequantize_q4_k, dequantize_q6_k};
+use rusticide_quantize::block_format;
 
 use super::file::GgufFile;
 use super::tensor_info::{GgmlType, TensorInfo};
@@ -47,9 +47,7 @@ impl GgufFile {
         match info.ggml_type {
             GgmlType::F32 => decode_le(bytes, &info.shape, f32::from_le_bytes),
             GgmlType::F16 => decode_le(bytes, &info.shape, f16::from_le_bytes),
-            GgmlType::Q4_0 => Ok(Quantizer::dequantize_q4_0(bytes, &info.shape)?),
-            GgmlType::Q4K => Ok(dequantize_q4_k(bytes, &info.shape)?),
-            GgmlType::Q6K => Ok(dequantize_q6_k(bytes, &info.shape)?),
+            GgmlType::Q4_0 | GgmlType::Q4K | GgmlType::Q6K => dequantize_block_format(info, bytes),
         }
     }
 
@@ -62,6 +60,12 @@ impl GgufFile {
         let end = start.checked_add(len).ok_or(GgufError::UnexpectedEof)?;
         self.data.get(start..end).ok_or(GgufError::UnexpectedEof)
     }
+}
+
+fn dequantize_block_format(info: &TensorInfo, bytes: &[u8]) -> Result<Tensor> {
+    let raw = info.ggml_type.raw();
+    let format = block_format(raw).ok_or(GgufError::UnsupportedTensorType(raw))?;
+    Ok(format.dequantize(bytes, &info.shape)?)
 }
 
 fn decode_le<T: Element, const WIDTH: usize>(

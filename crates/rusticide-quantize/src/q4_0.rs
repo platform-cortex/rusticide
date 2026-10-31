@@ -5,9 +5,9 @@
 //! `Q4_0`: 32 elements per block, an f16 scale then 16 packed nibbles.
 
 use half::f16;
-use rusticide_core::{Shape, Tensor};
+use rusticide_core::Tensor;
 
-use crate::error::{QuantizationType, QuantizeError, ensure_len, zeroed_f32};
+use crate::error::QuantizeError;
 use crate::half_bits::read_f16_le;
 
 pub const Q4_0_BLOCK_SIZE: usize = 32;
@@ -84,29 +84,13 @@ impl Quantizer {
         }
         Ok(result)
     }
+}
 
-    /// Dequantize `Q4_0` block-compressed data back into a float32 tensor.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`QuantizeError::DataTooShort`] if `data` is too short for
-    /// the given `shape`; an overflowing shape saturates and fails the same way.
-    pub fn dequantize_q4_0(data: &[u8], shape: &[usize]) -> Result<Tensor, QuantizeError> {
-        let num_elements = Shape::new(shape).numel();
-        ensure_len(QuantizationType::Q4_0, data, bytes_for_q4_0(num_elements))?;
-
-        let mut values = zeroed_f32(num_elements)?;
-        for (block, out) in data
-            .chunks(Q4_0_BLOCK_BYTES)
-            .zip(values.chunks_mut(Q4_0_BLOCK_SIZE))
-        {
-            let scale = read_f16_le(block, 0);
-            for (pos, value) in out.iter_mut().enumerate() {
-                let nibble = get_nibble(block[2 + pos % HALF_BLOCK], pos);
-                *value = (f32::from(nibble) - f32::from(ZERO_NIBBLE)) * scale;
-            }
-        }
-        Ok(Tensor::from_slice(&values, shape)?)
+pub(crate) fn dequantize_block(block: &[u8], out: &mut [f32]) {
+    let scale = read_f16_le(block, 0);
+    for (pos, value) in out.iter_mut().enumerate() {
+        let nibble = get_nibble(block[2 + pos % HALF_BLOCK], pos);
+        *value = (f32::from(nibble) - f32::from(ZERO_NIBBLE)) * scale;
     }
 }
 
@@ -116,6 +100,11 @@ mod tests {
     use rusticide_core::{DType, Error};
 
     use super::*;
+    use crate::block_format;
+
+    fn dequantize_q4_0(data: &[u8], shape: &[usize]) -> Result<Tensor, QuantizeError> {
+        block_format(2).unwrap().dequantize(data, shape)
+    }
 
     fn assert_close(a: f32, b: f32, epsilon: f32) {
         assert!(
@@ -129,7 +118,7 @@ mod tests {
         let data: Vec<f32> = vec![0.0, 1.0, 2.0, -1.0, -2.0, 3.0, -3.0, 4.0];
         let tensor = Tensor::from_slice(&data, &[8]).unwrap();
         let q = Quantizer::quantize_q4_0(&tensor).unwrap();
-        let deq = Quantizer::dequantize_q4_0(&q, &[8]).unwrap();
+        let deq = dequantize_q4_0(&q, &[32]).unwrap();
 
         for (i, &expected) in data.iter().enumerate() {
             let v: f32 = deq.get(&[i]).unwrap();
@@ -142,7 +131,7 @@ mod tests {
         let data: Vec<f32> = (0..64u8).map(f32::from).collect();
         let tensor = Tensor::from_slice(&data, &[8, 8]).unwrap();
         let q = Quantizer::quantize_q4_0(&tensor).unwrap();
-        let deq = Quantizer::dequantize_q4_0(&q, &[8, 8]).unwrap();
+        let deq = dequantize_q4_0(&q, &[8, 8]).unwrap();
 
         for (i, &expected) in data.iter().enumerate() {
             let v: f32 = deq.get(&[i / 8, i % 8]).unwrap();
@@ -155,9 +144,9 @@ mod tests {
         let data: Vec<f32> = (0..33u8).map(f32::from).collect();
         let tensor = Tensor::from_slice(&data, &[33]).unwrap();
         let q = Quantizer::quantize_q4_0(&tensor).unwrap();
-        let deq = Quantizer::dequantize_q4_0(&q, &[33]).unwrap();
+        let deq = dequantize_q4_0(&q, &[64]).unwrap();
 
-        assert_eq!(deq.shape().dims(), &[33]);
+        assert_eq!(deq.shape().dims(), &[64]);
         for (i, &expected) in data.iter().enumerate() {
             let v: f32 = deq.get(&[i]).unwrap();
             assert_close(v, expected, 5.0);
@@ -168,7 +157,7 @@ mod tests {
     fn test_q4_0_all_zeros() {
         let tensor = Tensor::from_slice(&[0.0f32; 64], &[8, 8]).unwrap();
         let q = Quantizer::quantize_q4_0(&tensor).unwrap();
-        let deq = Quantizer::dequantize_q4_0(&q, &[8, 8]).unwrap();
+        let deq = dequantize_q4_0(&q, &[8, 8]).unwrap();
 
         for i in 0..8 {
             for j in 0..8 {
@@ -192,7 +181,7 @@ mod tests {
         let data: Vec<f32> = vec![-8.0, -5.0, -1.0, 0.0, 1.0, 5.0, 8.0, -3.0];
         let tensor = Tensor::from_slice(&data, &[8]).unwrap();
         let q = Quantizer::quantize_q4_0(&tensor).unwrap();
-        let deq = Quantizer::dequantize_q4_0(&q, &[8]).unwrap();
+        let deq = dequantize_q4_0(&q, &[32]).unwrap();
 
         for (i, &expected) in data.iter().enumerate() {
             let v: f32 = deq.get(&[i]).unwrap();
@@ -202,11 +191,11 @@ mod tests {
 
     #[test]
     fn test_q4_0_short_data_returns_error() {
-        let err = Quantizer::dequantize_q4_0(&[0u8; 5], &[64]).unwrap_err();
+        let err = dequantize_q4_0(&[0u8; 5], &[64]).unwrap_err();
         assert!(matches!(
             err,
             QuantizeError::DataTooShort {
-                format: QuantizationType::Q4_0,
+                format: "Q4_0",
                 got: 5,
                 needed: 36
             }
@@ -240,7 +229,7 @@ mod tests {
         let mut block = vec![0x88u8; Q4_0_BLOCK_BYTES];
         block[..2].copy_from_slice(&f16::from_f32(1.0).to_bits().to_le_bytes());
         block[2] = 0x1f;
-        let deq = Quantizer::dequantize_q4_0(&block, &[32]).unwrap();
+        let deq = dequantize_q4_0(&block, &[32]).unwrap();
         let at = |i: usize| -> f32 { deq.get(&[i]).unwrap() };
         assert!((at(0) - 7.0).abs() < 1e-6);
         assert!((at(1) - 0.0).abs() < 1e-6);
@@ -250,15 +239,15 @@ mod tests {
 
     #[cfg(target_pointer_width = "64")]
     #[test]
-    fn dequantize_q4_0_overflowing_shape_is_too_short() {
-        let err = Quantizer::dequantize_q4_0(&[], &[1 << 32, 1 << 32]).unwrap_err();
+    fn dequantize_q4_0_overflowing_shape_is_unaligned() {
+        let err = dequantize_q4_0(&[], &[1 << 32, 1 << 32]).unwrap_err();
         assert!(matches!(
             err,
-            QuantizeError::DataTooShort {
-                format: QuantizationType::Q4_0,
-                got: 0,
-                needed
-            } if needed == bytes_for_q4_0(usize::MAX)
+            QuantizeError::UnalignedShape {
+                format: "Q4_0",
+                numel: usize::MAX,
+                block: 32
+            }
         ));
     }
 }
