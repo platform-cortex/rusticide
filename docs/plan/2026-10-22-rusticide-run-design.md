@@ -194,8 +194,8 @@ kernel, reused by the graph and the model crates (move, don't copy).
 
 Weights are dequantized to f32 once at load. TinyLlama needs about 4.4 GiB
 and BitNet 2B about 10 GiB; acceptable on both machines (32 GiB on the
-M1 Pro, 128 GiB on the server) and explicitly not a goal to reduce here. The file itself is still read whole
-(`fs::read`), as today.
+M1 Pro, 128 GiB on the server) and explicitly not a goal to reduce here.
+The file itself is still read whole (`fs::read`), as today.
 
 ## CLI
 
