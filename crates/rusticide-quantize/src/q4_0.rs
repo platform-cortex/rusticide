@@ -10,13 +10,12 @@ use rusticide_core::Tensor;
 use crate::error::QuantizeError;
 use crate::half_bits::read_f16_le;
 
-pub const Q4_0_BLOCK_SIZE: usize = 32;
-pub const Q4_0_BLOCK_BYTES: usize = 18;
+pub(crate) const Q4_0_BLOCK_SIZE: usize = 32;
+pub(crate) const Q4_0_BLOCK_BYTES: usize = 18;
 
 const ZERO_NIBBLE: u8 = 8;
 
-#[must_use]
-pub const fn bytes_for_q4_0(num_elements: usize) -> usize {
+const fn bytes_for_q4_0(num_elements: usize) -> usize {
     num_elements.div_ceil(Q4_0_BLOCK_SIZE) * Q4_0_BLOCK_BYTES
 }
 

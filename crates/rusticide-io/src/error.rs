@@ -17,8 +17,13 @@ pub enum GgufError {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
     /// A tensor uses a GGML type this reader does not support.
-    #[error("unsupported tensor type: {0}")]
-    UnsupportedTensorType(u32),
+    #[error("tensor {name} has unsupported type {type_id}")]
+    UnsupportedTensorType {
+        /// The tensor that cannot be loaded.
+        name: String,
+        /// Its raw GGML type id.
+        type_id: u32,
+    },
     /// A computed offset does not fit the platform word size.
     #[error("{0} overflows")]
     CastOverflow(&'static str),

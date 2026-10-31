@@ -8,4 +8,4 @@ mod error;
 mod gguf;
 
 pub use error::{GgufError, Result};
-pub use gguf::{GGUFValue, GgmlType, GgufFile, Metadata, TensorInfo};
+pub use gguf::{GGUFValue, GgufFile, Metadata, TensorInfo};

@@ -6,8 +6,8 @@
 
 use crate::half_bits::read_f16_le;
 
-pub const Q5_0_BLOCK_SIZE: usize = 32;
-pub const Q5_0_BLOCK_BYTES: usize = 22;
+pub(crate) const Q5_0_BLOCK_SIZE: usize = 32;
+pub(crate) const Q5_0_BLOCK_BYTES: usize = 22;
 
 const HALF_BLOCK: usize = Q5_0_BLOCK_SIZE / 2;
 

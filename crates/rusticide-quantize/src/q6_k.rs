@@ -7,13 +7,8 @@
 
 use crate::half_bits::read_f16_le;
 
-pub const Q6_K_BLOCK_SIZE: usize = 256;
-pub const Q6_K_BLOCK_BYTES: usize = 210;
-
-#[must_use]
-pub const fn bytes_for_q6_k(num_elements: usize) -> usize {
-    num_elements.div_ceil(Q6_K_BLOCK_SIZE) * Q6_K_BLOCK_BYTES
-}
+pub(crate) const Q6_K_BLOCK_SIZE: usize = 256;
+pub(crate) const Q6_K_BLOCK_BYTES: usize = 210;
 
 fn six_bit(low: u8, high_bits: u8) -> f32 {
     f32::from(i16::from(low | ((high_bits & 3) << 4)) - 32)
@@ -83,14 +78,6 @@ mod tests {
                 needed: 210
             }
         ));
-    }
-
-    #[test]
-    fn bytes_for_q6_k_rounds_up_to_whole_blocks() {
-        assert_eq!(bytes_for_q6_k(0), 0);
-        assert_eq!(bytes_for_q6_k(1), 210);
-        assert_eq!(bytes_for_q6_k(256), 210);
-        assert_eq!(bytes_for_q6_k(257), 420);
     }
 
     #[test]

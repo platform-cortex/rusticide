@@ -17,5 +17,5 @@ mod test_support;
 
 pub use file::GgufFile;
 pub use metadata::Metadata;
-pub use tensor_info::{GgmlType, TensorInfo};
+pub use tensor_info::TensorInfo;
 pub use value::GGUFValue;

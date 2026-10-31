@@ -6,8 +6,8 @@
 
 use crate::half_bits::read_f16_le;
 
-pub const Q8_0_BLOCK_SIZE: usize = 32;
-pub const Q8_0_BLOCK_BYTES: usize = 34;
+pub(crate) const Q8_0_BLOCK_SIZE: usize = 32;
+pub(crate) const Q8_0_BLOCK_BYTES: usize = 34;
 
 pub(crate) fn dequantize_block(block: &[u8], out: &mut [f32]) {
     let scale = read_f16_le(block, 0);

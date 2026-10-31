@@ -7,15 +7,10 @@
 
 use crate::half_bits::read_f16_le;
 
-pub const Q4_K_BLOCK_SIZE: usize = 256;
-pub const Q4_K_BLOCK_BYTES: usize = 144;
+pub(crate) const Q4_K_BLOCK_SIZE: usize = 256;
+pub(crate) const Q4_K_BLOCK_BYTES: usize = 144;
 
 const SUB_BLOCK_SIZE: usize = 32;
-
-#[must_use]
-pub const fn bytes_for_q4_k(num_elements: usize) -> usize {
-    num_elements.div_ceil(Q4_K_BLOCK_SIZE) * Q4_K_BLOCK_BYTES
-}
 
 /// ggml `get_scale_min_k4`: unpacks the 6-bit scale and min for sub-block `j`
 /// from the 12-byte packed `scales` array.
@@ -147,14 +142,6 @@ mod tests {
                 needed: 144
             }
         ));
-    }
-
-    #[test]
-    fn bytes_for_q4_k_rounds_up_to_whole_blocks() {
-        assert_eq!(bytes_for_q4_k(0), 0);
-        assert_eq!(bytes_for_q4_k(1), 144);
-        assert_eq!(bytes_for_q4_k(256), 144);
-        assert_eq!(bytes_for_q4_k(257), 288);
     }
 
     #[test]

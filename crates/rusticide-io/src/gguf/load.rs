@@ -7,8 +7,11 @@ use rusticide_core::{Element, Shape, Tensor, try_vec_with_capacity};
 use rusticide_quantize::block_format;
 
 use super::file::GgufFile;
-use super::tensor_info::{GgmlType, TensorInfo};
+use super::tensor_info::TensorInfo;
 use crate::error::{GgufError, Result};
+
+const F32_TYPE_ID: u32 = 0;
+const F16_TYPE_ID: u32 = 1;
 
 impl GgufFile {
     /// Materializes a tensor by name.
@@ -39,15 +42,20 @@ impl GgufFile {
 
     fn load_tensor(&self, info: &TensorInfo) -> Result<Tensor> {
         let numel = Shape::new(&info.shape).numel();
-        let len = info
-            .ggml_type
-            .byte_len(numel)
-            .ok_or(GgufError::CastOverflow("tensor byte length"))?;
+        let (format, len) = match info.type_id {
+            F32_TYPE_ID => (None, numel.checked_mul(size_of::<f32>())),
+            F16_TYPE_ID => (None, numel.checked_mul(size_of::<f16>())),
+            type_id => {
+                let format = block_format(type_id).ok_or_else(|| unsupported(info))?;
+                (Some(format), format.byte_len(numel))
+            }
+        };
+        let len = len.ok_or(GgufError::CastOverflow("tensor byte length"))?;
         let bytes = self.tensor_bytes(info, len)?;
-        match info.ggml_type {
-            GgmlType::F32 => decode_le(bytes, &info.shape, f32::from_le_bytes),
-            GgmlType::F16 => decode_le(bytes, &info.shape, f16::from_le_bytes),
-            GgmlType::Q4_0 | GgmlType::Q4K | GgmlType::Q6K => dequantize_block_format(info, bytes),
+        match (format, info.type_id) {
+            (Some(format), _) => Ok(format.dequantize(bytes, &info.shape)?),
+            (None, F32_TYPE_ID) => decode_le(bytes, &info.shape, f32::from_le_bytes),
+            (None, _) => decode_le(bytes, &info.shape, f16::from_le_bytes),
         }
     }
 
@@ -62,10 +70,11 @@ impl GgufFile {
     }
 }
 
-fn dequantize_block_format(info: &TensorInfo, bytes: &[u8]) -> Result<Tensor> {
-    let raw = info.ggml_type.raw();
-    let format = block_format(raw).ok_or(GgufError::UnsupportedTensorType(raw))?;
-    Ok(format.dequantize(bytes, &info.shape)?)
+fn unsupported(info: &TensorInfo) -> GgufError {
+    GgufError::UnsupportedTensorType {
+        name: info.name.clone(),
+        type_id: info.type_id,
+    }
 }
 
 fn decode_le<T: Element, const WIDTH: usize>(
@@ -82,3 +91,7 @@ fn decode_le<T: Element, const WIDTH: usize>(
 #[cfg(test)]
 #[path = "load_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "load_type_tests.rs"]
+mod type_tests;
