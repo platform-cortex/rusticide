@@ -4,4 +4,4 @@
 
 allow-expect-in-tests = true
 allow-unwrap-in-tests = true
-msrv = "1.88"
+msrv = "1.96"

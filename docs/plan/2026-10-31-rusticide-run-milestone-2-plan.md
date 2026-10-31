@@ -23,7 +23,7 @@ end-of-generation set. `rusticide-llama` covers `qwen2` as a variant of the
 same family (half-split RoPE, Q/K/V biases), registered in the CLI's one
 registry line.
 
-**Tech Stack:** Rust 2024 (MSRV 1.88), rayon, fancy-regex (new, pure Rust),
+**Tech Stack:** Rust 2024 (MSRV 1.96), rayon, fancy-regex (new, pure Rust),
 clap, thiserror/anyhow, serde_json (dev only), llama.cpp `llama-server`
 0.8.0 as the reference (outside the repo).
 
@@ -40,8 +40,8 @@ shows the shape of the code this one extends.
   `unsafe`, files under 300 lines tests included, ASCII only, the three-line
   SPDX header on every new `.rs` file, thiserror in libraries and anyhow in
   the binary, GPG-signed conventional commits with no trailers.
-- MSRV 1.88: no std APIs newer than 1.88. `fancy-regex` must be a release
-  whose own `rust-version` is at most 1.88.
+- MSRV 1.96: no std APIs newer than 1.96. `fancy-regex` must be a release
+  whose own `rust-version` is at most 1.96.
 - ASCII only applies to source: the GPT-2 byte table and every non-ASCII
   test string are written with `\u{...}` escapes, never literal characters.
 - The only new dependency is `fancy-regex` (`[workspace.dependencies]`,
