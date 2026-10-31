@@ -50,10 +50,32 @@ fn qwen2_config_names_qwen2_keys_when_missing() {
     }
 }
 
+fn with_rope_dimension(dimension: u32) -> InMemorySource {
+    let mut builder = TinySource::new()
+        .with_metadata(
+            "general.architecture",
+            GGUFValue::String("qwen2".to_owned()),
+        )
+        .with_metadata("qwen2.rope.dimension_count", GGUFValue::Uint32(dimension));
+    for (suffix, value) in KEYS {
+        builder = builder
+            .without_metadata(&format!("llama.{suffix}"))
+            .with_metadata(&format!("qwen2.{suffix}"), GGUFValue::Uint32(value));
+    }
+    builder.build()
+}
+
 #[test]
-fn qwen2_config_checks_the_qwen2_rope_dimension_key() {
-    let source = TinySource::new()
-        .with_metadata("qwen2.rope.dimension_count", GGUFValue::Uint32(4))
-        .build();
-    assert!(LlamaConfig::from_source(&source, Variant::Qwen2).is_err());
+fn qwen2_config_rejects_a_mismatched_qwen2_rope_dimension() {
+    let result = LlamaConfig::from_source(&with_rope_dimension(4), Variant::Qwen2);
+    assert!(
+        matches!(&result, Err(ModelError::InvalidConfig { reason })
+            if *reason == "rope dimension count must equal the head dimension"),
+        "unexpected: {result:?}"
+    );
+}
+
+#[test]
+fn qwen2_config_accepts_the_matching_qwen2_rope_dimension() {
+    assert!(LlamaConfig::from_source(&with_rope_dimension(2), Variant::Qwen2).is_ok());
 }

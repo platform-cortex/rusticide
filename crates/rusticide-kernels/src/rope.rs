@@ -4,6 +4,13 @@
 
 use crate::lossy;
 
+fn rotate(low: &mut f32, high: &mut f32, position: f32, frequency: f32) {
+    let (sin, cos) = (position * frequency).sin_cos();
+    let (old_low, old_high) = (*low, *high);
+    *low = old_low.mul_add(cos, -old_high * sin);
+    *high = old_high.mul_add(cos, old_low * sin);
+}
+
 /// Rotates adjacent pairs `(2p, 2p+1)` for `p < min(dim_pairs, row.len() / 2)`
 /// by angle `position * theta^(-2p / row.len())`.
 pub fn rope_adjacent(row: &mut [f32], position: usize, theta: f32, dim_pairs: usize) {
@@ -11,11 +18,7 @@ pub fn rope_adjacent(row: &mut [f32], position: usize, theta: f32, dim_pairs: us
     let position = lossy(position);
     let (pairs, _) = row.as_chunks_mut::<2>();
     for (pair, [low, high]) in pairs.iter_mut().take(dim_pairs).enumerate() {
-        let frequency = theta.powf(-lossy(2 * pair) / columns);
-        let (sin, cos) = (position * frequency).sin_cos();
-        let (old_low, old_high) = (*low, *high);
-        *low = old_low.mul_add(cos, -old_high * sin);
-        *high = old_high.mul_add(cos, old_low * sin);
+        rotate(low, high, position, theta.powf(-lossy(2 * pair) / columns));
     }
 }
 
@@ -27,11 +30,7 @@ pub fn rope_half_split(row: &mut [f32], position: usize, theta: f32, dim_pairs: 
     let position = lossy(position);
     let (first, second) = row.split_at_mut(row.len() / 2);
     for (pair, (low, high)) in first.iter_mut().zip(second).take(dim_pairs).enumerate() {
-        let frequency = theta.powf(-lossy(2 * pair) / columns);
-        let (sin, cos) = (position * frequency).sin_cos();
-        let (old_low, old_high) = (*low, *high);
-        *low = old_low.mul_add(cos, -old_high * sin);
-        *high = old_high.mul_add(cos, old_low * sin);
+        rotate(low, high, position, theta.powf(-lossy(2 * pair) / columns));
     }
 }
 
