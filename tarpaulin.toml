@@ -24,6 +24,10 @@ all-features = true
 engine = "Llvm"
 ignore-tests = true
 out = ["Stdout", "Xml", "Lcov"]
+# Per-test limit. Instrumented debug builds on CI runners are several times
+# slower than a local run; the 60 s default timed out the pre-tokenizer
+# equivalence tests.
+timeout = "300s"
 
 # Exclude ONLY genuinely host-untestable entry/ABI boilerplate from the 100%
 # metric -- NOT a way to dodge testing real logic (all real logic is unit-tested
