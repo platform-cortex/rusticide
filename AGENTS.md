@@ -156,8 +156,8 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 - Commits are GPG-signed (`git commit -S`) and follow conventional commits,
   enforced by `committed` (`committed.toml`, generated from
   `commit-types.toml`).
-- Feature work goes in a worktree under `worktrees/` (git-ignored):
-  `git worktree add worktrees/<branch> <branch>`.
+- Feature work goes in a worktree under `.worktrees/` (git-ignored):
+  `git worktree add .worktrees/<branch> <branch>`.
 - Reintegrate by **rebase only** so `main` stays linear; never `--no-ff`:
 
   ```sh
