@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::error::TokenizerError;
-use crate::pre_tokenizer::PreTokenizer;
+use crate::pre_tokenizer::{PatternSet, PreTokenizer};
 
 fn split(name: Option<&str>, text: &str) -> Vec<String> {
     let pre = PreTokenizer::from_name(name).unwrap();
@@ -80,4 +80,24 @@ fn unknown_pre_is_unsupported() {
         PreTokenizer::from_name(Some("mystery")),
         Err(TokenizerError::UnsupportedPreTokenizer(name)) if name == "mystery"
     ));
+}
+
+#[test]
+fn each_pattern_set_compiles_once() {
+    let first = PreTokenizer::from_name(Some("qwen2"))
+        .unwrap()
+        .regexes()
+        .unwrap();
+    let second = PreTokenizer::from_name(Some("qwen2"))
+        .unwrap()
+        .regexes()
+        .unwrap();
+    assert!(std::ptr::eq(first, second));
+}
+
+#[test]
+fn an_invalid_pattern_is_an_encode_error() {
+    let broken: &'static PatternSet = Box::leak(Box::new(PatternSet::new(&["("])));
+    let error = PreTokenizer { set: broken }.split("x").unwrap_err();
+    assert!(matches!(error, TokenizerError::EncodeError(_)));
 }

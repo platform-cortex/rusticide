@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::sync::OnceLock;
+
 use fancy_regex::Regex;
 
 use crate::error::{Result, TokenizerError};
@@ -23,24 +25,61 @@ const DEFAULT: &[&str] = &[
     r"[0-9][0-9][0-9]",
 ];
 
+/// A pattern list and its regexes, compiled on first use and then shared:
+/// compiling the Unicode classes costs far more than one split.
+#[derive(Debug)]
+pub(crate) struct PatternSet {
+    patterns: &'static [&'static str],
+    compiled: OnceLock<std::result::Result<Vec<Regex>, String>>,
+}
+
+impl PatternSet {
+    pub(crate) const fn new(patterns: &'static [&'static str]) -> Self {
+        Self {
+            patterns,
+            compiled: OnceLock::new(),
+        }
+    }
+
+    fn regexes(&self) -> Result<&[Regex]> {
+        self.compiled
+            .get_or_init(|| {
+                self.patterns
+                    .iter()
+                    .map(|p| Regex::new(p).map_err(|e| e.to_string()))
+                    .collect()
+            })
+            .as_deref()
+            .map_err(|error| TokenizerError::EncodeError(error.clone()))
+    }
+}
+
+static GPT2_SET: PatternSet = PatternSet::new(GPT2);
+static QWEN2_SET: PatternSet = PatternSet::new(QWEN2);
+static DEFAULT_SET: PatternSet = PatternSet::new(DEFAULT);
+
 /// Splits text into the pieces that byte-level BPE merges independently.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PreTokenizer {
-    patterns: &'static [&'static str],
+    pub(crate) set: &'static PatternSet,
 }
 
 impl PreTokenizer {
-    pub(crate) const GPT2: Self = Self { patterns: GPT2 };
+    pub(crate) const GPT2: Self = Self { set: &GPT2_SET };
 
     /// `None` is a vocabulary without `tokenizer.ggml.pre`.
     pub(crate) fn from_name(name: Option<&str>) -> Result<Self> {
-        let patterns = match name {
-            None => DEFAULT,
-            Some("gpt2" | "gpt-2") => GPT2,
-            Some("qwen2") => QWEN2,
+        let set = match name {
+            None => &DEFAULT_SET,
+            Some("gpt2" | "gpt-2") => &GPT2_SET,
+            Some("qwen2") => &QWEN2_SET,
             Some(other) => return Err(TokenizerError::UnsupportedPreTokenizer(other.to_string())),
         };
-        Ok(Self { patterns })
+        Ok(Self { set })
+    }
+
+    pub(crate) fn regexes(self) -> Result<&'static [Regex]> {
+        self.set.regexes()
     }
 
     /// Applies the patterns in order, as llama.cpp's `unicode_regex_split`
@@ -48,12 +87,10 @@ impl PreTokenizer {
     /// the gaps between them, and the gaps are kept.
     pub(crate) fn split(self, text: &str) -> Result<Vec<&str>> {
         let mut pieces = vec![text];
-        for pattern in self.patterns {
-            let regex =
-                Regex::new(pattern).map_err(|e| TokenizerError::EncodeError(e.to_string()))?;
+        for regex in self.regexes()? {
             let mut next = Vec::new();
             for piece in pieces {
-                split_piece(&regex, piece, &mut next)?;
+                split_piece(regex, piece, &mut next)?;
             }
             next.retain(|piece| !piece.is_empty());
             pieces = next;
