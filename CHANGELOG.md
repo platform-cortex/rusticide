@@ -19,10 +19,12 @@ All notable changes to this project will be documented in this file.
 - **build:** keep -D warnings and make native opt-in
 - **tokenizer:** map gpt2 bytes to unicode
 - **llama:** pin the qwen2 rope key, share rotate
+- **tokenizer:** parse special tokens in prompts
 
 ### Refactor
 
 - **quantize:** look block formats up in one table
+- seal BlockFormat, mark enums non_exhaustive
 
 ### Documentation
 
@@ -32,17 +34,25 @@ All notable changes to this project will be documented in this file.
 - state the 1.96 MSRV in the remaining docs
 - tie the MSRV to the rust-skills guide
 - document qwen2 support
+- mark milestone 2 and refresh quantize metadata
+- list qwen2 among the tested families
+
+### Performance
+
+- **tokenizer:** merge bpe pairs with a heap
 
 ### Testing
 
 - **llama:** pin qwen2 bias before rope
 - **llama:** pin greedy parity on Qwen2.5
+- **llama:** require three reference cases
 
 ### Miscellaneous Tasks
 
 - bump mise-action, setup-uv and install-action
 - add a build:release mise task
 - raise the MSRV to 1.96
+- **hooks:** use the hk 2.10.0 config schema
 ## [0.3.0] - 2026-10-23
 
 ### Features
