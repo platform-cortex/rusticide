@@ -115,10 +115,13 @@ file is read whole.
 - **Parity:** all 32 greedy tokens match llama.cpp (llama-server 0.5.0, build
   11146) on the 3 fixture prompts, including a Portuguese one. Run it with
   `mise run test:reference` and `RUSTICIDE_MODELS` set.
-- **Speed:** 1.58 tokens/s with the command above on an Intel Xeon W-2150B
-  (10 cores / 20 threads, 128 GiB, macOS x86_64), measured while the host
-  was busy with other work (load average about 17). Load time is about 10 s.
-  The design's target is 2 tokens/s; it is a target, not a release blocker.
+- **Speed**, with the command above (the design's target is 2 tokens/s; it
+  is a target, not a release blocker):
+  - Apple M1 Pro (8 cores, 32 GiB, macOS arm64): about 18.7 tokens/s,
+    4.5 s in all for the 64 tokens, load average about 3.
+  - Intel Xeon W-2150B (10 cores / 20 threads, 128 GiB, macOS x86_64):
+    1.58 tokens/s, measured while the host was busy with other work (load
+    average about 17). Load time is about 10 s.
 
 ### Reading a GGUF file
 

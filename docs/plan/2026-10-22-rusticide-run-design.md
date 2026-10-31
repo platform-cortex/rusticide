@@ -87,6 +87,12 @@ regardless, because it is cheap.
 > **Amended 2026-10-23.** The development machine is not Apple Silicon:
 > it is an Intel Xeon W-2150B (10 cores / 20 threads, 128 GiB, macOS
 > x86_64). The 2 tokens/s target stands unchanged.
+>
+> **Amended 2026-10-31.** There are two machines. Development happens on
+> an Apple M1 Pro (8 cores, 32 GiB, macOS arm64); the Xeon above is a
+> server (128 GiB, x86_64) for runs that need its memory or its
+> architecture. TinyLlama runs at about 18.7 tokens/s on the M1 Pro.
+> Every tokens/s figure names the machine it was measured on.
 
 ## Non-goals
 
@@ -187,8 +193,8 @@ kernel, reused by the graph and the model crates (move, don't copy).
 ### Memory
 
 Weights are dequantized to f32 once at load. TinyLlama needs about 4.4 GiB
-and BitNet 2B about 10 GiB; acceptable on the development machine and
-explicitly not a goal to reduce here. The file itself is still read whole
+and BitNet 2B about 10 GiB; acceptable on both machines (32 GiB on the
+M1 Pro, 128 GiB on the server) and explicitly not a goal to reduce here. The file itself is still read whole
 (`fs::read`), as today.
 
 ## CLI
@@ -249,13 +255,15 @@ stay reproducible:
   whatever this file actually contains beyond the supported set; Q8_0 and
   Q5_0 are the expectation, the file is the authority.
 - Milestone 3: `microsoft/bitnet-b1.58-2B-4T-gguf`,
-  `ggml-model-i2_s.gguf`, already at
-  `~/.cache/huggingface/hub/models--microsoft--bitnet-b1.58-2B-4T-gguf/`.
+  `ggml-model-i2_s.gguf`, at
+  `~/.cache/huggingface/hub/models--microsoft--bitnet-b1.58-2B-4T-gguf/`
+  when this design was written; it is not on the M1 Pro, so milestone 3
+  downloads it into `$RUSTICIDE_MODELS` like the others.
   rusticide implements the `i2_s` layout this file uses. bitnet.cpp's
   `i2_s` packing may depend on the CPU (block size differing between x86
   and ARM builds; unverified). Milestone 3's first task verifies this; if
   so, fixtures come from a bitnet.cpp build that reads this file correctly
-  (an x86 machine or an x86 container), not from a re-converted file.
+  (the x86_64 server, or an x86 container), not from a re-converted file.
 
 ## Roadmap change
 
@@ -267,8 +275,26 @@ deferred unless a milestone needs one.
 
 ## Facts the builder needs
 
-- `llama.cpp` is installed (`/usr/local/bin/llama-cli`, `llama-simple`;
-  Homebrew `llama.cpp` 0.5.0) and is the reference for milestones 1-2.
+- `llama.cpp` is the reference for milestones 1-2, from Homebrew on both
+  machines: 0.8.0 on the M1 Pro (`/opt/homebrew/bin/llama-server`), 0.5.0
+  on the server (`/usr/local/bin`), which captured the milestone 1
+  fixture. Versions differ, so every fixture records the one it came from.
+- Models live in the directory `RUSTICIDE_MODELS` names (`~/models` on the
+  M1 Pro), downloaded from Hugging Face and checked against the SHA-256 the
+  fixture records.
+- The Qwen2.5 GGUF, SHA-256
+  `74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db`
+  (checked against Hugging Face's LFS hash on 2026-10-31), declares:
+  architecture `qwen2`, 24 blocks, embedding 896, FFN 4864, 14 heads / 2
+  KV heads, freq base 1000000, RMS eps 1e-6, context 32768. Tensor types:
+  133 x Q5_0 (`token_embd` and most matrices), 13 x Q8_0 (`output` and the
+  `attn_v` of some blocks), 12 x Q6_K and 12 x Q4_K (`ffn_down`), 121 x
+  F32. So Q5_0 and Q8_0 are exactly the new formats. Beyond the `llama`
+  layout, every block has `attn_q.bias`, `attn_k.bias` and `attn_v.bias`,
+  and `output` is its own tensor, not tied to `token_embd`. Tokenizer:
+  `gpt2` model, `qwen2` pre-tokenizer, 151936 tokens and 151387 merges,
+  `add_bos_token` false. Today `rusticide run` rejects the file with
+  "unsupported tensor type: 8" (Q8_0).
 - `bitnet.cpp` is not installed; milestone 3 builds it (from
   `github.com/microsoft/BitNet`) to produce fixtures, outside the repo.
 - The BitNet GGUF declares: architecture `bitnet-b1.58`, 30 blocks,
