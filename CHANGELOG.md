@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-10-31
+
+### Bug Fixes
+
+- **deny:** check all features, trim licenses
 ## [0.4.0] - 2026-10-31
 
 ### Features
@@ -53,6 +58,7 @@ All notable changes to this project will be documented in this file.
 - add a build:release mise task
 - raise the MSRV to 1.96
 - **hooks:** use the hk 2.10.0 config schema
+- **release:** refresh the v0.4.0 changelog
 ## [0.3.0] - 2026-10-23
 
 ### Features
