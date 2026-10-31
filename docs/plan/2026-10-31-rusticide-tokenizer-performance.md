@@ -124,11 +124,44 @@ machinery that path will lean on.
 ## Same-vocabulary result
 
 `Tokenizer::from_tiktoken` loaded with the `.tiktoken` files tiktoken-rs
-0.12.1 embeds, against tiktoken-rs `encode_with_special_tokens` on the same
-corpora and machine (rusticide load: 49 ms for `cl100k_base`, 102 ms for
-`o200k_base`). Ids are identical in all six cases; speed-up over tiktoken:
+0.12.1 embeds, against tiktoken-rs `encode_with_special_tokens`, eight
+workloads, median of 11 runs (7 for spaces), same machine. Ids are identical
+in all sixteen cases. The five generated corpora are random (seed 20261031)
+so the piece cache cannot help: multilingual (Latin with accents, Cyrillic,
+CJK, Arabic, emoji words, 400 KB), numbers (up to 30 digits, 300 KB), unicode
+(random code points up to U+2FFF, 300 KB), whitespace (short words between
+runs of spaces, tabs, `\r` and `\n`, 300 KB) and short (1852 sentences of
+at most 120 bytes, one encode call each).
 
-- `cl100k_base`: docs 2.23x (35.7 against 16.0 MB/s), code 2.57x (37.0
-  against 14.4), spaces 1.08x (36.7 against 39.6 ms).
-- `o200k_base`: docs 1.47x (34.1 against 23.3 MB/s), code 1.69x (39.6
-  against 23.5), spaces 1.16x (36.1 against 42.1 ms).
+Speed-up over tiktoken, `cl100k_base` then `o200k_base`:
+
+- docs: 2.75x, 1.84x
+- code: 3.09x, 2.13x
+- multilingual: 1.54x, 1.24x
+- numbers: 5.38x, 3.62x
+- unicode: 1.56x, 1.20x
+- whitespace: 2.47x, 1.77x
+- spaces: 1.23x, 1.33x
+- short: 1.78x, 1.35x
+
+What the extra workloads exposed, and the fixes:
+
+7. Random unicode on `o200k_base` ran at 0.02x: unanchored searches spend
+   40 percent in the reverse scan that finds where a match starts, and the
+   lazy DFA kept falling back to the PikeVM. Splitting with anchored
+   searches, one position at a time, gives the same pieces as a
+   leftmost-first scan without any reverse search.
+8. Multilingual words are longer in bytes, so they missed the 16-symbol
+   linear merge and paid two allocations each. The linear merge now covers
+   64 symbols (tiktoken uses 100) on stack arrays, appending straight to the
+   output.
+9. Merge ranks are stored as `u32`, so a merge-table entry is 16 bytes
+   instead of 24; the long-word heap holds `(u32, u32)` entries over `u32`
+   indices (a word over 4 GiB is merged in slices).
+10. The tiktoken loader keeps only the split each token was trained from
+    (BPE over the token's bytes with lower-ranked merges only), about one
+    seventh of the every-split table on `o200k_base`. This relies on the
+    property tiktoken's own source states (merging by the rank of a
+    concatenation is equivalent to the merge list for vocabularies trained
+    the usual way); the sixteen identical-id runs above are the evidence.
+    Loading costs 83 ms for `cl100k_base` and 197 ms for `o200k_base`.
