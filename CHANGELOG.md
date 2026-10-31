@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-10-31
+
+### Features
+
+- **tokenizer:** load tiktoken vocabularies
+
+### Bug Fixes
+
+- **tokenizer:** treat eog texts as special tokens
+
+### Documentation
+
+- record the tokenizer performance findings
+- record the same-vocabulary tiktoken results
+- record the eight-workload tiktoken results
+
+### Performance
+
+- **tokenizer:** compile each pattern set once
+- **tokenizer:** reuse ids of repeated pieces
+- **tokenizer:** pre-tokenize on a dfa engine
+- **tokenizer:** merge short words linearly
+- **tokenizer:** hash merge pairs without siphash
+- **tokenizer:** queue rank and position only
+- **tokenizer:** split with anchored searches
+- **tokenizer:** merge words up to 64 bytes in place
+- **tokenizer:** store merge ranks as u32
+- **tokenizer:** index long words with u32
+- **tokenizer:** derive the tiktoken merge list
+
+### Testing
+
+- **tokenizer:** cover words past the short path
+- **tokenizer:** compile reference patterns once
+
+### Miscellaneous Tasks
+
+- **coverage:** raise tarpaulin's test timeout
 ## [0.4.1] - 2026-10-31
 
 ### Bug Fixes
