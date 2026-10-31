@@ -43,10 +43,13 @@ const ALPHABET: &[&str] = &[
     "\u{c9}",
 ];
 
-fn reference<'t>(patterns: &[&str], text: &'t str) -> Vec<&'t str> {
+fn compile(patterns: &[&str]) -> Vec<Regex> {
+    patterns.iter().map(|p| Regex::new(p).unwrap()).collect()
+}
+
+fn reference<'t>(regexes: &[Regex], text: &'t str) -> Vec<&'t str> {
     let mut pieces = vec![text];
-    for pattern in patterns {
-        let regex = Regex::new(pattern).unwrap();
+    for regex in regexes {
         let mut next = Vec::new();
         for piece in pieces {
             let mut last = 0;
@@ -90,10 +93,11 @@ fn every_pre_tokenizer_splits_like_its_reference_patterns() {
         (Some("qwen2"), QWEN2),
     ] {
         let pre = PreTokenizer::from_name(name).unwrap();
+        let regexes = compile(patterns);
         for text in texts() {
             assert_eq!(
                 pre.split(&text).unwrap(),
-                reference(patterns, &text),
+                reference(&regexes, &text),
                 "{name:?} {text:?}"
             );
         }
@@ -103,10 +107,11 @@ fn every_pre_tokenizer_splits_like_its_reference_patterns() {
 #[test]
 fn tiktoken_pre_tokenizers_split_like_their_possessive_originals() {
     for (pre, patterns) in [(PreTokenizer::CL100K, CL100K), (PreTokenizer::O200K, O200K)] {
+        let regexes = compile(patterns);
         for text in texts() {
             assert_eq!(
                 pre.split(&text).unwrap(),
-                reference(patterns, &text),
+                reference(&regexes, &text),
                 "{patterns:?} {text:?}"
             );
         }
