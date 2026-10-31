@@ -41,7 +41,7 @@ impl Lcg {
 /// Merges over ids below `symbols + created`, each producing a new id, or now
 /// and then an id that already exists; ranks repeat across pairs.
 fn random_merges(rng: &mut Lcg, symbols: u32) -> MergeLookup {
-    let mut lookup = MergeLookup::new();
+    let mut lookup = MergeLookup::default();
     let created = rng.below(12);
     for step in 0..created {
         let pool = symbols + step;
@@ -83,7 +83,9 @@ fn the_heap_merge_matches_the_naive_merge() {
 
 #[test]
 fn a_long_run_merges_like_the_naive_merge() {
-    let lookup = MergeLookup::from([((0, 0), (0, 1)), ((1, 1), (1, 2)), ((2, 0), (2, 3))]);
+    let lookup: MergeLookup = [((0, 0), (0, 1)), ((1, 1), (1, 2)), ((2, 0), (2, 3))]
+        .into_iter()
+        .collect();
     for len in [0, 1, 2, 3, 511, 512, 513] {
         let ids = vec![0; len];
         assert_eq!(merge_ids(ids.clone(), &lookup), naive(ids, &lookup));

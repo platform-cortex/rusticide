@@ -12,6 +12,7 @@ mod end_of_generation;
 mod error;
 mod from_gguf;
 mod model;
+mod pair_hash;
 mod pre_tokenizer;
 mod special;
 mod spm;

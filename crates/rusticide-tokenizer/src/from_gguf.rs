@@ -103,10 +103,10 @@ fn read_merges(
     vocab: &[String],
 ) -> Result<MergeLookup> {
     let Some(merges) = metadata.get("tokenizer.ggml.merges") else {
-        return Ok(HashMap::new());
+        return Ok(MergeLookup::default());
     };
     if model != TokenizerModel::GPT2 {
-        return Ok(HashMap::new());
+        return Ok(MergeLookup::default());
     }
     let token_to_id: HashMap<String, u32> = vocab
         .iter()
@@ -187,7 +187,7 @@ impl Tokenizer {
         token_to_id: &HashMap<String, u32>,
         merges: &[GGUFValue],
     ) -> Result<MergeLookup> {
-        let mut merge_info = HashMap::new();
+        let mut merge_info = MergeLookup::default();
         for (rank, merge_val) in merges.iter().enumerate() {
             let pair = merge_val.as_string()?;
             let Some((left, right)) = pair.split_once(' ') else {

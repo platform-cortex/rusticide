@@ -3,14 +3,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
 
 use crate::byte_unicode::byte_token_table;
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
+use crate::pair_hash::PairHasher;
 use crate::pre_tokenizer::PreTokenizer;
 use crate::trie::Trie;
 
-pub(crate) type MergeLookup = HashMap<(u32, u32), (usize, u32)>;
+pub(crate) type MergeLookup = HashMap<(u32, u32), (usize, u32), BuildHasherDefault<PairHasher>>;
 
 /// Scores are indexed by token id, so they must cover the whole vocabulary.
 pub(crate) fn pad_scores(mut scores: Vec<f32>, vocab_len: usize) -> Vec<f32> {
@@ -85,7 +87,7 @@ impl Tokenizer {
             eos_id,
             add_bos,
             add_space_prefix,
-            merge_info: HashMap::new(),
+            merge_info: MergeLookup::default(),
             end_of_generation: vec![eos_id],
             special_tokens: Vec::new(),
         }
