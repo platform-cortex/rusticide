@@ -4,80 +4,76 @@
 
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
-use std::iter::successors;
 
 use crate::tokenizer::MergeLookup;
 
-/// A queued merge of the pair `left`, `right`. The derived order compares
-/// `rank`, then `left`: under `Reverse` the lowest rank pops first and the
-/// leftmost pair wins ties, as llama.cpp's `llm_bigram_bpe` orders them.
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-struct Candidate {
-    rank: usize,
-    left: usize,
-    right: usize,
-    pair: (u32, u32),
-    merged: u32,
-}
+/// A symbol with no mergeable pair, or one merged away.
+const NO_RANK: usize = usize::MAX;
 
-/// The ids of a word as a linked list; a merged-away symbol has no `next`.
-struct Symbols {
+/// A long word as a linked list of symbols, with the rank and result of the
+/// pair each symbol starts. A heap entry `(rank, left)` is current while
+/// `rank[left]` still holds it, as in tiktoken's `_byte_pair_merge_large`:
+/// two words per entry instead of a copy of the whole pair.
+struct Chain<'m> {
+    merges: &'m MergeLookup,
     ids: Vec<u32>,
-    prev: Vec<Option<usize>>,
-    next: Vec<Option<usize>>,
+    next: Vec<usize>,
+    prev: Vec<usize>,
+    rank: Vec<usize>,
+    merged: Vec<u32>,
 }
 
-impl Symbols {
-    fn new(ids: Vec<u32>) -> Self {
+impl<'m> Chain<'m> {
+    fn new(ids: Vec<u32>, merges: &'m MergeLookup) -> Self {
         let len = ids.len();
         Self {
+            merges,
+            next: (1..=len).collect(),
+            prev: (0..len).map(|index| index.wrapping_sub(1)).collect(),
+            rank: vec![NO_RANK; len],
+            merged: vec![0; len],
             ids,
-            prev: (0..len).map(|index| index.checked_sub(1)).collect(),
-            next: (0..len)
-                .map(|index| (index + 1 < len).then_some(index + 1))
-                .collect(),
         }
     }
 
-    /// False once either symbol changed or left the list after queueing.
-    fn is_current(&self, candidate: &Candidate) -> bool {
-        self.next[candidate.left] == Some(candidate.right)
-            && (self.ids[candidate.left], self.ids[candidate.right]) == candidate.pair
+    /// Looks the pair starting at `left` up again and queues it if it merges.
+    fn refresh(&mut self, left: usize, heap: &mut BinaryHeap<Reverse<(usize, usize)>>) {
+        let right = self.next[left];
+        let found = self
+            .ids
+            .get(right)
+            .and_then(|&right_id| self.merges.get(&(self.ids[left], right_id)));
+        if let Some(&(rank, merged)) = found {
+            self.rank[left] = rank;
+            self.merged[left] = merged;
+            heap.push(Reverse((rank, left)));
+        } else {
+            self.rank[left] = NO_RANK;
+        }
     }
 
-    fn merge(&mut self, candidate: &Candidate) {
-        self.ids[candidate.left] = candidate.merged;
-        let after = self.next[candidate.right].take();
-        self.next[candidate.left] = after;
-        if let Some(after) = after {
-            self.prev[after] = Some(candidate.left);
+    fn merge(&mut self, left: usize, heap: &mut BinaryHeap<Reverse<(usize, usize)>>) {
+        let right = self.next[left];
+        self.ids[left] = self.merged[left];
+        self.next[left] = self.next[right];
+        if let Some(prev) = self.prev.get_mut(self.next[right]) {
+            *prev = left;
+        }
+        self.rank[right] = NO_RANK;
+        self.refresh(left, heap);
+        if let Some(&before) = self.prev.get(left).filter(|&&before| before != usize::MAX) {
+            self.refresh(before, heap);
         }
     }
 
     fn into_ids(self) -> Vec<u32> {
-        let first = (!self.ids.is_empty()).then_some(0);
-        successors(first, |&index| self.next[index])
-            .map(|index| self.ids[index])
-            .collect()
-    }
-}
-
-fn queue_pair(
-    queue: &mut BinaryHeap<Reverse<Candidate>>,
-    merges: &MergeLookup,
-    symbols: &Symbols,
-    left: usize,
-    right: usize,
-) {
-    let pair = (symbols.ids[left], symbols.ids[right]);
-    if let Some(&(rank, merged)) = merges.get(&pair) {
-        queue.push(Reverse(Candidate {
-            rank,
-            left,
-            right,
-            pair,
-            merged,
-        }));
+        let mut out = Vec::with_capacity(self.ids.len());
+        let mut index = 0;
+        while let Some(&id) = self.ids.get(index) {
+            out.push(id);
+            index = self.next[index];
+        }
+        out
     }
 }
 
@@ -121,27 +117,20 @@ fn merge_short(mut ids: Vec<u32>, merges: &MergeLookup) -> Vec<u32> {
     ids
 }
 
-/// O(n log n): a heap of candidate pairs, skipping those gone stale.
+/// O(n log n): a heap of `(rank, left)` pairs, skipping those gone stale.
 fn merge_long(ids: Vec<u32>, merges: &MergeLookup) -> Vec<u32> {
-    let mut symbols = Symbols::new(ids);
-    let mut queue = BinaryHeap::new();
-    for right in 1..symbols.ids.len() {
-        queue_pair(&mut queue, merges, &symbols, right - 1, right);
+    let len = ids.len();
+    let mut chain = Chain::new(ids, merges);
+    let mut heap = BinaryHeap::with_capacity(len);
+    for left in 0..len {
+        chain.refresh(left, &mut heap);
     }
-    while let Some(Reverse(candidate)) = queue.pop() {
-        if !symbols.is_current(&candidate) {
-            continue;
-        }
-        symbols.merge(&candidate);
-        let left = candidate.left;
-        if let Some(prev) = symbols.prev[left] {
-            queue_pair(&mut queue, merges, &symbols, prev, left);
-        }
-        if let Some(next) = symbols.next[left] {
-            queue_pair(&mut queue, merges, &symbols, left, next);
+    while let Some(Reverse((rank, left))) = heap.pop() {
+        if chain.rank[left] == rank {
+            chain.merge(left, &mut heap);
         }
     }
-    symbols.into_ids()
+    chain.into_ids()
 }
 
 #[cfg(test)]
