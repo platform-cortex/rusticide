@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Architecture
 
-This is the map of the workspace as it stands at the end of milestone 1 of
+This is the map of the workspace as it stands at the end of milestone 2 of
 `rusticide run`. The reasoning behind it -- why the framework is shaped like
 PyTorch, what the oracle is, how the sub-projects are cut -- lives in the
 [design document](plan/2026-08-21-rusticide-framework-design.md), and the
@@ -82,6 +82,27 @@ in the framework layers depends on them. The model crates build on
 `rusticide-sampling` and `rusticide-tokenizer` rather than the other way
 round.
 
+## Formats, lazy loading and the tokenizer
+
+Milestone 2 added Qwen2.5 (`qwen2`, registered beside `llama` in
+`registry.rs`; it is a variant of `rusticide-llama` with half-split (NEOX)
+RoPE and Q/K/V biases). Three mechanisms carry it.
+
+- **Block-format table.** `rusticide-quantize` describes each format as a
+  `BlockFormat` row. `block_format(type_id)` looks a GGUF tensor type up and
+  `formats()` lists every row: Q4_0, Q5_0, Q8_0, Q4_K and Q6_K. Adding a
+  format is one module plus one row in the table.
+- **Lazy rejection.** `rusticide-io` reads the tensor table without judging
+  types: `TensorInfo.type_id` keeps the raw id. An unsupported type fails
+  with `UnsupportedTensorType { name, type_id }` only when that tensor is
+  materialized, so a file may carry types the model never reads.
+- **GPT-2 tokenizer path.** `rusticide-tokenizer` adds a byte-to-unicode
+  table and picks the pre-tokenizer from `tokenizer.ggml.pre`: `gpt2` or
+  `gpt-2`, `qwen2`, or llama.cpp's default when the key is absent. The
+  patterns are llama.cpp's, verbatim, run through `fancy-regex` (they need
+  look-ahead). The end-of-generation set is the eos id, the eot id and the
+  token texts llama.cpp treats as end of generation.
+
 ## SP1 foundation versus rewired legacy
 
 The crates fall in two groups.
@@ -94,7 +115,7 @@ The crates fall in two groups.
 - `rusticide-schema`
 - `rusticide` (the facade and its CLI)
 
-**Written for `rusticide run` milestone 1:**
+**Written for `rusticide run` (milestones 1 and 2):**
 
 - `rusticide-kernels`
 - `rusticide-model`

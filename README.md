@@ -110,10 +110,14 @@ means greedy), `--top-k` (default 40), `--top-p` (default 0.95) and `--seed`
 (random when absent). Weights are dequantized to f32 once at load and the
 file is read whole.
 
-- **Supported family:** `llama`. `TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF`
-  (`Q4_K_M`) is the tested model.
-- **Parity:** all 32 greedy tokens match llama.cpp (llama-server 0.5.0, build
-  11146) on the 3 fixture prompts, including a Portuguese one. Run it with
+- **Supported families:** `llama` and `qwen2` (a variant of the llama
+  implementation: half-split RoPE and Q/K/V biases). Tested models:
+  `TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF` (`Q4_K_M`) and
+  `Qwen/Qwen2.5-0.5B-Instruct-GGUF` (`qwen2.5-0.5b-instruct-q4_k_m.gguf`).
+- **Parity:** all 32 greedy tokens match llama.cpp on the fixture prompts,
+  including a Portuguese one. TinyLlama: llama-server 0.5.0, build 11146, 3
+  prompts. Qwen2.5: llama-server 0.8.0, build 11960 (commit 8642541b2), 4
+  prompts, one of them a newline and digits prompt. Run it with
   `mise run test:reference` and `RUSTICIDE_MODELS` set.
 - **Speed**, with the command above (the design's target is 2 tokens/s; it
   is a target, not a release blocker):
@@ -122,6 +126,9 @@ file is read whole.
   - Intel Xeon W-2150B (10 cores / 20 threads, 128 GiB, macOS x86_64):
     1.58 tokens/s, measured while the host was busy with other work (load
     average about 17). Load time is about 10 s.
+  - Qwen2.5 0.5B `Q4_K_M` on the Apple M1 Pro (8 cores, 32 GiB, macOS
+    arm64): about 34 tokens/s (33.94, 34.75 and 33.50 over three runs of
+    `--prompt "Once upon a time," -n 64 --temperature 0`).
 
 ### Reading a GGUF file
 

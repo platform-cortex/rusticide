@@ -317,3 +317,6 @@ deferred unless a milestone needs one.
   flags), as long as the fixture records the tool and version.
 - The regex engine for GPT-2 pre-tokenization (the standard pattern uses
   look-ahead, which the `regex` crate lacks).
+
+> **Resolved 2026-10-31.** The pre-tokenizer uses `fancy-regex` with
+> llama.cpp's patterns verbatim.
