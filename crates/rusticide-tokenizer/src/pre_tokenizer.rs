@@ -4,8 +4,8 @@
 
 use std::sync::OnceLock;
 
-use regex_automata::Input;
 use regex_automata::meta::Regex;
+use regex_automata::{Anchored, Input};
 
 use crate::error::{Result, TokenizerError};
 
@@ -168,15 +168,24 @@ impl Splitter {
         Ok(Self { regex, lookahead })
     }
 
+    /// Anchored searches, one position at a time: the same pieces as a
+    /// leftmost-first scan, without the reverse search that locates where an
+    /// unanchored match starts. A character no alternative matches at joins
+    /// the gap before the next match.
     fn split_piece<'t>(&self, piece: &'t str, out: &mut Vec<&'t str>) {
         let mut last = 0;
-        let mut input = Input::new(piece);
-        while let Some(found) = self.regex.search(&input) {
-            let end = self.end_of(piece, found.start(), found.end());
-            out.push(&piece[last..found.start()]);
-            out.push(&piece[found.start()..end]);
-            last = end;
-            input.set_start(end);
+        let mut at = 0;
+        while at < piece.len() {
+            let input = Input::new(piece).range(at..).anchored(Anchored::Yes);
+            if let Some(found) = self.regex.search(&input).filter(|found| !found.is_empty()) {
+                let end = self.end_of(piece, at, found.end());
+                out.push(&piece[last..at]);
+                out.push(&piece[at..end]);
+                last = end;
+                at = end;
+            } else {
+                at += piece[at..].chars().next().map_or(1, char::len_utf8);
+            }
         }
         out.push(&piece[last..]);
     }

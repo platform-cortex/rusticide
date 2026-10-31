@@ -34,6 +34,13 @@ const ALPHABET: &[&str] = &[
     "\u{4e2d}",
     "\u{1f600}",
     "\u{2028}",
+    "\u{436}",
+    "\u{628}",
+    "\u{301}",
+    "\u{1c5}",
+    "\u{2b0}",
+    "A",
+    "\u{c9}",
 ];
 
 fn reference<'t>(patterns: &[&str], text: &'t str) -> Vec<&'t str> {
