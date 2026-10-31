@@ -131,7 +131,7 @@ hooks {
     ["commit-msg"] {
         steps {
             ["commit-lint"] = new {
-                check = "mise run commit:lint --commit-file {{ files }}"
+                check = "mise run commit:lint --commit-file {{ commit_msg_file }}"
             }
         }
     }
