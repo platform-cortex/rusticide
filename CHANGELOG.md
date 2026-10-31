@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-10-31
+
+### Features
+
+- **quantize:** add Q8_0 and Q5_0
+- **io:** reject unsupported tensor types lazily
+- **tokenizer:** pre-tokenize with regex patterns
+- **tokenizer:** stop on every end-of-generation token
+- **llama:** add qwen2 variant and rope style
+- **llama:** run qwen2 models
+
+### Bug Fixes
+
+- **hooks:** pass the message file to commit-lint
+- **build:** keep -D warnings and make native opt-in
+- **tokenizer:** map gpt2 bytes to unicode
+- **llama:** pin the qwen2 rope key, share rotate
+
+### Refactor
+
+- **quantize:** look block formats up in one table
+
+### Documentation
+
+- **agents:** keep worktrees under .worktrees/
+- record both dev machines and the Qwen2.5 file
+- plan milestone 2 (qwen2)
+- state the 1.96 MSRV in the remaining docs
+- tie the MSRV to the rust-skills guide
+- document qwen2 support
+
+### Testing
+
+- **llama:** pin qwen2 bias before rope
+- **llama:** pin greedy parity on Qwen2.5
+
+### Miscellaneous Tasks
+
+- bump mise-action, setup-uv and install-action
+- add a build:release mise task
+- raise the MSRV to 1.96
 ## [0.3.0] - 2026-10-23
 
 ### Features

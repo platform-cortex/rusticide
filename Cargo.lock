@@ -286,7 +286,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rusticide"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -302,11 +302,11 @@ dependencies = [
 
 [[package]]
 name = "rusticide-alloc"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "rusticide-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "half",
  "rusticide-alloc",
@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-dispatch"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "rusticide-core",
  "thiserror",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-ggml"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "half",
  "rusticide-core",
@@ -333,7 +333,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-io"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "half",
  "rusticide-core",
@@ -343,14 +343,14 @@ dependencies = [
 
 [[package]]
 name = "rusticide-kernels"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
 name = "rusticide-llama"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "rusticide-core",
  "rusticide-io",
@@ -363,7 +363,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-model"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "half",
  "rusticide-core",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-quantize"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "half",
  "rusticide-core",
@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "rusticide-sampling"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "fastrand",
  "rusticide-core",
@@ -394,14 +394,14 @@ dependencies = [
 
 [[package]]
 name = "rusticide-schema"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "rusticide-tokenizer"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "fancy-regex",
  "rusticide-io",
