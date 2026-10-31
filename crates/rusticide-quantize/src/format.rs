@@ -7,7 +7,7 @@
 use rusticide_core::{Shape, Tensor};
 
 use crate::error::{QuantizeError, ensure_aligned, ensure_len, zeroed_f32};
-use crate::{q4_0, q4_k, q6_k};
+use crate::{q4_0, q4_k, q5_0, q6_k, q8_0};
 
 /// One block-quantized GGML format.
 #[derive(Debug, Clone, Copy)]
@@ -20,13 +20,20 @@ pub struct BlockFormat {
     pub dequantize_block: fn(block: &[u8], out: &mut [f32]),
 }
 
-static FORMATS: [BlockFormat; 3] = [
+static FORMATS: [BlockFormat; 5] = [
     BlockFormat {
         name: "Q4_0",
         type_id: 2,
         block_size: q4_0::Q4_0_BLOCK_SIZE,
         block_bytes: q4_0::Q4_0_BLOCK_BYTES,
         dequantize_block: q4_0::dequantize_block,
+    },
+    BlockFormat {
+        name: "Q5_0",
+        type_id: 6,
+        block_size: q5_0::Q5_0_BLOCK_SIZE,
+        block_bytes: q5_0::Q5_0_BLOCK_BYTES,
+        dequantize_block: q5_0::dequantize_block,
     },
     BlockFormat {
         name: "Q4_K",
@@ -42,7 +49,20 @@ static FORMATS: [BlockFormat; 3] = [
         block_bytes: q6_k::Q6_K_BLOCK_BYTES,
         dequantize_block: q6_k::dequantize_block,
     },
+    BlockFormat {
+        name: "Q8_0",
+        type_id: 8,
+        block_size: q8_0::Q8_0_BLOCK_SIZE,
+        block_bytes: q8_0::Q8_0_BLOCK_BYTES,
+        dequantize_block: q8_0::dequantize_block,
+    },
 ];
+
+/// Every registered block format.
+#[must_use]
+pub fn formats() -> &'static [BlockFormat] {
+    &FORMATS
+}
 
 /// The block format registered for a GGML type id, if any.
 #[must_use]

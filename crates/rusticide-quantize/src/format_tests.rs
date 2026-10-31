@@ -15,6 +15,26 @@ fn table_knows_the_existing_formats() {
 }
 
 #[test]
+fn table_knows_q5_0_and_q8_0() {
+    assert_eq!(
+        block_format(6).map(|f| (f.name, f.block_size, f.block_bytes)),
+        Some(("Q5_0", 32, 22))
+    );
+    assert_eq!(
+        block_format(8).map(|f| (f.name, f.block_size, f.block_bytes)),
+        Some(("Q8_0", 32, 34))
+    );
+}
+
+#[test]
+fn formats_lists_every_row_with_a_distinct_type_id() {
+    let mut ids: Vec<u32> = formats().iter().map(|f| f.type_id).collect();
+    ids.sort_unstable();
+    ids.dedup();
+    assert_eq!(ids, [2, 6, 8, 12, 14]);
+}
+
+#[test]
 fn unknown_type_id_has_no_format() {
     assert!(block_format(99).is_none());
 }

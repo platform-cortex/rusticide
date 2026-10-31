@@ -26,9 +26,17 @@ libfuzzer-sys = "0.4"
 rusticide-io = { path = "../rusticide-io" }
 rusticide-llama = { path = "../rusticide-llama" }
 rusticide-model = { path = "../rusticide-model" }
+rusticide-quantize = { path = "../rusticide-quantize" }
 rusticide-tokenizer = { path = "../rusticide-tokenizer" }
 
 [workspace]
+
+[[bin]]
+bench = false
+doc = false
+name = "dequantize"
+path = "fuzz_targets/dequantize.rs"
+test = false
 
 [[bin]]
 bench = false

@@ -27,12 +27,14 @@ the explicit `--fuzz-dir .` flag shown below.
 
 | Target | Entry point | Looks for |
 | ------ | ----------- | --------- |
+| `dequantize` | `BlockFormat::dequantize` for every table row | Panics from a block format reading past a block, or from an unaligned or oversized shape |
 | `gguf_load` | `GgufFile::from_bytes` | Panics, out-of-bounds reads, and unbounded allocations from a malformed GGUF header, then every tensor via `tensor_by_index` |
 | `gguf_tokenizer` | `Tokenizer::from_gguf` + `encode`/`decode` | Panics from vocab/score/special-token metadata that disagrees with itself, including out-of-range ids |
 | `llama_load` | `rusticide_llama::load` + one `forward` | Panics from llama hyperparameters or tensor shapes that are zero, overflow, or disagree with each other |
 
-All three feed the input straight to `GgufFile::from_bytes`; inputs under 24
-bytes (the GGUF header size) are skipped.
+The GGUF targets feed the input straight to `GgufFile::from_bytes`; inputs
+under 24 bytes (the GGUF header size) are skipped. `dequantize` uses the first
+byte to pick a format and the rest as block data.
 
 ## Running
 
@@ -43,6 +45,7 @@ workspace:
 ```sh
 cd crates/rusticide-fuzz
 cargo +nightly fuzz list --fuzz-dir .
+cargo +nightly fuzz run --fuzz-dir . dequantize -- -max_total_time=60 -rss_limit_mb=2048
 cargo +nightly fuzz run --fuzz-dir . gguf_load -- -max_total_time=60 -rss_limit_mb=2048
 cargo +nightly fuzz run --fuzz-dir . gguf_tokenizer -- -max_total_time=60 -rss_limit_mb=2048
 ```
