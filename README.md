@@ -30,12 +30,13 @@ TinyLlama and Qwen2.5 0.5B Instruct. What exists:
 - a GGUF file reader and a tokenizer built from GGUF metadata;
 - shared f32 kernels, a model contract with an architecture registry, a KV
   cache and a streaming generation loop;
-- the `llama` model family (TinyLlama is tested), running on the CPU;
+- the `llama` and `qwen2` model families (TinyLlama and Qwen2.5 are tested),
+  running on the CPU;
 - the facade crate with an embedded CLI, including `rusticide run`.
 
 Operators are not generated, there is no autograd and no GPU backend, and the
-legacy eager tensor API is slated for removal in SP2. The next milestones of
-`rusticide run` add Qwen and BitNet. See the
+legacy eager tensor API is slated for removal in SP2. The next milestone of
+`rusticide run` adds BitNet. See the
 [run design](docs/plan/2026-10-22-rusticide-run-design.md) and the
 [framework design](docs/plan/2026-08-21-rusticide-framework-design.md) for the
 roadmap, and [ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the crates fit
