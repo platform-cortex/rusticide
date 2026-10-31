@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 [graph]
-all-features = false
+all-features = true
 no-default-features = false
 
 [output]
@@ -15,16 +15,7 @@ db-urls = ["https://github.com/rustsec/advisory-db"]
 ignore = []
 
 [licenses]
-allow = [
-  "MIT",
-  "Apache-2.0",
-  "Unicode-3.0",
-  "BSD-3-Clause",
-  "ISC",
-  "MPL-2.0",
-  "MIT-0",
-  "CDLA-Permissive-2.0",
-]
+allow = ["MIT", "Apache-2.0", "Unicode-3.0"]
 confidence-threshold = 0.8
 
 [licenses.private]
@@ -34,6 +25,11 @@ ignore = false
 external-default-features = "allow"
 highlight = "all"
 multiple-versions = "warn"
+# zerocopy-derive (via half) is still on syn 2 while serde and thiserror use
+# syn 3; both are proc-macro build dependencies, nothing ships twice.
+skip = [
+  { crate = "syn@2", reason = "zerocopy-derive (via half) still uses syn 2" },
+]
 wildcards = "allow"
 workspace-default-features = "allow"
 
