@@ -101,7 +101,7 @@ fn rank_merges(ids: &PieceLookup) -> MergeLookup {
             if let (Some(&left), Some(&right)) =
                 (ids.get(&token[..split]), ids.get(&token[split..]))
             {
-                merges.insert((left, right), (token_id as usize, token_id));
+                merges.insert((left, right), (token_id, token_id));
             }
         }
     }

@@ -8,7 +8,7 @@ use std::collections::BinaryHeap;
 use crate::tokenizer::MergeLookup;
 
 /// A symbol with no mergeable pair, or one merged away.
-const NO_RANK: usize = usize::MAX;
+const NO_RANK: u32 = u32::MAX;
 
 /// A long word as a linked list of symbols, with the rank and result of the
 /// pair each symbol starts. A heap entry `(rank, left)` is current while
@@ -19,7 +19,7 @@ struct Chain<'m> {
     ids: Vec<u32>,
     next: Vec<usize>,
     prev: Vec<usize>,
-    rank: Vec<usize>,
+    rank: Vec<u32>,
     merged: Vec<u32>,
 }
 
@@ -37,7 +37,7 @@ impl<'m> Chain<'m> {
     }
 
     /// Looks the pair starting at `left` up again and queues it if it merges.
-    fn refresh(&mut self, left: usize, heap: &mut BinaryHeap<Reverse<(usize, usize)>>) {
+    fn refresh(&mut self, left: usize, heap: &mut BinaryHeap<Reverse<(u32, usize)>>) {
         let right = self.next[left];
         let found = self
             .ids
@@ -52,7 +52,7 @@ impl<'m> Chain<'m> {
         }
     }
 
-    fn merge(&mut self, left: usize, heap: &mut BinaryHeap<Reverse<(usize, usize)>>) {
+    fn merge(&mut self, left: usize, heap: &mut BinaryHeap<Reverse<(u32, usize)>>) {
         let right = self.next[left];
         self.ids[left] = self.merged[left];
         self.next[left] = self.next[right];

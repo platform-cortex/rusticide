@@ -200,7 +200,7 @@ impl Tokenizer {
                 token_to_id.get(right),
             );
             if let (Some(&merged), Some(&left_id), Some(&right_id)) = ids {
-                merge_info.insert((left_id, right_id), (rank, merged));
+                merge_info.insert((left_id, right_id), (token_id(rank)?, merged));
             }
         }
         Ok(merge_info)

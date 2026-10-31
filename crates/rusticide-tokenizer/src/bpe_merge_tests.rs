@@ -58,7 +58,7 @@ fn random_merges(rng: &mut Lcg, symbols: u32) -> MergeLookup {
         } else {
             symbols + step
         };
-        let rank = usize::try_from(rng.below(8)).unwrap();
+        let rank = rng.below(8);
         lookup.insert(pair, (rank, merged));
     }
     lookup

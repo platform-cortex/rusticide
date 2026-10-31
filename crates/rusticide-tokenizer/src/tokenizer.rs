@@ -12,7 +12,9 @@ use crate::pair_hash::PairHasher;
 use crate::pre_tokenizer::PreTokenizer;
 use crate::trie::Trie;
 
-pub(crate) type MergeLookup = HashMap<(u32, u32), (usize, u32), BuildHasherDefault<PairHasher>>;
+/// `(left, right) -> (rank, merged)`; `u32` ranks keep each entry at 16
+/// bytes, which matters for million-pair tables.
+pub(crate) type MergeLookup = HashMap<(u32, u32), (u32, u32), BuildHasherDefault<PairHasher>>;
 
 /// Whole pre-tokenized pieces that are tokens, for vocabularies where that
 /// shortcut is exact (tiktoken's rank-trained ones).
