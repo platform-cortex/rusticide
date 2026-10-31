@@ -111,11 +111,18 @@ fn models_dir() -> Option<PathBuf> {
     models.map(PathBuf::from)
 }
 
+const MIN_CASES: usize = 3;
+
 fn check_fixture(fixture: &str) -> TestResult {
     let Some(models) = models_dir() else {
         return Ok(());
     };
     let fixture: Fixture = serde_json::from_str(fixture)?;
+    assert!(
+        fixture.cases.len() >= MIN_CASES,
+        "fixture has {} cases, the spec requires at least {MIN_CASES} prompts per model",
+        fixture.cases.len()
+    );
     let source = GgufFile::load(models.join(&fixture.model.file))?;
     let tokenizer = Tokenizer::from_gguf(source.metadata())?;
     let registry = Registry::new()
