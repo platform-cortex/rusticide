@@ -12,12 +12,12 @@ use crate::{q4_0, q4_k, q5_0, q6_k, q8_0};
 /// One block-quantized GGML format.
 #[derive(Debug, Clone, Copy)]
 pub struct BlockFormat {
-    pub name: &'static str,
-    pub type_id: u32,
-    pub block_size: usize,
-    pub block_bytes: usize,
+    name: &'static str,
+    type_id: u32,
+    block_size: usize,
+    block_bytes: usize,
     /// Receives exactly `block_bytes` bytes and `block_size` outputs.
-    pub dequantize_block: fn(block: &[u8], out: &mut [f32]),
+    dequantize_block: fn(block: &[u8], out: &mut [f32]),
 }
 
 static FORMATS: [BlockFormat; 5] = [
@@ -71,6 +71,30 @@ pub fn block_format(type_id: u32) -> Option<&'static BlockFormat> {
 }
 
 impl BlockFormat {
+    /// The GGML name of the format, such as `Q4_K`.
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
+        self.name
+    }
+
+    /// The GGML type id.
+    #[must_use]
+    pub const fn type_id(&self) -> u32 {
+        self.type_id
+    }
+
+    /// Elements per block.
+    #[must_use]
+    pub const fn block_size(&self) -> usize {
+        self.block_size
+    }
+
+    /// Bytes per block.
+    #[must_use]
+    pub const fn block_bytes(&self) -> usize {
+        self.block_bytes
+    }
+
     /// Bytes holding `numel` elements, rounded up to whole blocks; `None` on
     /// overflow.
     #[must_use]

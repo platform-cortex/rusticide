@@ -35,6 +35,20 @@ fn formats_lists_every_row_with_a_distinct_type_id() {
 }
 
 #[test]
+fn getters_expose_the_row() {
+    let format = block_format(12).unwrap();
+    assert_eq!(
+        (
+            format.name(),
+            format.type_id(),
+            format.block_size(),
+            format.block_bytes()
+        ),
+        ("Q4_K", 12, 256, 144)
+    );
+}
+
+#[test]
 fn unknown_type_id_has_no_format() {
     assert!(block_format(99).is_none());
 }

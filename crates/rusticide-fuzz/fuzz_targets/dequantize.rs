@@ -18,6 +18,6 @@ fuzz_target!(|data: &[u8]| {
     };
     let table = formats();
     let format = &table[usize::from(selector) % table.len()];
-    let blocks = payload.len() / format.block_bytes;
-    let _ = format.dequantize(payload, &[blocks * format.block_size]);
+    let blocks = payload.len() / format.block_bytes();
+    let _ = format.dequantize(payload, &[blocks * format.block_size()]);
 });

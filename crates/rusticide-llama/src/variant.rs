@@ -6,6 +6,7 @@ use rusticide_kernels::{rope_adjacent, rope_half_split};
 
 /// A model family sharing the llama forward pass.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Variant {
     Llama,
     Qwen2,
@@ -13,6 +14,7 @@ pub enum Variant {
 
 /// How `RoPE` pairs the columns of a head.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RopeStyle {
     /// Pairs `(2p, 2p + 1)`.
     Adjacent,
