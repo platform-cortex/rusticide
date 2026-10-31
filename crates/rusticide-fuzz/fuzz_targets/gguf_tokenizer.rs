@@ -37,7 +37,10 @@ fuzz_target!(|data: &[u8]| {
         return;
     };
 
-    for probe in PROBES {
+    // The input itself is also text: GPT-2 pre-tokenization runs regexes on it.
+    let fuzzed = String::from_utf8_lossy(data);
+    let probes = PROBES.into_iter().chain([fuzzed.as_ref()]);
+    for probe in probes {
         let Ok(tokens) = tokenizer.encode(probe) else {
             continue;
         };

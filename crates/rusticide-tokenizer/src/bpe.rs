@@ -3,17 +3,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::error::{Result, TokenizerError};
+use crate::pre_tokenizer::PreTokenizer;
 use crate::tokenizer::Tokenizer;
-
-fn gpt2_pre_tokenize(text: &str) -> impl Iterator<Item = &str> {
-    text.split_whitespace()
-}
 
 impl Tokenizer {
     /// GPT-2 byte-level BPE encoding.
     pub(crate) fn encode_gpt2(&self, text: &str) -> Result<Vec<u32>> {
+        let pre_tokenizer = self.pre.unwrap_or(PreTokenizer::GPT2);
         let mut tokens = Vec::new();
-        for word in gpt2_pre_tokenize(text) {
+        for word in pre_tokenizer.split(text)? {
             tokens.extend(self.bpe_encode_word(word)?);
         }
         Ok(tokens)

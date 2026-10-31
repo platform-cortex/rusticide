@@ -29,7 +29,7 @@ the explicit `--fuzz-dir .` flag shown below.
 | ------ | ----------- | --------- |
 | `dequantize` | `BlockFormat::dequantize` for every table row | Panics from a block format reading past a block, or from an unaligned or oversized shape |
 | `gguf_load` | `GgufFile::from_bytes` | Panics, out-of-bounds reads, and unbounded allocations from a malformed GGUF header, then every tensor via `tensor_by_index` |
-| `gguf_tokenizer` | `Tokenizer::from_gguf` + `encode`/`decode` | Panics from vocab/score/special-token metadata that disagrees with itself, including out-of-range ids |
+| `gguf_tokenizer` | `Tokenizer::from_gguf` + `encode`/`decode` | Panics from vocab/score/special-token metadata that disagrees with itself, including out-of-range ids, and from GPT-2 pre-tokenization of the raw input as text |
 | `llama_load` | `rusticide_llama::load` + one `forward` | Panics from llama hyperparameters or tensor shapes that are zero, overflow, or disagree with each other |
 
 The GGUF targets feed the input straight to `GgufFile::from_bytes`; inputs

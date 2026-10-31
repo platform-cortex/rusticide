@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use crate::byte_unicode::byte_token_table;
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
+use crate::pre_tokenizer::PreTokenizer;
 use crate::trie::Trie;
 
 pub(crate) type MergeLookup = HashMap<(u32, u32), (usize, u32)>;
@@ -41,6 +42,7 @@ pub struct Tokenizer {
     pub(crate) merge_info: MergeLookup,
     pub(crate) pieces: Trie,
     pub(crate) byte_tokens: [Option<u32>; 256],
+    pub(crate) pre: Option<PreTokenizer>,
 }
 
 impl Tokenizer {
@@ -69,7 +71,9 @@ impl Tokenizer {
         let scores_vec = pad_scores(scores.unwrap_or_default(), vocab_bytes.len());
         let add_space_prefix = model == TokenizerModel::LLaMA;
         let byte_tokens = byte_tokens_for(model, &vocab_bytes);
+        let pre = (model == TokenizerModel::GPT2).then_some(PreTokenizer::GPT2);
         Self {
+            pre,
             model,
             byte_tokens,
             pieces: Trie::from_vocab(&vocab_bytes),

@@ -40,7 +40,10 @@ fn encode_without_a_byte_token_is_a_typed_error() {
 #[test]
 fn encode_ignores_spm_normalization() {
     let tok = gpt2_tokenizer(&[], &[]);
-    assert_eq!(tok.encode("a b").unwrap(), &[byte_id(b'a'), byte_id(b'b')]);
+    assert_eq!(
+        tok.encode("a b").unwrap(),
+        &[byte_id(b'a'), byte_id(b' '), byte_id(b'b')]
+    );
 }
 
 #[test]
@@ -59,16 +62,17 @@ fn bpe_breaks_rank_ties_at_the_leftmost_pair() {
 }
 
 #[test]
-fn bpe_encodes_each_whitespace_separated_word_alone() {
+fn bpe_encodes_each_pre_token_alone() {
     let tok = gpt2_tokenizer(&["ab"], &["a b"]);
     assert_eq!(
-        tok.encode("ab  a\tb\nab").unwrap(),
-        &[256, byte_id(b'a'), byte_id(b'b'), 256]
+        tok.encode("ab  a").unwrap(),
+        &[256, byte_id(b' '), byte_id(b' '), byte_id(b'a')]
     );
 }
 
 #[test]
-fn bpe_of_only_whitespace_is_empty() {
+fn encode_keeps_whitespace() {
     let tok = gpt2_tokenizer(&[], &[]);
-    assert_eq!(tok.encode(" \n\t").unwrap(), Vec::<u32>::new());
+    let ids = tok.encode("a  b\n").unwrap();
+    assert_eq!(tok.decode(&ids).unwrap(), "a  b\n");
 }
