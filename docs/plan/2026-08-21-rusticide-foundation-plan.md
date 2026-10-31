@@ -23,7 +23,7 @@ dispatching through the real dispatch table to a CPU kernel.
 parallel. `rusticide-dispatch` sits on both. The surviving `rusticide-*`
 crates are rewired last, once the types they import exist again.
 
-**Tech Stack:** Rust 1.97 toolchain, MSRV 1.92, edition 2024, resolver 3.
+**Tech Stack:** Rust 1.99 toolchain, MSRV 1.96, edition 2024, resolver 3.
 `thiserror` for errors, `rayon` for parallelism, `half` for f16/bf16.
 No C, no C++, no Python, no CPython.
 
