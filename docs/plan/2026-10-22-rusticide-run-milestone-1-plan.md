@@ -21,7 +21,7 @@ the architecture registry, the KV cache and the generation loop.
 `rusticide-llama` implements the `llama` family. The CLI's `run` subcommand
 only wires them together.
 
-**Tech Stack:** Rust 2024 (MSRV 1.88), rayon, clap, thiserror/anyhow,
+**Tech Stack:** Rust 2024 (MSRV 1.96), rayon, clap, thiserror/anyhow,
 serde_json (dev only), llama.cpp `llama-server` as the reference (outside the
 repo).
 
@@ -36,7 +36,7 @@ plan implements its milestone 1 and nothing from milestones 2-3.
   included, ASCII only, the three-line SPDX header on every `.rs` file,
   thiserror in libraries and anyhow in the binary, GPG-signed conventional
   commits with no trailers.
-- MSRV 1.88: no std APIs newer than 1.88.
+- MSRV 1.96: no std APIs newer than 1.96.
 - New crates live under `crates/` (the workspace glob picks them up). Each
   gets a `[workspace.dependencies]` entry in the root `Cargo.toml` with
   `version = "0.2.0"` (the release task moves it), and copies the

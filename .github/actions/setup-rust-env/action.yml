@@ -68,7 +68,7 @@ outputs:
     description: "The registry/build cache key rust-toolchain derived"
     value: ${{ steps.rust-toolchain.outputs.cachekey }}
   rust-version:
-    description: "The installed Rust toolchain version (e.g. 'rustc 1.88.0 (a1b2c3d4e 2025-07-14)')"
+    description: "The installed Rust toolchain version (e.g. 'rustc 1.96.0 (a1b2c3d4e 2026-05-28)')"
     value: ${{ steps.rust-toolchain.outputs.name }}
 
 runs:
