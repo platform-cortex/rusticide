@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::merge_ids;
+use super::merge_into;
 use crate::tokenizer::MergeLookup;
 
 /// The quadratic merge `merge_ids` replaced: lowest rank first, leftmost on
@@ -23,6 +23,13 @@ fn naive(mut ids: Vec<u32>, lookup: &MergeLookup) -> Vec<u32> {
         ids[position] = merged;
         ids.remove(position + 1);
     }
+}
+
+fn merge_ids(mut ids: Vec<u32>, lookup: &MergeLookup) -> Vec<u32> {
+    let mut out = vec![7];
+    merge_into(&mut ids, lookup, &mut out);
+    out.remove(0);
+    out
 }
 
 /// A deterministic linear congruential generator.
@@ -59,7 +66,7 @@ fn random_merges(rng: &mut Lcg, symbols: u32) -> MergeLookup {
 
 /// Random ids, a repeated short pattern, or one id repeated.
 fn random_ids(rng: &mut Lcg, symbols: u32) -> Vec<u32> {
-    let len = usize::try_from(rng.below(48)).unwrap();
+    let len = usize::try_from(rng.below(160)).unwrap();
     match rng.below(3) {
         0 => (0..len).map(|_| rng.below(symbols)).collect(),
         1 => {

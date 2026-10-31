@@ -77,44 +77,57 @@ impl<'m> Chain<'m> {
     }
 }
 
-/// At or below this many symbols a linear scan beats the heap's overhead;
-/// almost every pre-tokenized word is this short.
-const SHORT_WORD: usize = 16;
+/// At or below this many symbols a linear scan over stack arrays beats the
+/// heap; tiktoken draws the same line at 100 bytes.
+pub(crate) const SHORT_WORD: usize = 64;
 
-/// Repeatedly merges the lowest-rank adjacent pair, leftmost on ties.
-pub(crate) fn merge_ids(ids: Vec<u32>, merges: &MergeLookup) -> Vec<u32> {
+/// Merges `ids` (lowest rank first, leftmost on ties) and appends the
+/// result to `out`.
+pub(crate) fn merge_into(ids: &mut [u32], merges: &MergeLookup, out: &mut Vec<u32>) {
     if ids.len() <= SHORT_WORD {
-        merge_short(ids, merges)
+        let len = merge_short(ids, merges);
+        out.extend_from_slice(&ids[..len]);
     } else {
-        merge_long(ids, merges)
+        out.extend(merge_long(ids.to_vec(), merges));
     }
 }
 
-/// O(n^2) for tiny n: each pair's rank is cached, and a merge looks up only
-/// the two pairs around the merged symbol.
-fn merge_short(mut ids: Vec<u32>, merges: &MergeLookup) -> Vec<u32> {
-    let rank_of = |ids: &[u32], left: usize| merges.get(&(ids[left], ids[left + 1])).copied();
-    let mut ranks: Vec<Option<(usize, u32)>> = (0..ids.len().saturating_sub(1))
-        .map(|left| rank_of(&ids, left))
-        .collect();
-    while let Some((left, merged)) = ranks
+/// O(n^2) for small n, allocation-free: each pair's rank is cached, and a
+/// merge looks up only the two pairs around the merged symbol. Returns how
+/// many symbols remain at the front of `ids`.
+fn merge_short(ids: &mut [u32], merges: &MergeLookup) -> usize {
+    let rank_of = |ids: &[u32], left: usize| {
+        merges
+            .get(&(ids[left], ids[left + 1]))
+            .copied()
+            .unwrap_or((NO_RANK, 0))
+    };
+    let mut len = ids.len();
+    let mut ranks = [(NO_RANK, 0); SHORT_WORD];
+    for (left, slot) in ranks.iter_mut().enumerate().take(len.saturating_sub(1)) {
+        *slot = rank_of(ids, left);
+    }
+    while let Some((left, (rank, merged))) = ranks[..len.saturating_sub(1)]
         .iter()
+        .copied()
         .enumerate()
-        .filter_map(|(left, found)| found.map(|(rank, merged)| (rank, left, merged)))
-        .min()
-        .map(|(_, left, merged)| (left, merged))
+        .min_by_key(|&(_, (rank, _))| rank)
     {
-        ids[left] = merged;
-        ids.remove(left + 1);
-        ranks.remove(left);
-        if left > 0 {
-            ranks[left - 1] = rank_of(&ids, left - 1);
+        if rank == NO_RANK {
+            break;
         }
-        if left < ranks.len() {
-            ranks[left] = rank_of(&ids, left);
+        ids[left] = merged;
+        ids.copy_within(left + 2..len, left + 1);
+        ranks.copy_within(left + 1..len - 1, left);
+        len -= 1;
+        if left > 0 {
+            ranks[left - 1] = rank_of(&ids[..len], left - 1);
+        }
+        if left + 1 < len {
+            ranks[left] = rank_of(&ids[..len], left);
         }
     }
-    ids
+    len
 }
 
 /// O(n log n): a heap of `(rank, left)` pairs, skipping those gone stale.

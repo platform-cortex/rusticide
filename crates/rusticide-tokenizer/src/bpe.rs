@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use crate::bpe_merge::merge_ids;
+use crate::bpe_merge::{SHORT_WORD, merge_into};
 use crate::error::{Result, TokenizerError};
 use crate::pre_tokenizer::PreTokenizer;
 use crate::tokenizer::Tokenizer;
@@ -30,23 +30,31 @@ impl Tokenizer {
                 continue;
             }
             let start = tokens.len();
-            tokens.extend(self.bpe_encode_word(word)?);
+            self.bpe_encode_word(word, &mut tokens)?;
             seen.insert(word, start..tokens.len());
         }
         Ok(tokens)
     }
 
-    /// Starts from the byte token of each byte and merges by rank.
-    fn bpe_encode_word(&self, word: &str) -> Result<Vec<u32>> {
-        let ids = word
-            .bytes()
-            .map(|byte| {
-                self.byte_tokens[usize::from(byte)].ok_or_else(|| {
-                    TokenizerError::EncodeError(format!("no token for byte 0x{byte:02X}"))
-                })
+    /// Starts from the byte token of each byte, merges by rank, and appends
+    /// the ids to `out`; short words never touch the heap.
+    fn bpe_encode_word(&self, word: &str, out: &mut Vec<u32>) -> Result<()> {
+        let byte_id = |byte: u8| {
+            self.byte_tokens[usize::from(byte)].ok_or_else(|| {
+                TokenizerError::EncodeError(format!("no token for byte 0x{byte:02X}"))
             })
-            .collect::<Result<Vec<u32>>>()?;
-        Ok(merge_ids(ids, &self.merge_info))
+        };
+        if word.len() <= SHORT_WORD {
+            let mut ids = [0; SHORT_WORD];
+            for (slot, byte) in ids.iter_mut().zip(word.bytes()) {
+                *slot = byte_id(byte)?;
+            }
+            merge_into(&mut ids[..word.len()], &self.merge_info, out);
+        } else {
+            let mut ids = word.bytes().map(byte_id).collect::<Result<Vec<u32>>>()?;
+            merge_into(&mut ids, &self.merge_info, out);
+        }
+        Ok(())
     }
 }
 
