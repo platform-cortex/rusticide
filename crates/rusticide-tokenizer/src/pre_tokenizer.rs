@@ -18,6 +18,28 @@ pub(crate) const QWEN2: &[&str] = &[
     r"(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
 ];
 
+/// tiktoken `cl100k_base` (tiktoken-rs 0.12.1, `openai_public.rs`).
+pub(crate) const CL100K: &[&str] = &[
+    r"'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}++|\p{N}{1,3}+| ?[^\s\p{L}\p{N}]++[\r\n]*+|\s++$|\s*[\r\n]|\s+(?!\S)|\s",
+];
+
+/// tiktoken `o200k_base` (tiktoken-rs 0.12.1, `O200K_BASE_PAT_STR`).
+pub(crate) const O200K: &[&str] = &[concat!(
+    r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*[\p{Ll}\p{Lm}\p{Lo}\p{M}]+(?i:'s|'t|'re|'ve|'m|'ll|'d)?",
+    "|",
+    r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*(?i:'s|'t|'re|'ve|'m|'ll|'d)?",
+    "|",
+    r"\p{N}{1,3}",
+    "|",
+    r" ?[^\s\p{L}\p{N}]+[\r\n/]*",
+    "|",
+    r"\s*[\r\n]+",
+    "|",
+    r"\s+(?!\S)",
+    "|",
+    r"\s+",
+)];
+
 /// llama.cpp `LLAMA_VOCAB_PRE_TYPE_DEFAULT`, used when `tokenizer.ggml.pre`
 /// is absent.
 pub(crate) const DEFAULT: &[&str] = &[
@@ -54,6 +76,8 @@ impl PatternSet {
 static GPT2_SET: PatternSet = PatternSet::new(GPT2);
 static QWEN2_SET: PatternSet = PatternSet::new(QWEN2);
 static DEFAULT_SET: PatternSet = PatternSet::new(DEFAULT);
+static CL100K_SET: PatternSet = PatternSet::new(CL100K);
+static O200K_SET: PatternSet = PatternSet::new(O200K);
 
 /// Splits text into the pieces that byte-level BPE merges independently.
 #[derive(Clone, Copy, Debug)]
@@ -63,6 +87,8 @@ pub(crate) struct PreTokenizer {
 
 impl PreTokenizer {
     pub(crate) const GPT2: Self = Self { set: &GPT2_SET };
+    pub(crate) const CL100K: Self = Self { set: &CL100K_SET };
+    pub(crate) const O200K: Self = Self { set: &O200K_SET };
 
     /// `None` is a vocabulary without `tokenizer.ggml.pre`.
     pub(crate) fn from_name(name: Option<&str>) -> Result<Self> {
@@ -102,13 +128,23 @@ impl PreTokenizer {
 const SPACE_RUN_LOOKAHEAD: &str = r"\s+(?!\S)";
 /// qwen2's earlier whitespace-only alternative; its matches end in a line
 /// break and never come from the look-ahead alternative.
-const LINE_BREAK_RUN: &str = r"\s*[\r\n]+";
+const LINE_BREAK_RUN: &str = r"\s*[\r\n]";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Lookahead {
     Absent,
     Always,
     UnlessLineBreak,
+}
+
+/// tiktoken's possessive quantifiers only stop backtracking; a DFA never
+/// backtracks, so the greedy forms match the same text.
+fn without_possessives(pattern: &str) -> String {
+    pattern
+        .replace("?+", "?")
+        .replace("++", "+")
+        .replace("*+", "*")
+        .replace("{1,3}+", "{1,3}")
 }
 
 /// One compiled pattern plus how to replay its space-run look-ahead.
@@ -127,8 +163,8 @@ impl Splitter {
         } else {
             Lookahead::Always
         };
-        let regex =
-            Regex::new(&pattern.replace(SPACE_RUN_LOOKAHEAD, r"\s+")).map_err(|e| e.to_string())?;
+        let regex = Regex::new(&without_possessives(pattern).replace(SPACE_RUN_LOOKAHEAD, r"\s+"))
+            .map_err(|e| e.to_string())?;
         Ok(Self { regex, lookahead })
     }
 

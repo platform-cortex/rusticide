@@ -30,6 +30,8 @@ pub enum TokenizerError {
     UnsupportedPreTokenizer(String),
     #[error("vocabulary size exceeds u32 range")]
     VocabOverflow,
+    #[error("invalid tiktoken vocabulary at line {line}")]
+    InvalidTiktoken { line: usize },
 }
 
 pub type Result<T> = std::result::Result<T, TokenizerError>;

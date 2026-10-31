@@ -49,6 +49,7 @@ impl Tokenizer {
             match self.model {
                 TokenizerModel::LLaMA => push_spm_text(&mut bytes, piece),
                 TokenizerModel::GPT2 => push_gpt2_text(&mut bytes, piece),
+                TokenizerModel::Tiktoken => bytes.extend_from_slice(piece),
             }
         }
         Ok(bytes)

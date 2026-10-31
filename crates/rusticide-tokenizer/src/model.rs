@@ -7,4 +7,6 @@
 pub enum TokenizerModel {
     LLaMA,
     GPT2,
+    /// tiktoken: byte-level BPE on raw bytes, ranks as ids.
+    Tiktoken,
 }

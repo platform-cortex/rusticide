@@ -17,6 +17,7 @@ mod pre_tokenizer;
 mod special;
 mod spm;
 mod spm_merge;
+mod tiktoken;
 mod tokenizer;
 mod trie;
 mod value_ext;
@@ -28,4 +29,5 @@ mod test_support;
 
 pub use error::{Result, TokenizerError};
 pub use model::TokenizerModel;
+pub use tiktoken::TiktokenEncoding;
 pub use tokenizer::Tokenizer;

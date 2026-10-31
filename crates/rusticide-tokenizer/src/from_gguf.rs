@@ -180,6 +180,7 @@ impl Tokenizer {
             add_space_prefix,
             merge_info,
             special_tokens,
+            whole_pieces: None,
         })
     }
 

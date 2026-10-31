@@ -14,18 +14,34 @@ use crate::trie::Trie;
 
 pub(crate) type MergeLookup = HashMap<(u32, u32), (usize, u32), BuildHasherDefault<PairHasher>>;
 
+/// Whole pre-tokenized pieces that are tokens, for vocabularies where that
+/// shortcut is exact (tiktoken's rank-trained ones).
+pub(crate) type PieceLookup = HashMap<Vec<u8>, u32, BuildHasherDefault<PairHasher>>;
+
 /// Scores are indexed by token id, so they must cover the whole vocabulary.
 pub(crate) fn pad_scores(mut scores: Vec<f32>, vocab_len: usize) -> Vec<f32> {
     scores.resize(vocab_len, 0.0);
     scores
 }
 
-/// Only GPT-2 spells bytes as characters; `SentencePiece` has its own table.
+/// GPT-2 spells bytes as characters, tiktoken keeps them raw; `SentencePiece`
+/// has its own table.
 pub(crate) fn byte_tokens_for(model: TokenizerModel, vocab: &[Vec<u8>]) -> [Option<u32>; 256] {
     match model {
         TokenizerModel::GPT2 => byte_token_table(vocab),
+        TokenizerModel::Tiktoken => raw_byte_table(vocab),
         TokenizerModel::LLaMA => [None; 256],
     }
+}
+
+fn raw_byte_table(vocab: &[Vec<u8>]) -> [Option<u32>; 256] {
+    let mut table = [None; 256];
+    for (id, token) in vocab.iter().enumerate().rev() {
+        if let ([byte], Ok(id)) = (token.as_slice(), u32::try_from(id)) {
+            table[usize::from(*byte)] = Some(id);
+        }
+    }
+    table
 }
 
 pub(crate) fn token_id(index: usize) -> Result<u32> {
@@ -47,6 +63,7 @@ pub struct Tokenizer {
     pub(crate) pre: Option<PreTokenizer>,
     pub(crate) end_of_generation: Vec<u32>,
     pub(crate) special_tokens: Vec<(String, u32)>,
+    pub(crate) whole_pieces: Option<PieceLookup>,
 }
 
 impl Tokenizer {
@@ -75,7 +92,7 @@ impl Tokenizer {
         let scores_vec = pad_scores(scores.unwrap_or_default(), vocab_bytes.len());
         let add_space_prefix = model == TokenizerModel::LLaMA;
         let byte_tokens = byte_tokens_for(model, &vocab_bytes);
-        let pre = (model == TokenizerModel::GPT2).then_some(PreTokenizer::GPT2);
+        let pre = (model != TokenizerModel::LLaMA).then_some(PreTokenizer::GPT2);
         Self {
             pre,
             model,
@@ -90,6 +107,7 @@ impl Tokenizer {
             merge_info: MergeLookup::default(),
             end_of_generation: vec![eos_id],
             special_tokens: Vec::new(),
+            whole_pieces: None,
         }
     }
 

@@ -36,7 +36,7 @@ impl Tokenizer {
     fn encode_text(&self, text: &str) -> Result<Vec<u32>> {
         match self.model {
             TokenizerModel::LLaMA => self.encode_llama(text),
-            TokenizerModel::GPT2 => self.encode_gpt2(text),
+            TokenizerModel::GPT2 | TokenizerModel::Tiktoken => self.encode_gpt2(text),
         }
     }
 

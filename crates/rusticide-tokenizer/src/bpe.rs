@@ -21,6 +21,14 @@ impl Tokenizer {
                 tokens.extend_from_within(range.clone());
                 continue;
             }
+            if let Some(&id) = self
+                .whole_pieces
+                .as_ref()
+                .and_then(|ids| ids.get(word.as_bytes()))
+            {
+                tokens.push(id);
+                continue;
+            }
             let start = tokens.len();
             tokens.extend(self.bpe_encode_word(word)?);
             seen.insert(word, start..tokens.len());

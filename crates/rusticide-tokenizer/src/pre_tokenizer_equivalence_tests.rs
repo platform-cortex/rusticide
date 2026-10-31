@@ -7,7 +7,7 @@
 
 use fancy_regex::Regex;
 
-use crate::pre_tokenizer::{DEFAULT, GPT2, PreTokenizer, QWEN2};
+use crate::pre_tokenizer::{CL100K, DEFAULT, GPT2, O200K, PreTokenizer, QWEN2};
 
 const ALPHABET: &[&str] = &[
     " ",
@@ -88,6 +88,19 @@ fn every_pre_tokenizer_splits_like_its_reference_patterns() {
                 pre.split(&text).unwrap(),
                 reference(patterns, &text),
                 "{name:?} {text:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn tiktoken_pre_tokenizers_split_like_their_possessive_originals() {
+    for (pre, patterns) in [(PreTokenizer::CL100K, CL100K), (PreTokenizer::O200K, O200K)] {
+        for text in texts() {
+            assert_eq!(
+                pre.split(&text).unwrap(),
+                reference(patterns, &text),
+                "{patterns:?} {text:?}"
             );
         }
     }
