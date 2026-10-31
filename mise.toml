@@ -2722,29 +2722,56 @@ shell = "bash -c"
 
 [tasks.build]
 alias = ["b"]
-description = "cargo build --workspace"
+depends = []
+depends_post = []
+description = "Build the workspace in debug mode; --native tunes it for this CPU only"
 run = '''
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
 
-export RUSTFLAGS="-C target-cpu=native"
+if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
+
+# RUSTFLAGS REPLACES .cargo/config.toml's `-D warnings` rather than merging, so
+# --native restates it.
+if [ "${usage_native:-false}" = "true" ]; then
+  export RUSTFLAGS="${RUSTFLAGS:-} -D warnings -C target-cpu=native"
+fi
+
 cargo build --workspace
-unset RUSTFLAGS
+'''
+shell = "bash -c"
+usage = '''
+flag "-v --verbose" help="Trace each command before running it (set -x)"
+flag "--native" help="Tune for this machine's CPU (-C target-cpu=native); the binary may not run elsewhere"
 '''
 
 [tasks."build:release"]
 alias = ["br"]
-description = "cargo build --workspace --release"
+depends = []
+depends_post = []
+description = "Build the workspace in release mode with the CLI and copy the rusticide binary to the repo root; --native tunes it for this CPU only"
 run = '''
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
 
-export RUSTFLAGS="-C target-cpu=native"
+if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
+
+# RUSTFLAGS REPLACES .cargo/config.toml's `-D warnings` rather than merging, so
+# --native restates it. Native stays opt-in: the binary would crash with an
+# illegal instruction on any older CPU of the same architecture.
+if [ "${usage_native:-false}" = "true" ]; then
+  export RUSTFLAGS="${RUSTFLAGS:-} -D warnings -C target-cpu=native"
+fi
+
 cargo build --workspace --release --features cli
-cp -rfv target/release/rusticide .
-unset RUSTFLAGS
+cp -fv "${CARGO_TARGET_DIR:-target}/release/rusticide" .
+'''
+shell = "bash -c"
+usage = '''
+flag "-v --verbose" help="Trace each command before running it (set -x)"
+flag "--native" help="Tune for this machine's CPU (-C target-cpu=native); the binary may not run elsewhere"
 '''
 
 [tasks."build:verbose"]
