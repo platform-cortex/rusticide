@@ -18,6 +18,7 @@ mod special;
 mod spm;
 mod spm_merge;
 mod tiktoken;
+mod tiktoken_merges;
 mod tokenizer;
 mod trie;
 mod value_ext;

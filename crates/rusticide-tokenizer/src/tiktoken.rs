@@ -11,7 +11,8 @@ use crate::end_of_generation::end_of_generation_ids;
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
 use crate::pre_tokenizer::PreTokenizer;
-use crate::tokenizer::{MergeLookup, PieceLookup, Tokenizer, byte_tokens_for, pad_scores};
+use crate::tiktoken_merges::canonical_merges;
+use crate::tokenizer::{PieceLookup, Tokenizer, byte_tokens_for, pad_scores};
 use crate::trie::Trie;
 
 /// Ranks above this are rejected before any allocation sized by them.
@@ -91,23 +92,6 @@ fn parse_line(line: &str) -> Option<(Vec<u8>, u32)> {
     Some((decode_base64(token)?, rank))
 }
 
-/// Every split `T = A + B` of a token into two tokens merges at `T`'s rank:
-/// tiktoken merges the pair whose concatenation ranks lowest, which this
-/// table hands to the same engine the GPT-2 path uses.
-fn rank_merges(ids: &PieceLookup) -> MergeLookup {
-    let mut merges = MergeLookup::default();
-    for (token, &token_id) in ids.iter().filter(|(token, _)| token.len() > 1) {
-        for split in 1..token.len() {
-            if let (Some(&left), Some(&right)) =
-                (ids.get(&token[..split]), ids.get(&token[split..]))
-            {
-                merges.insert((left, right), (token_id, token_id));
-            }
-        }
-    }
-    merges
-}
-
 impl Tokenizer {
     /// Builds a tokenizer from a `.tiktoken` vocabulary file's text.
     ///
@@ -132,7 +116,7 @@ impl Tokenizer {
         if let Some(byte) = (0..=255u8).find(|&b| byte_tokens[usize::from(b)].is_none()) {
             return Err(TokenizerError::MissingByteToken { byte });
         }
-        let merge_info = rank_merges(&ids);
+        let merge_info = canonical_merges(&ids);
         let mut special_tokens: Vec<(String, u32)> = encoding
             .specials()
             .iter()
