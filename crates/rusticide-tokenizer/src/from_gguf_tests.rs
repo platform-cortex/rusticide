@@ -7,7 +7,8 @@ use rusticide_io::{GGUFValue, Metadata};
 use crate::error::TokenizerError;
 use crate::model::TokenizerModel;
 use crate::test_support::{
-    build, error_of, float_array, llama_fixture, meta, text, text_array, tokenizer_meta, with,
+    build, error_of, float_array, gpt2_base, llama_fixture, meta, text, text_array, tokenizer_meta,
+    with,
 };
 use crate::tokenizer::Tokenizer;
 
@@ -33,7 +34,7 @@ fn test_from_gguf_llama() {
 
 #[test]
 fn test_from_gguf_gpt2() {
-    let entries = tokenizer_meta("gpt2", &["!", "\"", "#", "$", "%"]);
+    let entries = gpt2_base(&["!!"]);
     let entries = with(
         entries,
         "tokenizer.ggml.add_bos_token",
@@ -41,7 +42,7 @@ fn test_from_gguf_gpt2() {
     );
     let tok = build(&entries);
     assert_eq!(tok.model_type(), TokenizerModel::GPT2);
-    assert_eq!(tok.vocab_size(), 5);
+    assert_eq!(tok.vocab_size(), 257);
     assert!(!tok.add_bos);
 }
 
@@ -67,7 +68,7 @@ fn test_from_gguf_add_bos_default_llama() {
 
 #[test]
 fn test_from_gguf_add_bos_default_gpt2() {
-    assert!(!build(&tokenizer_meta("gpt2", &["a", "b"])).add_bos);
+    assert!(!build(&gpt2_base(&[])).add_bos);
 }
 
 #[test]
@@ -79,7 +80,7 @@ fn test_from_gguf_bos_eos_default_llama() {
 
 #[test]
 fn test_from_gguf_bos_eos_default_gpt2() {
-    let tok = build(&tokenizer_meta("gpt2", &["!", "\"", "#"]));
+    let tok = build(&gpt2_base(&[]));
     assert_eq!(tok.bos_id(), 0);
     assert_eq!(tok.eos_id(), 2);
 }
@@ -202,11 +203,7 @@ fn from_gguf_add_bos_wrong_type_uses_default() {
         "tokenizer.ggml.add_bos_token",
         wrong(),
     );
-    let gpt2 = with(
-        tokenizer_meta("gpt2", &["a"]),
-        "tokenizer.ggml.add_bos_token",
-        wrong(),
-    );
+    let gpt2 = with(gpt2_base(&[]), "tokenizer.ggml.add_bos_token", wrong());
     assert!(build(&llama).add_bos);
     assert!(!build(&gpt2).add_bos);
 }
@@ -216,14 +213,14 @@ fn from_gguf_add_space_prefix_wrong_type_uses_default() {
     let wrong = || GGUFValue::Uint32(0);
     let key = "tokenizer.ggml.add_space_prefix";
     let llama = with(tokenizer_meta("llama", &["a"]), key, wrong());
-    let gpt2 = with(tokenizer_meta("gpt2", &["a"]), key, wrong());
+    let gpt2 = with(gpt2_base(&[]), key, wrong());
     assert!(build(&llama).add_space_prefix);
     assert!(!build(&gpt2).add_space_prefix);
 }
 
 #[test]
 fn from_gguf_gpt2_without_merges() {
-    let tok = build(&tokenizer_meta("gpt2", &["a", "b"]));
+    let tok = build(&gpt2_base(&[]));
     assert!(tok.merge_info.is_empty());
 }
 

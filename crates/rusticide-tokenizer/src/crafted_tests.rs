@@ -8,16 +8,15 @@
 use rusticide_io::GGUFValue;
 
 use crate::error::TokenizerError;
-use crate::test_support::{build, char_byte_tokens, float_array, text_array, tokenizer_meta, with};
+use crate::test_support::{build, float_array, gpt2_meta, gpt2_tokenizer, tokenizer_meta, with};
 
 #[test]
 fn gpt2_ids_outside_a_small_vocabulary_decode_to_a_typed_error() {
-    let tok = build(&tokenizer_meta("gpt2", &["a"]));
-    let encoded = tok.encode("b").unwrap();
-    assert_eq!(encoded, vec![98]);
+    let tok = gpt2_tokenizer(&[], &[]);
+    assert_eq!(tok.encode("b").unwrap(), vec![98]);
     assert!(matches!(
-        tok.decode(&encoded),
-        Err(TokenizerError::TokenOutOfRange(98, 1))
+        tok.decode(&[256]),
+        Err(TokenizerError::TokenOutOfRange(256, 256))
     ));
 }
 
@@ -56,27 +55,14 @@ fn scores_shorter_than_the_vocabulary_cannot_panic_the_byte_fallback() {
 
 #[test]
 fn merges_naming_unknown_tokens_are_skipped_not_indexed() {
-    let entries = with(
-        tokenizer_meta("gpt2", &["a", "b"]),
-        "tokenizer.ggml.merges",
-        text_array(&["a b", "zzz zzz", " ", "a  b"]),
-    );
-    let tok = build(&entries);
+    let tok = build(&gpt2_meta(&[], &["a b", "zzz zzz", " ", "a  b"]));
     assert!(tok.merge_info.is_empty());
     assert_eq!(tok.encode("ab").unwrap(), vec![97, 98]);
 }
 
 #[test]
 fn self_referential_merges_terminate() {
-    let mut tokens = char_byte_tokens();
-    tokens.push("aa".to_string());
-    let refs: Vec<&str> = tokens.iter().map(String::as_str).collect();
-    let entries = with(
-        tokenizer_meta("gpt2", &refs),
-        "tokenizer.ggml.merges",
-        text_array(&["a a"]),
-    );
-    let tok = build(&entries);
+    let tok = gpt2_tokenizer(&["aa"], &["a a"]);
     assert!(tok.merge_info.contains_key(&(97, 97)));
     let word = "a".repeat(64);
     assert_eq!(tok.encode(&word).unwrap(), vec![256; 32]);

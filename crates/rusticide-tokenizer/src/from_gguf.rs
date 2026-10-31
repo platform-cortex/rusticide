@@ -8,7 +8,7 @@ use rusticide_io::{GGUFValue, Metadata};
 
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
-use crate::tokenizer::{MergeLookup, Tokenizer, pad_scores, token_id};
+use crate::tokenizer::{MergeLookup, Tokenizer, byte_tokens_for, pad_scores, token_id};
 use crate::trie::Trie;
 use crate::value_ext::GGUFValueExt;
 
@@ -98,6 +98,17 @@ fn read_merges(
     Tokenizer::build_merge_lookup(&token_to_id, merges.as_array()?)
 }
 
+fn require_byte_tokens(model: TokenizerModel, byte_tokens: &[Option<u32>; 256]) -> Result<()> {
+    if model != TokenizerModel::GPT2 {
+        return Ok(());
+    }
+    (0..=255u8)
+        .find(|&byte| byte_tokens[usize::from(byte)].is_none())
+        .map_or(Ok(()), |byte| {
+            Err(TokenizerError::MissingByteToken { byte })
+        })
+}
+
 impl Tokenizer {
     /// Construct a tokenizer from GGUF model metadata.
     ///
@@ -106,7 +117,8 @@ impl Tokenizer {
     /// # Errors
     ///
     /// Returns `MissingMetadata` if required keys are missing or have the
-    /// wrong type, `UnknownModel` if the model type is not recognized.
+    /// wrong type, `UnknownModel` if the model type is not recognized,
+    /// `MissingByteToken` if a GPT-2 vocabulary lacks a byte's token.
     pub fn from_gguf(metadata: &Metadata) -> Result<Self> {
         let model = read_model(metadata)?;
         let vocab_strings = read_tokens(metadata)?;
@@ -118,8 +130,11 @@ impl Tokenizer {
         let add_space_prefix = read_flag(metadata, "tokenizer.ggml.add_space_prefix", is_llama);
         let merge_info = read_merges(metadata, model, &vocab_strings)?;
         let vocab: Vec<Vec<u8>> = vocab_strings.into_iter().map(String::into_bytes).collect();
+        let byte_tokens = byte_tokens_for(model, &vocab);
+        require_byte_tokens(model, &byte_tokens)?;
         Ok(Self {
             model,
+            byte_tokens,
             scores: pad_scores(scores, vocab.len()),
             pieces: Trie::from_vocab(&vocab),
             vocab,
@@ -165,3 +180,7 @@ mod merge_tests;
 #[cfg(test)]
 #[path = "token_limit_tests.rs"]
 mod token_limit_tests;
+
+#[cfg(test)]
+#[path = "byte_token_tests.rs"]
+mod byte_token_tests;

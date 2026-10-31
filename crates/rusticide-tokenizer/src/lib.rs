@@ -5,6 +5,7 @@
 //! BPE and `SentencePiece` tokenizers built from GGUF metadata.
 
 mod bpe;
+mod byte_unicode;
 mod decode;
 mod error;
 mod from_gguf;

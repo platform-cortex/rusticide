@@ -7,16 +7,12 @@ use std::collections::HashMap;
 use rusticide_io::GGUFValue;
 
 use crate::error::TokenizerError;
-use crate::test_support::{build, error_of, text, text_array, tokenizer_meta, with};
+use crate::test_support::{build, error_of, gpt2_base, gpt2_meta, text, with};
 use crate::tokenizer::Tokenizer;
 
 #[test]
 fn from_gguf_gpt2_merges_not_an_array() {
-    let entries = with(
-        tokenizer_meta("gpt2", &["a"]),
-        "tokenizer.ggml.merges",
-        text("a b"),
-    );
+    let entries = with(gpt2_base(&[]), "tokenizer.ggml.merges", text("a b"));
     assert!(matches!(
         error_of(&entries),
         TokenizerError::MissingMetadata("expected array value type")
@@ -25,14 +21,9 @@ fn from_gguf_gpt2_merges_not_an_array() {
 
 #[test]
 fn from_gguf_gpt2_merge_ranks_follow_entry_order() {
-    let entries = with(
-        tokenizer_meta("gpt2", &["a", "b", "ab", "c", "abc"]),
-        "tokenizer.ggml.merges",
-        text_array(&["a b", "ab c"]),
-    );
-    let tok = build(&entries);
-    assert_eq!(tok.merge_info.get(&(0, 1)), Some(&(0, 2)));
-    assert_eq!(tok.merge_info.get(&(2, 3)), Some(&(1, 4)));
+    let tok = build(&gpt2_meta(&["ab", "abc"], &["a b", "ab c"]));
+    assert_eq!(tok.merge_info.get(&(97, 98)), Some(&(0, 256)));
+    assert_eq!(tok.merge_info.get(&(256, 99)), Some(&(1, 257)));
 }
 
 #[test]

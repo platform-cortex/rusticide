@@ -4,6 +4,7 @@
 
 use crate::error::TokenizerError;
 use crate::model::TokenizerModel;
+use crate::test_support::{byte_id, gpt2_tokenizer};
 use crate::tokenizer::Tokenizer;
 
 fn llama(vocab: Vec<&str>, scores: Option<Vec<f32>>, add_bos: bool) -> Tokenizer {
@@ -83,15 +84,33 @@ fn llama_decode_turns_byte_pieces_into_their_bytes() {
     assert_eq!(tok.decode(&[2, 3, 4]).unwrap(), "\n\u{e9}");
 }
 
+fn gpt2_with(extra: &[&str]) -> Tokenizer {
+    gpt2_tokenizer(extra, &[])
+}
+
 #[test]
-fn gpt2_decode_keeps_pieces_verbatim() {
-    let tok = Tokenizer::new(
-        TokenizerModel::GPT2,
-        vec!["\u{2581}a", "<0x0A>"],
-        None,
-        0,
-        1,
-        false,
-    );
-    assert_eq!(tok.decode(&[0, 1]).unwrap(), "\u{2581}a<0x0A>");
+fn decode_reverses_the_byte_mapping() {
+    let tok = gpt2_with(&["\u{120}ol\u{c3}\u{a1}"]);
+    assert_eq!(tok.decode(&[256]).unwrap(), " ol\u{e1}");
+}
+
+#[test]
+fn decode_joins_pieces_before_reading_utf8() {
+    let tok = gpt2_with(&[]);
+    let split = [byte_id(0xC3), byte_id(0xA9)];
+    assert_eq!(tok.decode(&split).unwrap(), "\u{e9}");
+}
+
+#[test]
+fn decode_passes_special_tokens_through() {
+    let tok = gpt2_with(&["<|im_end|>", "\u{2581}"]);
+    assert_eq!(tok.decode(&[256]).unwrap(), "<|im_end|>");
+    assert_eq!(tok.decode(&[257]).unwrap(), "\u{2581}");
+}
+
+#[test]
+fn encode_then_decode_round_trips_utf8() {
+    let tok = gpt2_with(&[]);
+    let ids = tok.encode("caf\u{e9}\u{4e16}").unwrap();
+    assert_eq!(tok.decode(&ids).unwrap(), "caf\u{e9}\u{4e16}");
 }

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::error::{Result, TokenizerError};
 use crate::tokenizer::Tokenizer;
 
 fn gpt2_pre_tokenize(text: &str) -> impl Iterator<Item = &str> {
@@ -10,10 +11,12 @@ fn gpt2_pre_tokenize(text: &str) -> impl Iterator<Item = &str> {
 
 impl Tokenizer {
     /// GPT-2 byte-level BPE encoding.
-    pub(crate) fn encode_gpt2(&self, text: &str) -> Vec<u32> {
-        gpt2_pre_tokenize(text)
-            .flat_map(|word| self.bpe_encode_word(word))
-            .collect()
+    pub(crate) fn encode_gpt2(&self, text: &str) -> Result<Vec<u32>> {
+        let mut tokens = Vec::new();
+        for word in gpt2_pre_tokenize(text) {
+            tokens.extend(self.bpe_encode_word(word)?);
+        }
+        Ok(tokens)
     }
 
     /// Lowest-rank merge as (position, merged id); the leftmost wins ties.
@@ -28,17 +31,24 @@ impl Tokenizer {
             .map(|(_, position, merged)| (position, merged))
     }
 
-    /// Starts from one id per byte (the byte value) and merges by rank.
+    /// Starts from the byte token of each byte and merges by rank.
     ///
     /// Each merge removes one id, so the loop is bounded by the word length;
     /// cost is quadratic in the word length.
-    fn bpe_encode_word(&self, word: &str) -> Vec<u32> {
-        let mut ids: Vec<u32> = word.bytes().map(u32::from).collect();
+    fn bpe_encode_word(&self, word: &str) -> Result<Vec<u32>> {
+        let mut ids = word
+            .bytes()
+            .map(|byte| {
+                self.byte_tokens[usize::from(byte)].ok_or_else(|| {
+                    TokenizerError::EncodeError(format!("no token for byte 0x{byte:02X}"))
+                })
+            })
+            .collect::<Result<Vec<u32>>>()?;
         while let Some((position, merged)) = self.best_merge(&ids) {
             ids[position] = merged;
             ids.remove(position + 1);
         }
-        ids
+        Ok(ids)
     }
 }
 

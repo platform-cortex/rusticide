@@ -20,7 +20,7 @@ impl Tokenizer {
         } else {
             match self.model {
                 TokenizerModel::LLaMA => self.encode_llama(text)?,
-                TokenizerModel::GPT2 => self.encode_gpt2(text),
+                TokenizerModel::GPT2 => self.encode_gpt2(text)?,
             }
         };
         if self.add_bos {

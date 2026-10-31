@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 
+use crate::byte_unicode::byte_token_table;
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
 use crate::trie::Trie;
@@ -14,6 +15,14 @@ pub(crate) type MergeLookup = HashMap<(u32, u32), (usize, u32)>;
 pub(crate) fn pad_scores(mut scores: Vec<f32>, vocab_len: usize) -> Vec<f32> {
     scores.resize(vocab_len, 0.0);
     scores
+}
+
+/// Only GPT-2 spells bytes as characters; `SentencePiece` has its own table.
+pub(crate) fn byte_tokens_for(model: TokenizerModel, vocab: &[Vec<u8>]) -> [Option<u32>; 256] {
+    match model {
+        TokenizerModel::GPT2 => byte_token_table(vocab),
+        TokenizerModel::LLaMA => [None; 256],
+    }
 }
 
 pub(crate) fn token_id(index: usize) -> Result<u32> {
@@ -31,6 +40,7 @@ pub struct Tokenizer {
     pub(crate) add_space_prefix: bool,
     pub(crate) merge_info: MergeLookup,
     pub(crate) pieces: Trie,
+    pub(crate) byte_tokens: [Option<u32>; 256],
 }
 
 impl Tokenizer {
@@ -58,8 +68,10 @@ impl Tokenizer {
         let vocab_bytes: Vec<Vec<u8>> = vocab.iter().map(|s| s.as_bytes().to_vec()).collect();
         let scores_vec = pad_scores(scores.unwrap_or_default(), vocab_bytes.len());
         let add_space_prefix = model == TokenizerModel::LLaMA;
+        let byte_tokens = byte_tokens_for(model, &vocab_bytes);
         Self {
             model,
+            byte_tokens,
             pieces: Trie::from_vocab(&vocab_bytes),
             vocab: vocab_bytes,
             scores: scores_vec,

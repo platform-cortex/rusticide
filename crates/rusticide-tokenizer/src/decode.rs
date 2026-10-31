@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::byte_unicode::char_to_byte;
 use crate::error::Result;
 use crate::model::TokenizerModel;
 use crate::spm::byte_piece;
@@ -47,7 +48,7 @@ impl Tokenizer {
             let piece = self.piece(tid)?;
             match self.model {
                 TokenizerModel::LLaMA => push_spm_text(&mut bytes, piece),
-                TokenizerModel::GPT2 => bytes.extend_from_slice(piece),
+                TokenizerModel::GPT2 => push_gpt2_text(&mut bytes, piece),
             }
         }
         Ok(bytes)
@@ -76,6 +77,18 @@ fn push_spm_text(bytes: &mut Vec<u8>, piece: &[u8]) {
         rest = &rest[index + SPM_MARKER.len()..];
     }
     bytes.extend_from_slice(rest);
+}
+
+/// Each character of a GPT-2 piece stands for one byte; a character outside
+/// the table (a special token's text) is kept as its own UTF-8 bytes.
+fn push_gpt2_text(bytes: &mut Vec<u8>, piece: &[u8]) {
+    let text = String::from_utf8_lossy(piece);
+    for c in text.chars() {
+        match char_to_byte(c) {
+            Some(byte) => bytes.push(byte),
+            None => bytes.extend_from_slice(c.encode_utf8(&mut [0; 4]).as_bytes()),
+        }
+    }
 }
 
 fn find_marker(piece: &[u8]) -> Option<usize> {

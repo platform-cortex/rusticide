@@ -24,6 +24,8 @@ pub enum TokenizerError {
         len: usize,
         max: usize,
     },
+    #[error("gpt2 vocabulary has no token for byte 0x{byte:02X}")]
+    MissingByteToken { byte: u8 },
     #[error("vocabulary size exceeds u32 range")]
     VocabOverflow,
 }
