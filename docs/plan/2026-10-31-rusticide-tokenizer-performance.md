@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Tokenizer performance milestone (notes and plan)
 
-Status: in progress on branch `perf/tokenizer`, 2026-10-31. Scope is
+Status: done on branch `perf/tokenizer`, 2026-10-31. Scope is
 performance only: the encode path of `rusticide-tokenizer`, measured against
 HF `tokenizers`, llama.cpp and OpenAI's tiktoken, with token ids that stay
 identical to llama.cpp (the project's reference).
@@ -63,9 +63,10 @@ Sampled with macOS `sample` and rendered with `inferno` (`cargo flamegraph`
 5. 7 percent: SipHash in the merge table. Fixed with a multiply-rotate hasher
    for that table only (its keys come from the vocabulary, never from the
    text); the piece cache, keyed on text, keeps SipHash.
-
-Remaining gap: the 200000-space piece (68 ms against tiktoken's 42 ms) is the
-heap path; its `Candidate` entries carry five words and are the next target.
+6. The 200000-space piece then took 68 ms (tiktoken 42 ms) on the heap path,
+   whose entries copied the whole pair. Fixed by queueing only
+   `(rank, position)` and treating an entry as current while that position
+   still holds that rank, as tiktoken's `_byte_pair_merge_large` does: 36 ms.
 
 ## Supporting tiktoken vocabularies
 
@@ -89,7 +90,8 @@ What tiktoken is, from tiktoken-rs 0.12.1 (`src/tiktoken_ext/openai_public.rs`,
   quantifiers (`?+`, `++`, `{1,3}+`, `*+`) and `\s++$`; `o200k_base` uses
   case-split letter classes and the same `\s+(?!\S)` look-ahead.
 
-How rusticide can support them, reusing what exists:
+Implemented (`Tokenizer::from_tiktoken`, `TiktokenEncoding`), reusing what
+exists:
 
 1. Loader: `Tokenizer::from_tiktoken(file bytes, encoding)` decodes the
    base64 lines (a small in-crate decoder, no new dependency) into the
@@ -118,3 +120,15 @@ How rusticide can support them, reusing what exists:
 Why it also matters beyond the benchmark: milestone 3's BitNet model uses the
 Llama 3 vocabulary, which is tiktoken-derived; points 2, 4 and 5 are the same
 machinery that path will lean on.
+
+## Same-vocabulary result
+
+`Tokenizer::from_tiktoken` loaded with the `.tiktoken` files tiktoken-rs
+0.12.1 embeds, against tiktoken-rs `encode_with_special_tokens` on the same
+corpora and machine (rusticide load: 49 ms for `cl100k_base`, 102 ms for
+`o200k_base`). Ids are identical in all six cases; speed-up over tiktoken:
+
+- `cl100k_base`: docs 2.23x (35.7 against 16.0 MB/s), code 2.57x (37.0
+  against 14.4), spaces 1.08x (36.7 against 39.6 ms).
+- `o200k_base`: docs 1.47x (34.1 against 23.3 MB/s), code 1.69x (39.6
+  against 23.5), spaces 1.16x (36.1 against 42.1 ms).
