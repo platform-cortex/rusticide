@@ -2733,6 +2733,20 @@ cargo build --workspace
 unset RUSTFLAGS
 '''
 
+[tasks."build:release"]
+alias = ["br"]
+description = "cargo build --workspace --release"
+run = '''
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+export RUSTFLAGS="-C target-cpu=native"
+cargo build --workspace --release --features cli
+cp -rfv target/release/rusticide .
+unset RUSTFLAGS
+'''
+
 [tasks."build:verbose"]
 alias = ["bv"]
 description = "cargo build --workspace with verbosed"
