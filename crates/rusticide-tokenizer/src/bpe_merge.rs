@@ -81,9 +81,48 @@ fn queue_pair(
     }
 }
 
-/// Repeatedly merges the lowest-rank adjacent pair, leftmost on ties, in
-/// O(n log n): a heap of candidate pairs, skipping those gone stale.
+/// At or below this many symbols a linear scan beats the heap's overhead;
+/// almost every pre-tokenized word is this short.
+const SHORT_WORD: usize = 16;
+
+/// Repeatedly merges the lowest-rank adjacent pair, leftmost on ties.
 pub(crate) fn merge_ids(ids: Vec<u32>, merges: &MergeLookup) -> Vec<u32> {
+    if ids.len() <= SHORT_WORD {
+        merge_short(ids, merges)
+    } else {
+        merge_long(ids, merges)
+    }
+}
+
+/// O(n^2) for tiny n: each pair's rank is cached, and a merge looks up only
+/// the two pairs around the merged symbol.
+fn merge_short(mut ids: Vec<u32>, merges: &MergeLookup) -> Vec<u32> {
+    let rank_of = |ids: &[u32], left: usize| merges.get(&(ids[left], ids[left + 1])).copied();
+    let mut ranks: Vec<Option<(usize, u32)>> = (0..ids.len().saturating_sub(1))
+        .map(|left| rank_of(&ids, left))
+        .collect();
+    while let Some((left, merged)) = ranks
+        .iter()
+        .enumerate()
+        .filter_map(|(left, found)| found.map(|(rank, merged)| (rank, left, merged)))
+        .min()
+        .map(|(_, left, merged)| (left, merged))
+    {
+        ids[left] = merged;
+        ids.remove(left + 1);
+        ranks.remove(left);
+        if left > 0 {
+            ranks[left - 1] = rank_of(&ids, left - 1);
+        }
+        if left < ranks.len() {
+            ranks[left] = rank_of(&ids, left);
+        }
+    }
+    ids
+}
+
+/// O(n log n): a heap of candidate pairs, skipping those gone stale.
+fn merge_long(ids: Vec<u32>, merges: &MergeLookup) -> Vec<u32> {
     let mut symbols = Symbols::new(ids);
     let mut queue = BinaryHeap::new();
     for right in 1..symbols.ids.len() {
