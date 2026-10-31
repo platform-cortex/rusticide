@@ -5,9 +5,9 @@
 [package]
 authors.workspace = true
 categories = ["compression"]
-description = "Model quantization formats behind one block-format table (Q4_0, Q4_K, Q6_K)"
+description = "Model quantization formats behind one block-format table (Q4_0, Q5_0, Q8_0, Q4_K, Q6_K)"
 edition.workspace = true
-keywords = ["quantization", "q4_0", "q4_k", "q6_k", "model"]
+keywords = ["quantization", "gguf", "q4_k", "q8_0", "llm"]
 license.workspace = true
 name = "rusticide-quantize"
 readme = "README.md"

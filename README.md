@@ -13,14 +13,14 @@ operators to kernels. No C, C++, Python, BLAS or vendored bindings.
 [![MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 ![Rust Stable](https://img.shields.io/badge/rust-stable-purple)
 ![Unsafe Denied](https://img.shields.io/badge/unsafe-denied-red)
-![Status: run milestone 1](https://img.shields.io/badge/status-run%20milestone%201-yellow)
+![Status: run milestone 2](https://img.shields.io/badge/status-run%20milestone%202-yellow)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/platform-cortex/rusticide/badge)](https://securityscorecards.dev/viewer/?uri=github.com/platform-cortex/rusticide)
 
 ## Status
 
-rusticide has finished **SP1, the foundation sub-project**, and **milestone 1
-of `rusticide run`**: end-to-end text generation from a GGUF model. What
-exists:
+rusticide has finished **SP1, the foundation sub-project**, and **milestone 2
+of `rusticide run`**: end-to-end text generation from a GGUF model, for
+TinyLlama and Qwen2.5 0.5B Instruct. What exists:
 
 - the tensor core (dtypes, devices, shapes, strides, storage) and the dispatch
   key algebra;
