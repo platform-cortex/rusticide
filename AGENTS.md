@@ -71,9 +71,10 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 
 - One test: `cargo test -p <crate> <test_name_substring>`.
 - Reference tests compare against llama.cpp. `RUSTICIDE_MODELS` names a
-  directory holding `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`; the bare
-  `cargo test` skips them when it is unset, `mise run test:reference` fails
-  fast instead. Model files are never committed.
+  directory holding `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf` and
+  `qwen2.5-0.5b-instruct-q4_k_m.gguf`; the bare `cargo test` skips them when
+  it is unset or the build is unoptimized, `mise run test:reference` fails
+  fast instead. `mise run test` unsets it. Model files are never committed.
 - Full lint picture:
   `cargo clippy --keep-going --workspace --all-targets --all-features -- -D warnings`;
   without `--keep-going` the first failing crate hides the rest.

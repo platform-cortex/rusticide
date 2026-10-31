@@ -1510,6 +1510,9 @@ rustup toolchain install "$COVERAGE_TOOLCHAIN" \
   --profile minimal --component llvm-tools --no-self-update
 export RUSTUP_TOOLCHAIN="$COVERAGE_TOOLCHAIN"
 
+# Reference tests run real models and live outside coverage (`test:reference`).
+unset RUSTICIDE_MODELS
+
 cargo tarpaulin --workspace --engine llvm \
   --run-types Tests --run-types Doctests \
   --fail-under "${usage_threshold?}" \
@@ -1525,7 +1528,7 @@ arg "[args]" var=#true help="Extra arguments forwarded to cargo-tarpaulin (e.g. 
 alias = ["tref"]
 depends = []
 depends_post = []
-description = "Check greedy-token parity with llama.cpp on the reference models in $RUSTICIDE_MODELS. Fails fast when it is unset, where the bare cargo test would silently skip."
+description = "Check greedy-token parity with llama.cpp on TinyLlama 1.1B and Qwen2.5 0.5B (the reference models in $RUSTICIDE_MODELS). Fails fast when it is unset, where the bare cargo test would silently skip."
 run = '''
 #!/usr/bin/env bash
 
