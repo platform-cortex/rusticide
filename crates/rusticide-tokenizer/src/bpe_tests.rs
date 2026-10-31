@@ -76,3 +76,14 @@ fn encode_keeps_whitespace() {
     let ids = tok.encode("a  b\n").unwrap();
     assert_eq!(tok.decode(&ids).unwrap(), "a  b\n");
 }
+
+#[test]
+fn repeated_words_encode_the_same_each_time() {
+    let tok = gpt2_tokenizer(&["hi", "\u{120}hi"], &["h i", "\u{120} hi"]);
+    let once = |text: &str| tok.encode(text).unwrap();
+    let mut expected = once("hi");
+    for word in [" hi", " x", " hi", " x", " hi"] {
+        expected.extend(once(word));
+    }
+    assert_eq!(once("hi hi x hi x hi"), expected);
+}

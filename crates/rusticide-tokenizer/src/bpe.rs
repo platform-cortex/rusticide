@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::collections::HashMap;
+use std::ops::Range;
+
 use crate::bpe_merge::merge_ids;
 use crate::error::{Result, TokenizerError};
 use crate::pre_tokenizer::PreTokenizer;
@@ -12,8 +15,15 @@ impl Tokenizer {
     pub(crate) fn encode_gpt2(&self, text: &str) -> Result<Vec<u32>> {
         let pre_tokenizer = self.pre.unwrap_or(PreTokenizer::GPT2);
         let mut tokens = Vec::new();
+        let mut seen: HashMap<&str, Range<usize>> = HashMap::new();
         for word in pre_tokenizer.split(text)? {
+            if let Some(range) = seen.get(word) {
+                tokens.extend_from_within(range.clone());
+                continue;
+            }
+            let start = tokens.len();
             tokens.extend(self.bpe_encode_word(word)?);
+            seen.insert(word, start..tokens.len());
         }
         Ok(tokens)
     }
