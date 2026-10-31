@@ -86,6 +86,7 @@ half = { version = ">=2,<3.0.0" }
 memmap2 = { version = ">=0,<1.0.0" }
 num-traits = { version = ">=0,<1" }
 rayon = { version = ">=1,<2.0.0" }
+regex-automata = { version = ">=0.4,<0.5" }
 reqwest = { version = ">=0,<1.0.0", features = ["json", "__tls"] }
 ### Workspaced Crates
 rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.4.1" }

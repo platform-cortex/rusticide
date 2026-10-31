@@ -404,6 +404,7 @@ name = "rusticide-tokenizer"
 version = "0.4.1"
 dependencies = [
  "fancy-regex",
+ "regex-automata",
  "rusticide-io",
  "thiserror",
 ]

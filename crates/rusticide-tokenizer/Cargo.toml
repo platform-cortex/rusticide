@@ -16,9 +16,12 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-fancy-regex.workspace = true
+regex-automata.workspace = true
 rusticide-io.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+fancy-regex.workspace = true
 
 [lints]
 workspace = true
