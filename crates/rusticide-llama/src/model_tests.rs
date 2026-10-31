@@ -168,3 +168,11 @@ fn every_block_runs_with_its_own_cache_layer() {
     assert_close(&llama.forward(2, 0).unwrap(), &gated_expectation(2));
     assert_close(&llama.forward(2, 1).unwrap(), &gated_expectation(2));
 }
+
+#[test]
+fn load_qwen2_returns_a_boxed_model() {
+    let mut model = super::load_qwen2(&TinySource::qwen2().build()).unwrap();
+    assert_eq!(model.vocab_size(), 258);
+    assert_eq!(model.context_length(), 16);
+    assert_eq!(model.forward(1, 0).unwrap().len(), 258);
+}

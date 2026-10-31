@@ -15,6 +15,10 @@ use rusticide_core::Tensor;
 use rusticide_io::{GGUFValue, Metadata};
 use rusticide_model::InMemorySource;
 
+mod qwen2;
+
+pub use qwen2::tiny_qwen2_source;
+
 /// Number of tokens in the tiny vocabulary.
 pub const TINY_VOCAB: usize = 7;
 

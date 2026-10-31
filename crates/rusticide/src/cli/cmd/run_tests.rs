@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use rusticide_io::GGUFValue;
-use rusticide_llama::testing::{TinySource, tiny_source};
+use rusticide_llama::testing::{TinySource, tiny_qwen2_source, tiny_source};
 
 use super::{RunArgs, run, run_source, tokens_per_second};
 
@@ -43,6 +43,18 @@ fn streams_text_from_a_tiny_model() {
 }
 
 #[test]
+fn run_streams_text_from_a_tiny_qwen2_model() {
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    run_source(&tiny_qwen2_source(), &args(Some(1)), &mut out, &mut err).unwrap();
+    assert_ne!(String::from_utf8(out).unwrap(), "");
+    assert!(
+        String::from_utf8(err)
+            .unwrap()
+            .contains("generated: 4 tokens")
+    );
+}
+
+#[test]
 fn is_deterministic_with_a_seed() {
     let sampled = RunArgs {
         temperature: 0.8,
@@ -64,7 +76,7 @@ fn reports_an_unknown_architecture() {
     let error = run_source(&source, &args(Some(1)), &mut Vec::new(), &mut Vec::new()).unwrap_err();
     assert_eq!(
         format!("{error:#}"),
-        "unknown architecture gptj; supported: llama"
+        "unknown architecture gptj; supported: llama, qwen2"
     );
 }
 

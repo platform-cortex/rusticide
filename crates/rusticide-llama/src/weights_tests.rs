@@ -110,3 +110,55 @@ fn weights_reject_a_config_whose_kv_dimension_overflows() {
         other => panic!("unexpected: {other:?}"),
     }
 }
+
+fn load_qwen2(source: &InMemorySource) -> rusticide_model::Result<LlamaWeights> {
+    let config = LlamaConfig::from_source(source, Variant::Qwen2)?;
+    LlamaWeights::load(source, &config)
+}
+
+#[test]
+fn qwen2_loads_the_attention_biases() {
+    let weights = load_qwen2(&TinySource::qwen2().build()).unwrap();
+    let block = &weights.blocks[0];
+    assert_eq!(block.attn_q_bias.as_ref().map(Vec::len), Some(4));
+    assert_eq!(block.attn_k_bias.as_ref().map(Vec::len), Some(2));
+    assert_eq!(block.attn_v_bias.as_ref().map(Vec::len), Some(2));
+}
+
+#[test]
+fn qwen2_requires_attention_biases() {
+    for name in [
+        "blk.0.attn_q.bias",
+        "blk.0.attn_k.bias",
+        "blk.0.attn_v.bias",
+    ] {
+        let source = TinySource::qwen2().without_tensor(name).build();
+        match load_qwen2(&source) {
+            Err(ModelError::MissingTensor { name: missing }) => assert_eq!(missing, name),
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn llama_without_biases_still_loads() {
+    let weights = load(&tiny_source()).unwrap();
+    let block = &weights.blocks[0];
+    assert!(block.attn_q_bias.is_none());
+    assert!(block.attn_k_bias.is_none());
+    assert!(block.attn_v_bias.is_none());
+}
+
+#[test]
+fn a_mis_sized_bias_is_rejected() {
+    let source = TinySource::qwen2()
+        .with_tensor(
+            "blk.0.attn_k.bias",
+            Tensor::from_slice(&[1.0; 3], &[3]).unwrap(),
+        )
+        .build();
+    assert!(matches!(
+        load_qwen2(&source),
+        Err(ModelError::ShapeMismatch { .. })
+    ));
+}

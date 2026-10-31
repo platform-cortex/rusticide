@@ -18,6 +18,6 @@ pub mod testing;
 mod test_support;
 
 pub use config::LlamaConfig;
-pub use model::{Llama, load};
+pub use model::{Llama, load, load_qwen2};
 pub use variant::{RopeStyle, Variant};
 pub use weights::{BlockWeights, LlamaWeights};

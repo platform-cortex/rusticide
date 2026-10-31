@@ -119,8 +119,8 @@ fn qwen2_attention_uses_half_split_rope() {
         .with_tensor("blk.0.attn_v.weight", identity(WIDTH))
         .build();
     let mut config = LlamaConfig::from_source(&source, Variant::Llama).unwrap();
-    config.variant = Variant::Qwen2;
     let weights = LlamaWeights::load(&source, &config).unwrap();
+    config.variant = Variant::Qwen2;
     let mut attention = Attention::new(&config).unwrap();
     let mut cache = KvCache::new(1, WIDTH, config.context_length);
     let (first, second) = (row(1), row(2));
@@ -145,4 +145,56 @@ fn attend_wide(query: &[f32], keys: [&[f32]; 2], values: [&[f32]; 2]) -> Vec<f32
     (0..WIDTH)
         .map(|index| weights[1].mul_add(values[1][index], weights[0] * values[0][index]) / total)
         .collect()
+}
+
+fn qwen2_outputs(source: &InMemorySource, inputs: &[[f32; 4]]) -> Vec<f32> {
+    let config = LlamaConfig::from_source(source, Variant::Qwen2).unwrap();
+    let weights = LlamaWeights::load(source, &config).unwrap();
+    let mut attention = Attention::new(&config).unwrap();
+    let mut cache = KvCache::new(1, config.kv_dim().unwrap(), config.context_length);
+    let mut output = vec![0.0; 4];
+    for (position, input) in inputs.iter().enumerate() {
+        attention
+            .forward(
+                &weights.blocks[0],
+                &mut cache,
+                0,
+                position,
+                input,
+                &mut output,
+            )
+            .unwrap();
+    }
+    output
+}
+
+#[test]
+fn qwen2_adds_the_value_bias() {
+    let source = TinySource::qwen2()
+        .with_tensor("blk.0.attn_v.weight", zeros(&[2, 4]))
+        .with_tensor("blk.0.attn_v.bias", tensor(&[2], &[0.5, -0.25]))
+        .with_tensor("blk.0.attn_output.weight", identity(4))
+        .build();
+    let output = qwen2_outputs(&source, &[[1.0, 2.0, 3.0, 4.0]]);
+    assert_close(&output, &[0.5, -0.25, 0.5, -0.25]);
+}
+
+#[test]
+fn qwen2_query_and_key_biases_change_the_scores() {
+    let inputs = [[1.0, 2.0, 3.0, 4.0], [-2.0, 0.5, 1.0, -1.0]];
+    let biased = qwen2_outputs(&TinySource::qwen2().build(), &inputs);
+    let plain = TinySource::qwen2()
+        .with_tensor("blk.0.attn_q.bias", zeros(&[4]))
+        .build();
+    let without_query = qwen2_outputs(&plain, &inputs);
+    let without_key = qwen2_outputs(
+        &TinySource::qwen2()
+            .with_tensor("blk.0.attn_k.bias", zeros(&[2]))
+            .build(),
+        &inputs,
+    );
+    let differs =
+        |left: &[f32], right: &[f32]| left.iter().zip(right).any(|(a, b)| (a - b).abs() > 1e-4);
+    assert!(differs(&biased, &without_query));
+    assert!(differs(&biased, &without_key));
 }

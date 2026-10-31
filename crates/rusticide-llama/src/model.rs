@@ -118,6 +118,15 @@ pub fn load(source: &dyn ModelSource) -> Result<Box<dyn Model>> {
     Ok(Box::new(Llama::from_source(source, Variant::Llama)?))
 }
 
+/// The registry [`rusticide_model::Loader`] for the `qwen2` architecture.
+///
+/// # Errors
+///
+/// Any error from [`Llama::from_source`].
+pub fn load_qwen2(source: &dyn ModelSource) -> Result<Box<dyn Model>> {
+    Ok(Box::new(Llama::from_source(source, Variant::Qwen2)?))
+}
+
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod tests;

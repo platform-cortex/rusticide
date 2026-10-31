@@ -9,27 +9,13 @@ use super::LlamaConfig;
 use crate::Variant;
 use crate::testing::TinySource;
 
-const KEYS: [(&str, u32); 6] = [
-    ("context_length", 16),
-    ("embedding_length", 4),
-    ("block_count", 1),
-    ("feed_forward_length", 8),
-    ("attention.head_count", 2),
-    ("attention.head_count_kv", 1),
-];
-
 fn qwen2_source(dropped: Option<&str>) -> InMemorySource {
-    let mut builder = TinySource::new().with_metadata(
-        "general.architecture",
-        GGUFValue::String("qwen2".to_owned()),
-    );
-    for (suffix, value) in KEYS {
-        builder = builder.without_metadata(&format!("llama.{suffix}"));
-        if dropped != Some(suffix) {
-            builder = builder.with_metadata(&format!("qwen2.{suffix}"), GGUFValue::Uint32(value));
-        }
+    let builder = TinySource::qwen2();
+    match dropped {
+        Some(suffix) => builder.without_metadata(&format!("qwen2.{suffix}")),
+        None => builder,
     }
-    builder.build()
+    .build()
 }
 
 #[test]
@@ -51,18 +37,9 @@ fn qwen2_config_names_qwen2_keys_when_missing() {
 }
 
 fn with_rope_dimension(dimension: u32) -> InMemorySource {
-    let mut builder = TinySource::new()
-        .with_metadata(
-            "general.architecture",
-            GGUFValue::String("qwen2".to_owned()),
-        )
-        .with_metadata("qwen2.rope.dimension_count", GGUFValue::Uint32(dimension));
-    for (suffix, value) in KEYS {
-        builder = builder
-            .without_metadata(&format!("llama.{suffix}"))
-            .with_metadata(&format!("qwen2.{suffix}"), GGUFValue::Uint32(value));
-    }
-    builder.build()
+    TinySource::qwen2()
+        .with_metadata("qwen2.rope.dimension_count", GGUFValue::Uint32(dimension))
+        .build()
 }
 
 #[test]

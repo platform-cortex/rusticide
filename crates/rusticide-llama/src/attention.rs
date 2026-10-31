@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_kernels::{dot, softmax};
+use rusticide_kernels::{add_assign, dot, softmax};
 use rusticide_model::{KvCache, Result};
 
 use crate::config::LlamaConfig;
@@ -60,8 +60,11 @@ impl Attention {
         output: &mut [f32],
     ) -> Result<()> {
         block.attn_q.matvec(input, &mut self.query);
+        add_bias(&mut self.query, block.attn_q_bias.as_deref());
         block.attn_k.matvec(input, &mut self.key);
+        add_bias(&mut self.key, block.attn_k_bias.as_deref());
         block.attn_v.matvec(input, &mut self.value);
+        add_bias(&mut self.value, block.attn_v_bias.as_deref());
         let pairs = self.head_dim / 2;
         for head in self
             .query
@@ -95,6 +98,12 @@ impl Attention {
         }
         block.attn_output.matvec(&self.mixed, output);
         Ok(())
+    }
+}
+
+fn add_bias(projection: &mut [f32], bias: Option<&[f32]>) {
+    if let Some(bias) = bias {
+        add_assign(projection, bias);
     }
 }
 
