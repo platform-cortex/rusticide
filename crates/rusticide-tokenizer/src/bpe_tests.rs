@@ -87,3 +87,12 @@ fn repeated_words_encode_the_same_each_time() {
     }
     assert_eq!(once("hi hi x hi x hi"), expected);
 }
+
+#[test]
+fn a_word_longer_than_the_short_path_merges_too() {
+    let tok = gpt2_tokenizer(&["aa"], &["a a"]);
+    assert_eq!(
+        tok.encode(&"a".repeat(101)).unwrap(),
+        [vec![256; 50], vec![byte_id(b'a')]].concat()
+    );
+}
