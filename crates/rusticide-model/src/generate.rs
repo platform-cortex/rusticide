@@ -88,7 +88,7 @@ fn decode_loop(
     let mut stream = TextStream::default();
     for _ in 0..options.max_tokens {
         let next = pick(sampler, &logits, &options.params)?;
-        if next == tokenizer.eos_id() {
+        if tokenizer.is_end_of_generation(next) {
             break;
         }
         generated.push(next);

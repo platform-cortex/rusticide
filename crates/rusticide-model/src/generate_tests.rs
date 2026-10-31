@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use rusticide_io::{GGUFValue, Metadata};
 use rusticide_sampling::{Sampler, SamplingParams};
 use rusticide_tokenizer::{Tokenizer, TokenizerModel};
 
@@ -15,6 +16,7 @@ const PROMPT: u32 = 2;
 const B: u32 = 3;
 const C: u32 = 4;
 const REPLACEMENT: u32 = 5;
+const ENDOFTEXT: u32 = 6;
 
 struct ScriptedModel {
     peaks: Vec<u32>,
@@ -36,7 +38,7 @@ impl ScriptedModel {
 
 impl Model for ScriptedModel {
     fn vocab_size(&self) -> usize {
-        6
+        7
     }
 
     fn context_length(&self) -> usize {
@@ -57,8 +59,41 @@ impl Model for ScriptedModel {
 }
 
 fn tokenizer(add_bos: bool) -> Tokenizer {
-    let vocab = vec!["<s>", "</s>", "\u{2581}a", "b", "c", "\u{fffd}"];
+    let vocab = vec![
+        "<s>",
+        "</s>",
+        "\u{2581}a",
+        "b",
+        "c",
+        "\u{fffd}",
+        "<|endoftext|>",
+    ];
     Tokenizer::new(TokenizerModel::LLaMA, vocab, None, BOS, EOS, add_bos)
+}
+
+fn tokenizer_with_end_texts() -> Tokenizer {
+    let tokens = [
+        "<s>",
+        "</s>",
+        "\u{2581}a",
+        "b",
+        "c",
+        "\u{fffd}",
+        "<|endoftext|>",
+    ]
+    .iter()
+    .map(|t| GGUFValue::String((*t).to_owned()))
+    .collect();
+    let metadata: Metadata = [
+        (
+            "tokenizer.ggml.model".to_owned(),
+            GGUFValue::String("llama".to_owned()),
+        ),
+        ("tokenizer.ggml.tokens".to_owned(), GGUFValue::Array(tokens)),
+    ]
+    .into_iter()
+    .collect();
+    Tokenizer::from_gguf(&metadata).unwrap()
 }
 
 fn options(max_tokens: usize, temperature: f32) -> GenerateOptions {
@@ -114,6 +149,26 @@ fn sampling_temperature_still_follows_a_dominant_logit() {
 fn generation_stops_at_eos_without_emitting_it() {
     let mut model = ScriptedModel::new(vec![B, B, EOS], 16);
     let (result, pieces) = run(&mut model, "a", &options(8, 0.0));
+    assert_eq!(result.unwrap().generated_tokens, [B]);
+    assert_eq!(pieces, ["b"]);
+}
+
+#[test]
+fn generation_stops_at_any_end_of_generation_token() {
+    let mut model = ScriptedModel::new(vec![B, B, ENDOFTEXT], 16);
+    let mut pieces = Vec::new();
+    let mut emit = |text: &str| {
+        pieces.push(text.to_owned());
+        Ok(())
+    };
+    let result = generate(
+        &mut model,
+        &tokenizer_with_end_texts(),
+        "a",
+        &options(8, 0.0),
+        &mut Sampler::new(7),
+        &mut emit,
+    );
     assert_eq!(result.unwrap().generated_tokens, [B]);
     assert_eq!(pieces, ["b"]);
 }

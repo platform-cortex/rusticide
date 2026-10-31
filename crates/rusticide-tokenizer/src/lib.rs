@@ -7,6 +7,7 @@
 mod bpe;
 mod byte_unicode;
 mod decode;
+mod end_of_generation;
 mod error;
 mod from_gguf;
 mod model;

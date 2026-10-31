@@ -43,6 +43,7 @@ pub struct Tokenizer {
     pub(crate) pieces: Trie,
     pub(crate) byte_tokens: [Option<u32>; 256],
     pub(crate) pre: Option<PreTokenizer>,
+    pub(crate) end_of_generation: Vec<u32>,
 }
 
 impl Tokenizer {
@@ -84,6 +85,7 @@ impl Tokenizer {
             add_bos,
             add_space_prefix,
             merge_info: HashMap::new(),
+            end_of_generation: vec![eos_id],
         }
     }
 
@@ -115,8 +117,19 @@ impl Tokenizer {
     pub const fn eos_id(&self) -> u32 {
         self.eos_id
     }
+
+    /// True for the EOS token, the EOT token and every vocabulary token
+    /// llama.cpp treats as end of generation.
+    #[must_use]
+    pub fn is_end_of_generation(&self, token: u32) -> bool {
+        self.end_of_generation.binary_search(&token).is_ok()
+    }
 }
 
 #[cfg(test)]
 #[path = "tokenizer_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "end_of_generation_tests.rs"]
+mod end_of_generation_tests;

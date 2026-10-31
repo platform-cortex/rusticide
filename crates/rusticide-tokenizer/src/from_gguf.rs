@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use rusticide_io::{GGUFValue, Metadata};
 
+use crate::end_of_generation::end_of_generation_ids;
 use crate::error::{Result, TokenizerError};
 use crate::model::TokenizerModel;
 use crate::pre_tokenizer::PreTokenizer;
@@ -74,6 +75,13 @@ fn read_id(metadata: &Metadata, key: &str, default: u32) -> Result<u32> {
         .map_or(Ok(default), GGUFValueExt::as_u32_lossy)
 }
 
+fn read_optional_id(metadata: &Metadata, key: &str) -> Result<Option<u32>> {
+    metadata
+        .get(key)
+        .map(GGUFValueExt::as_u32_lossy)
+        .transpose()
+}
+
 fn read_flag(metadata: &Metadata, key: &str, default: bool) -> bool {
     metadata
         .get(key)
@@ -140,6 +148,7 @@ impl Tokenizer {
         let is_llama = model == TokenizerModel::LLaMA;
         let bos_id = read_id(metadata, "tokenizer.ggml.bos_token_id", u32::from(is_llama))?;
         let eos_id = read_id(metadata, "tokenizer.ggml.eos_token_id", 2)?;
+        let end_of_turn_id = read_optional_id(metadata, "tokenizer.ggml.eot_token_id")?;
         let add_bos = read_flag(metadata, "tokenizer.ggml.add_bos_token", is_llama);
         let add_space_prefix = read_flag(metadata, "tokenizer.ggml.add_space_prefix", is_llama);
         let merge_info = read_merges(metadata, model, &vocab_strings)?;
@@ -148,6 +157,7 @@ impl Tokenizer {
         require_byte_tokens(model, &byte_tokens)?;
         let pre = read_pre_tokenizer(metadata, model)?;
         Ok(Self {
+            end_of_generation: end_of_generation_ids(&vocab, eos_id, end_of_turn_id),
             model,
             byte_tokens,
             pre,
