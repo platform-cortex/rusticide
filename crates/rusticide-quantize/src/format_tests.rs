@@ -125,15 +125,33 @@ fn dequantize_of_an_overflowing_byte_length_is_too_short() {
     ));
 }
 
-/// Deterministic bytes with bit 6 clear, so every embedded f16 scale is finite.
+/// Deterministic bytes over the whole `u8` range.
 fn pseudo_random_bytes(len: usize, seed: u32) -> Vec<u8> {
     let mut state = seed;
     (0..len)
         .map(|_| {
             state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            (state >> 24) as u8 & 0xBF
+            state.to_be_bytes()[0]
         })
         .collect()
+}
+
+/// Random blocks of `format` whose f16 scales are overwritten with finite
+/// values, so every quant bit varies but no scale is infinite or NaN.
+fn random_blocks(format: &BlockFormat, blocks: usize, seed: u32) -> Vec<u8> {
+    let mut data = pseudo_random_bytes(blocks * format.block_bytes, seed);
+    let scale_offsets: &[usize] = match format.name {
+        "Q4_K" => &[0, 2],
+        "Q6_K" => &[208],
+        _ => &[0],
+    };
+    for (index, block) in data.chunks_exact_mut(format.block_bytes).enumerate() {
+        for &offset in scale_offsets {
+            let scale = 0.01 * f32::from(u8::try_from(index % 7 + 1).unwrap());
+            block[offset..offset + 2].copy_from_slice(&half::f16::from_f32(scale).to_le_bytes());
+        }
+    }
+    data
 }
 
 fn reference_dot(values: &[f32], input: &[f32]) -> f32 {
@@ -143,7 +161,7 @@ fn reference_dot(values: &[f32], input: &[f32]) -> f32 {
 #[test]
 fn dequantize_row_matches_dequantize_for_every_format() {
     for (seed, format) in (1..).zip(formats()) {
-        let row = pseudo_random_bytes(2 * format.block_bytes, seed);
+        let row = random_blocks(format, 2, seed);
         let numel = 2 * format.block_size;
         let expected = format
             .dequantize(&row, &[numel])
@@ -168,11 +186,11 @@ fn row_bytes_needs_whole_blocks() {
 fn dot_row_q8_matches_the_dequantized_operands_for_every_format() {
     for (seed, format) in (1..).zip(formats()) {
         let blocks = 2;
-        let row = pseudo_random_bytes(blocks * format.block_bytes, seed);
+        let row = random_blocks(format, blocks, seed);
         let numel = blocks * format.block_size;
         let raw: Vec<f32> = pseudo_random_bytes(numel, seed + 100)
             .into_iter()
-            .map(|b| f32::from(b) / 64.0 - 1.0)
+            .map(|b| f32::from(b) / 128.0 - 1.0)
             .collect();
         let mut input = Q8Input::default();
         input.quantize(&raw, format.activation());
