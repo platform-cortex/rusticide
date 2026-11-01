@@ -13,6 +13,14 @@ use crate::adapter::{Adapter, F32Kernels};
 use crate::q8_input::Q8Kind;
 use crate::quant_kernel::QuantKernel;
 
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "counts beyond 2^24 lose low bits, an accepted f32 rounding"
+)]
+const fn lossy(count: usize) -> f32 {
+    count as f32
+}
+
 static QUANTIZED: [QuantKernel; 5] = [
     QuantKernel {
         type_id: 2,
@@ -51,6 +59,7 @@ pub(crate) static ADAPTER: Adapter = Adapter {
     f32: F32Kernels {
         dot: dot::dot,
         dot_rows: dot::dot_rows,
+        mix_rows: dot::mix_rows,
         add_assign: elementwise::add_assign,
         mul_assign: elementwise::mul_assign,
         silu_assign: elementwise::silu_assign,

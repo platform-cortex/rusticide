@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rayon::prelude::*;
-use rusticide_kernels::{add_assign, dot_rows, matmul_batch, softmax};
+use rusticide_kernels::{add_assign, dot_rows, matmul_batch, mix_rows, softmax};
 use rusticide_model::{KvCache, Result};
 
 use crate::config::LlamaConfig;
@@ -46,17 +46,12 @@ impl Heads {
     ) {
         let (keys, values) = cache;
         let offset = (head / self.group) * self.head_dim;
-        let span = offset..offset + self.head_dim;
         scores.clear();
         scores.resize(keys.len() / self.kv_dim, 0.0);
         dot_rows(query, keys, self.kv_dim, offset, self.scale, scores);
         softmax(scores);
         mixed.fill(0.0);
-        for (&weight, value) in scores.iter().zip(values.chunks_exact(self.kv_dim)) {
-            for (slot, &entry) in mixed.iter_mut().zip(&value[span.clone()]) {
-                *slot = entry.mul_add(weight, *slot);
-            }
-        }
+        mix_rows(scores, values, self.kv_dim, offset, mixed);
     }
 }
 

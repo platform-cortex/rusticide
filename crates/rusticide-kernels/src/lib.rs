@@ -20,17 +20,9 @@ mod test_support;
 
 pub use adapter::{Adapter, active};
 pub use facade::{
-    add_assign, dot, dot_rows, mul_assign, rms_norm, rope_adjacent, rope_half_split, silu_assign,
-    softmax,
+    add_assign, dot, dot_rows, mix_rows, mul_assign, rms_norm, rope_adjacent, rope_half_split,
+    silu_assign, softmax,
 };
 pub use matmul::{Weights, matmul_batch, matvec_batch};
 pub use q8_input::{Q8_BLOCK, Q8Input, Q8Kind};
 pub use quant_kernel::QuantKernel;
-
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "counts beyond 2^24 lose low bits, an accepted f32 rounding"
-)]
-const fn lossy(count: usize) -> f32 {
-    count as f32
-}

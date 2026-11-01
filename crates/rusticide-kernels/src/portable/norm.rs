@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::lossy;
+use super::lossy;
 
 /// Divides the row by `sqrt(mean(x^2) + eps)`. An empty row is a no-op.
 pub(super) fn rms_norm(row: &mut [f32], eps: f32) {

@@ -29,11 +29,26 @@ pub(super) fn dot_rows(
     scale: f32,
     out: &mut [f32],
 ) {
+    let end = offset.checked_add(query.len());
     for (slot, row) in out.iter_mut().zip(rows.chunks_exact(row_stride.max(1))) {
-        *slot = dot(
-            query,
-            row.get(offset..offset + query.len()).unwrap_or_default(),
-        ) / scale;
+        let window = end.and_then(|end| row.get(offset..end)).unwrap_or_default();
+        *slot = dot(query, window) / scale;
+    }
+}
+
+pub(super) fn mix_rows(
+    weights: &[f32],
+    rows: &[f32],
+    row_stride: usize,
+    offset: usize,
+    out: &mut [f32],
+) {
+    let end = offset.checked_add(out.len());
+    for (&weight, row) in weights.iter().zip(rows.chunks_exact(row_stride.max(1))) {
+        let window = end.and_then(|end| row.get(offset..end)).unwrap_or_default();
+        for (slot, &entry) in out.iter_mut().zip(window) {
+            *slot = entry.mul_add(weight, *slot);
+        }
     }
 }
 
@@ -72,6 +87,53 @@ mod tests {
         let mut out = [1.0];
         dot_rows(&[1.0], &[1.0, 2.0], 2, 5, 1.0, &mut out);
         assert_eq!(out, [0.0]);
+    }
+
+    #[test]
+    fn dot_rows_with_an_offset_that_overflows_scores_zero() {
+        let mut out = [1.0];
+        dot_rows(&[1.0], &[1.0, 2.0], 2, usize::MAX, 1.0, &mut out);
+        assert_eq!(out, [0.0]);
+    }
+
+    #[test]
+    fn mix_rows_accumulates_each_weighted_stride_window() {
+        let rows = [1.0, 2.0, 9.0, 3.0, 4.0, 9.0];
+        let mut out = [10.0, 20.0];
+        mix_rows(&[2.0, 0.5], &rows, 3, 0, &mut out);
+        assert_eq!(out, [13.5, 26.0]);
+        let mut tail = [0.0];
+        mix_rows(&[1.0, 1.0], &rows, 3, 2, &mut tail);
+        assert_eq!(tail, [18.0]);
+    }
+
+    #[test]
+    fn mix_rows_matches_a_fused_reference_bit_for_bit() {
+        let rows: Vec<f32> = (1..=48_u8).map(|v| f32::from(v) / 7.0).collect();
+        let weights = [0.3, 0.7];
+        for offset in [0, 12] {
+            let mut out = [0.0; 12];
+            mix_rows(&weights, &rows, 24, offset, &mut out);
+            let mut expected = [0.0_f32; 12];
+            for (index, weight) in weights.iter().enumerate() {
+                let start = index * 24 + offset;
+                for (slot, entry) in expected.iter_mut().zip(&rows[start..start + 12]) {
+                    *slot = entry.mul_add(*weight, *slot);
+                }
+            }
+            assert_eq!(out.map(f32::to_bits), expected.map(f32::to_bits));
+        }
+    }
+
+    #[test]
+    fn mix_rows_skips_windows_past_the_row() {
+        let mut out = [5.0];
+        mix_rows(&[1.0], &[1.0, 2.0], 2, 5, &mut out);
+        assert_eq!(out, [5.0]);
+        mix_rows(&[1.0], &[1.0, 2.0], 2, usize::MAX, &mut out);
+        assert_eq!(out, [5.0]);
+        mix_rows(&[1.0], &[1.0, 2.0], 0, 0, &mut out);
+        assert_eq!(out, [6.0]);
     }
 
     #[test]

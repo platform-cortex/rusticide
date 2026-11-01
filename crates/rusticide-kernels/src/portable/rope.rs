@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::lossy;
+use super::lossy;
 
 fn rotate(low: &mut f32, high: &mut f32, position: f32, frequency: f32) {
     let (sin, cos) = (position * frequency).sin_cos();

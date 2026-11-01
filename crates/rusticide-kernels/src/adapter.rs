@@ -9,11 +9,13 @@ use crate::q8_input::{Q8Input, Q8Kind};
 use crate::quant_kernel::QuantKernel;
 
 pub(crate) type DotRows = fn(&[f32], &[f32], usize, usize, f32, &mut [f32]);
+pub(crate) type MixRows = fn(&[f32], &[f32], usize, usize, &mut [f32]);
 
 #[derive(Clone, Copy)]
 pub(crate) struct F32Kernels {
     pub(crate) dot: fn(&[f32], &[f32]) -> f32,
     pub(crate) dot_rows: DotRows,
+    pub(crate) mix_rows: MixRows,
     pub(crate) add_assign: fn(&mut [f32], &[f32]),
     pub(crate) mul_assign: fn(&mut [f32], &[f32]),
     pub(crate) silu_assign: fn(&mut [f32]),
