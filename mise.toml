@@ -1635,8 +1635,8 @@ fi
 shell = "bash -c"
 usage = 'arg "[args]" var=#true help="extra args forwarded to `codecovcli upload-coverage`"'
 
-[tasks.bench]
-alias = []
+[tasks."bench:criterion"]
+alias = ["bnc"]
 description = "Run Criterion benchmarks through cargo-criterion (richer reports than `cargo bench`); benches read Criterion.toml"
 run = '''
 #!/usr/bin/env bash
@@ -1648,6 +1648,102 @@ cargo criterion "${args[@]}"
 '''
 shell = "bash -c"
 usage = 'arg "[args]" var=#true help="cargo-criterion args, e.g. --bench <name>; runs all benches when omitted"'
+
+[tasks."bench:machine"]
+alias = ["bnm"]
+description = "Print this machine's benchmark id: lowercase CPU brand with non-alphanumerics as dashes, then the logical CPU count"
+run = '''
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
+
+case "$(uname -s)" in
+    Darwin)
+        brand="$(sysctl -n machdep.cpu.brand_string)"
+        cpus="$(sysctl -n hw.logicalcpu)"
+        ;;
+    *)
+        brand="$(sed -n 's/^model name[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -n 1)"
+        cpus="$(nproc)"
+        ;;
+esac
+slug="$(printf '%s' "$brand" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
+echo "$slug-$cpus"
+'''
+shell = "bash -c"
+usage = '''
+flag "-v --verbose" help="Trace each command before running it (set -x)"
+'''
+
+[tasks.bench]
+alias = ["bn"]
+description = "Release-build rusticide-bench, measure kernels (and tokens/s when RUSTICIDE_MODELS is set) and print the table"
+run = '''
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
+
+cargo build --release -p rusticide-bench
+machine="$(mise run -q bench:machine)"
+mkdir -p target/bench
+args=(run --machine "$machine" --out target/bench/results.json)
+if [ -n "${RUSTICIDE_MODELS:-}" ]; then args+=(--models "$RUSTICIDE_MODELS"); fi
+target/release/rusticide-bench "${args[@]}"
+target/release/rusticide-bench report --results target/bench/results.json
+'''
+shell = "bash -c"
+usage = '''
+flag "-v --verbose" help="Trace each command before running it (set -x)"
+'''
+
+[tasks."bench:gate"]
+alias = ["bng"]
+description = "Measure, then compare with crates/rusticide-bench/baselines/<machine>.json; exit 1 on a regression, 2 when the baseline is missing"
+run = '''
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
+
+cargo build --release -p rusticide-bench
+machine="$(mise run -q bench:machine)"
+mkdir -p target/bench
+args=(run --machine "$machine" --out target/bench/results.json)
+if [ -n "${RUSTICIDE_MODELS:-}" ]; then args+=(--models "$RUSTICIDE_MODELS"); fi
+target/release/rusticide-bench "${args[@]}"
+target/release/rusticide-bench gate --results target/bench/results.json \
+    --baseline "crates/rusticide-bench/baselines/$machine.json"
+'''
+shell = "bash -c"
+usage = '''
+flag "-v --verbose" help="Trace each command before running it (set -x)"
+'''
+
+[tasks."bench:baseline"]
+alias = ["bnb"]
+description = "Measure, then record crates/rusticide-bench/baselines/<machine>.json; rewriting a baseline is a reviewed change"
+run = '''
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
+
+cargo build --release -p rusticide-bench
+machine="$(mise run -q bench:machine)"
+mkdir -p target/bench
+args=(run --machine "$machine" --out target/bench/results.json)
+if [ -n "${RUSTICIDE_MODELS:-}" ]; then args+=(--models "$RUSTICIDE_MODELS"); fi
+target/release/rusticide-bench "${args[@]}"
+mkdir -p crates/rusticide-bench/baselines
+target/release/rusticide-bench baseline --results target/bench/results.json \
+    --out "crates/rusticide-bench/baselines/$machine.json"
+'''
+shell = "bash -c"
+usage = '''
+flag "-v --verbose" help="Trace each command before running it (set -x)"
+'''
 
 [tasks.flame]
 alias = []
@@ -2878,7 +2974,7 @@ fi
 '''
 shell = "bash -c"
 
-# -- Benchmarks (the Criterion run lives in [tasks.bench] above) --
+# -- Benchmarks (the Criterion run lives in [tasks."bench:criterion"] above) --
 
 [tasks."bench:bencher"]
 alias = []

@@ -93,6 +93,28 @@ jobs:
           title: "Coverage Report"
           tool-name: "Tarpaulin"
 
+  # Informational: tokens/s needs model files, so CI measures kernels only and
+  # publishes the table. It fails only if the tool crashes.
+  bench:
+    name: Bench (mise run bench)
+    needs: [version]
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-rust-env
+
+      - name: mise run bench
+        run: mise run bench | tee bench-report.md
+
+      - name: Publish the table
+        run: cat bench-report.md >> "$GITHUB_STEP_SUMMARY"
+
   # No runs-on: a job that calls a reusable workflow may not set one.
   sast:
     name: SAST

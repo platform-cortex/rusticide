@@ -64,6 +64,9 @@ mise run test           # t   cargo-tarpaulin, 100% coverage gate, includes doct
 mise run ci:quick       # ciq the same gate CI runs (slow: tarpaulin)
 mise run pr:ready       # format, then the full check
 mise run test:reference # tref greedy parity with llama.cpp; needs RUSTICIDE_MODELS
+mise run bench          # bn  kernels (and tokens/s with RUSTICIDE_MODELS): table
+mise run bench:gate     # bng measure, compare with the machine's baseline (exit 1 regress, 2 no baseline)
+mise run bench:baseline # bnb measure, rewrite the machine's baseline
 mise run security       # sec cargo audit + cargo deny
 mise run markdownlint   # md  rumdl check (mdf = rumdl fix); never markdownlint-cli
 mise run commit:config  # cc  regenerate committed.toml after editing commit-types.toml
@@ -75,6 +78,10 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
   `qwen2.5-0.5b-instruct-q4_k_m.gguf`; the bare `cargo test` skips them when
   it is unset or the build is unoptimized, `mise run test:reference` fails
   fast instead. `mise run test` unsets it. Model files are never committed.
+- Run `mise run bench:gate` before merging any change to kernels, scheduling
+  or the forward pass; rewriting a baseline is a reviewed change. Baselines
+  live in `crates/rusticide-bench/baselines/<machine>.json`; results go to
+  `target/bench/`. Close heavy apps first: background load makes it flaky.
 - Full lint picture:
   `cargo clippy --keep-going --workspace --all-targets --all-features -- -D warnings`;
   without `--keep-going` the first failing crate hides the rest.

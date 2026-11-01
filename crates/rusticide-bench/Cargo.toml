@@ -17,8 +17,13 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+clap.workspace = true
+rusticide-io.workspace = true
+rusticide-llama.workspace = true
 rusticide-model.workspace = true
 rusticide-quantize.workspace = true
+rusticide-tokenizer.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
