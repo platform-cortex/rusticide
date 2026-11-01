@@ -20,6 +20,7 @@ version.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 rusticide-io.workspace = true
+rusticide-kernels.workspace = true
 rusticide-llama.workspace = true
 rusticide-model.workspace = true
 rusticide-quantize.workspace = true

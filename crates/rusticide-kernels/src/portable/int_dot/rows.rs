@@ -11,8 +11,9 @@
 //! single-input kernel computes it: its integer sums are exact, so only the
 //! float operations need the same order. The two therefore agree to the bit.
 
+use rusticide_quantize::read_f16_le;
+
 use super::{FIFTH_BITS, HALF, k4_scales_and_mins, lossy, signed, six_bit};
-use crate::half_bits::read_f16_le;
 use crate::q8_input::{Q8_BLOCK, Q8Input, Span};
 
 /// Blocks unpacked at a time: enough that finding an input's spans, once

@@ -311,6 +311,7 @@ dependencies = [
  "anyhow",
  "clap",
  "rusticide-io",
+ "rusticide-kernels",
  "rusticide-llama",
  "rusticide-model",
  "rusticide-quantize",
@@ -360,6 +361,10 @@ dependencies = [
 [[package]]
 name = "rusticide-kernels"
 version = "0.6.0"
+dependencies = [
+ "half",
+ "rusticide-quantize",
+]
 
 [[package]]
 name = "rusticide-llama"

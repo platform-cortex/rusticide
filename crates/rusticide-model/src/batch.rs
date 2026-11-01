@@ -7,7 +7,7 @@
 //! pool, so projections that share an input share the region too.
 
 use rayon::prelude::*;
-use rusticide_quantize::{Q8Input, Q8Kind};
+use rusticide_kernels::{Q8Input, Q8Kind};
 
 use crate::weights::Matrix;
 

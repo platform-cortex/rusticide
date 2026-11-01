@@ -4,8 +4,8 @@
 
 use half::f16;
 use rusticide_core::{DType, Tensor};
-use rusticide_kernels::dot;
-use rusticide_quantize::{BlockFormat, Q8Kind};
+use rusticide_kernels::{Q8Kind, QuantKernel, active, dot};
+use rusticide_quantize::BlockFormat;
 
 use crate::batch::{Activations, matvec_batch};
 
@@ -26,6 +26,7 @@ enum Storage {
     Dense(Vec<f32>),
     Blocks {
         format: &'static BlockFormat,
+        kernel: &'static QuantKernel,
         data: Vec<u8>,
         row_bytes: usize,
     },
@@ -36,7 +37,8 @@ impl Matrix {
     ///
     /// `MissingTensor` or `ShapeMismatch` when the source lacks the tensor or
     /// its shape is not `[rows, cols]`, `InvalidConfig` when `cols` is zero,
-    /// and a tensor error for unsupported dtypes.
+    /// `MissingKernel` when no kernel reads its block format, and a tensor
+    /// error for unsupported dtypes.
     pub fn load(source: &dyn ModelSource, name: &str, rows: usize, cols: usize) -> Result<Self> {
         check_shape(source, name, &[rows, cols])?;
         if cols == 0 {
@@ -50,6 +52,7 @@ impl Matrix {
         let storage = match blocks {
             Some((format, data, row_bytes)) => Storage::Blocks {
                 format,
+                kernel: require_kernel(format, active().quant_kernel(format.type_id()))?,
                 data: data.to_vec(),
                 row_bytes,
             },
@@ -89,6 +92,7 @@ impl Matrix {
                 format,
                 data,
                 row_bytes,
+                ..
             } => {
                 let row = data.chunks_exact(*row_bytes).nth(index);
                 row.map(|row| format.dequantize_row(row, out))
@@ -106,7 +110,7 @@ impl Matrix {
     pub(crate) const fn activation(&self) -> Option<Q8Kind> {
         match &self.storage {
             Storage::Dense(_) => None,
-            Storage::Blocks { format, .. } => Some(format.activation()),
+            Storage::Blocks { kernel, .. } => Some(kernel.activation()),
         }
     }
 
@@ -124,18 +128,28 @@ impl Matrix {
                 }
             }
             Storage::Blocks {
-                format,
+                kernel,
                 data,
                 row_bytes,
+                ..
             } => {
-                let quantized = input.quantized(format.activation());
+                let quantized = input.quantized(kernel.activation());
                 let rows = data.chunks_exact(*row_bytes).skip(first_row);
                 for (slots, row) in out.chunks_mut(tokens).zip(rows) {
-                    format.dot_rows_q8(row, quantized, slots);
+                    kernel.dot_rows(row, quantized, slots);
                 }
             }
         }
     }
+}
+
+fn require_kernel(
+    format: &BlockFormat,
+    kernel: Option<&'static QuantKernel>,
+) -> Result<&'static QuantKernel> {
+    kernel.ok_or_else(|| ModelError::MissingKernel {
+        format: format.name(),
+    })
 }
 
 /// # Errors

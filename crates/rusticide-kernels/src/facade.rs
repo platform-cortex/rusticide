@@ -82,6 +82,7 @@ mod tests {
         let custom = Adapter {
             name: "custom",
             f32: kernels,
+            ..portable::ADAPTER
         };
         assert_eq!(route_dot(&custom, &[1.0], &[1.0]), 42.0);
         assert_eq!(dot(&[1.0, 2.0], &[3.0, 4.0]), 11.0);

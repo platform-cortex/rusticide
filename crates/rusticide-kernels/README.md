@@ -6,9 +6,12 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # rusticide-kernels
 
-Slice-level `f32` kernels shared by the rusticide crates: dot product and
-parallel matrix-vector product, RMS norm, softmax, rotary embeddings (adjacent
-pairs), SiLU and element-wise multiply/add.
+The kernel facade shared by the rusticide crates. Slice-level `f32` kernels:
+dot product, RMS norm, softmax, rotary embeddings, SiLU and element-wise
+multiply/add. Quantized kernels: activation quantization (`Q8Input`, the ggml
+`Q8_0` and `Q8_K` schemes) and, per block format, the integer row kernels
+(`QuantKernel`, looked up by GGML type id). Every call routes through one
+`Adapter`, chosen once per process.
 
 Kernels never panic on mismatched slice lengths: they iterate with `zip`, so
 the shorter slice bounds the work. Callers validate lengths.

@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Shared slice-level `f32` kernels.
+//! The kernel facade: slice-level `f32` kernels and the quantized row
+//! kernels, routed through one adapter chosen per process.
 //!
 //! Mismatched slice lengths never panic: kernels iterate with `zip`, so the
 //! shorter slice bounds the work. Callers validate lengths.
@@ -10,6 +11,8 @@
 mod adapter;
 mod facade;
 mod portable;
+mod q8_input;
+mod quant_kernel;
 #[cfg(test)]
 mod test_support;
 
@@ -18,6 +21,8 @@ pub use facade::{
     add_assign, dot, dot_rows, mul_assign, rms_norm, rope_adjacent, rope_half_split, silu_assign,
     softmax,
 };
+pub use q8_input::{Q8_BLOCK, Q8Input, Q8Kind};
+pub use quant_kernel::QuantKernel;
 
 #[expect(
     clippy::cast_precision_loss,

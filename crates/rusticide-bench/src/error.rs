@@ -17,6 +17,13 @@ pub enum BenchError {
     WrongMachine { expected: String, got: String },
     #[error("metric {metric} is missing from a session")]
     MissingInSession { metric: String },
+    #[error("no kernel for format {format}")]
+    MissingKernel { format: &'static str },
+    #[error("format {format} cannot hold rows of {columns} columns")]
+    UnalignedRow {
+        format: &'static str,
+        columns: usize,
+    },
     #[error("model error: {0}")]
     Model(#[from] rusticide_model::ModelError),
     #[error("invalid json: {0}")]

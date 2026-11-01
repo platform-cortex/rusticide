@@ -8,7 +8,8 @@
 //! multiplied in `i32`, which the compiler vectorizes (to `sdot` where the
 //! target has it). Floats appear only once per 16 or 32 elements.
 
-use crate::half_bits::read_f16_le;
+use rusticide_quantize::read_f16_le;
+
 use crate::q8_input::{Q8_BLOCK, Q8Input, Span};
 
 mod rows;

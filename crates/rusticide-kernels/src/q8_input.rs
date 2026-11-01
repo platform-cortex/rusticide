@@ -5,7 +5,7 @@
 //! Activations quantized to signed bytes, the right-hand side of the integer
 //! dot kernels.
 
-use half::f16;
+use crate::adapter::active;
 
 /// Elements per activation block.
 pub const Q8_BLOCK: usize = 32;
@@ -14,9 +14,9 @@ pub const Q8_BLOCK: usize = 32;
 /// scale, its values rounded to `i8`, and the sum of those `i8` values.
 #[derive(Debug, Default, Clone)]
 pub struct Q8Input {
-    scales: Vec<f32>,
-    quants: Vec<i8>,
-    sums: Vec<i32>,
+    pub(crate) scales: Vec<f32>,
+    pub(crate) quants: Vec<i8>,
+    pub(crate) sums: Vec<i32>,
 }
 
 /// The `K` [`Q8Input`] blocks covering one weight block.
@@ -39,80 +39,11 @@ pub enum Q8Kind {
     SuperBlock,
 }
 
-/// Activation blocks per `Q8_K` super block of 256 elements.
-const PER_SUPER_BLOCK: usize = 8;
-
-fn abs_max(values: &[f32]) -> f32 {
-    values.iter().fold(0.0_f32, |max, v| max.max(v.abs()))
-}
-
-/// The element of largest magnitude, the first one on a tie, as ggml's
-/// `Q8_K` picks it; zero for an all-zero input.
-#[expect(
-    clippy::float_cmp,
-    reason = "amax is exactly the magnitude of one of the elements, so exact equality finds it"
-)]
-fn signed_max(blocks: &[[f32; Q8_BLOCK]]) -> f32 {
-    let amax = blocks
-        .iter()
-        .map(|block| abs_max(block))
-        .fold(0.0_f32, f32::max);
-    blocks
-        .as_flattened()
-        .iter()
-        .copied()
-        .find(|v| v.abs() == amax)
-        .unwrap_or(0.0)
-}
-
-/// Rounds `block * inverse` into `quants`, returning their sum.
-fn quantize_block(block: &[f32; Q8_BLOCK], inverse: f32, quants: &mut [i8; Q8_BLOCK]) -> i32 {
-    for (quant, &value) in quants.iter_mut().zip(block) {
-        *quant = round_to_i8(value * inverse);
-    }
-    quants.iter().map(|&q| i32::from(q)).sum()
-}
-
 impl Q8Input {
     /// Quantizes `input` as `kind`, reusing this value's buffers. A trailing
     /// partial block is dropped; callers pass whole blocks.
     pub fn quantize(&mut self, input: &[f32], kind: Q8Kind) {
-        let (blocks, _) = input.as_chunks::<Q8_BLOCK>();
-        let blocks = match kind {
-            Q8Kind::Block => blocks,
-            Q8Kind::SuperBlock => &blocks[..blocks.len() / PER_SUPER_BLOCK * PER_SUPER_BLOCK],
-        };
-        self.quants.resize(blocks.len() * Q8_BLOCK, 0);
-        self.scales.resize(blocks.len(), 0.0);
-        self.sums.resize(blocks.len(), 0);
-        let (quants, _) = self.quants.as_chunks_mut::<Q8_BLOCK>();
-        let outputs = quants
-            .iter_mut()
-            .zip(self.scales.iter_mut().zip(&mut self.sums));
-        match kind {
-            Q8Kind::Block => {
-                for (block, (quants, (scale, sum))) in blocks.iter().zip(outputs) {
-                    let step = abs_max(block) / 127.0;
-                    let inverse = if step == 0.0 { 0.0 } else { 1.0 / step };
-                    *sum = quantize_block(block, inverse, quants);
-                    *scale = f16::from_f32(step).to_f32();
-                }
-            }
-            Q8Kind::SuperBlock => {
-                let (supers, _) = blocks.as_chunks::<PER_SUPER_BLOCK>();
-                let mut outputs = outputs;
-                for super_block in supers {
-                    let max = signed_max(super_block);
-                    let inverse = if max == 0.0 { 0.0 } else { -127.0 / max };
-                    let step = if max == 0.0 { 0.0 } else { 1.0 / inverse };
-                    for (block, (quants, (scale, sum))) in super_block.iter().zip(outputs.by_ref())
-                    {
-                        *sum = quantize_block(block, inverse, quants);
-                        *scale = step;
-                    }
-                }
-            }
-        }
+        (active().quantize)(self, input, kind);
     }
 
     /// The number of quantized elements.
@@ -166,17 +97,10 @@ impl Q8Input {
     }
 }
 
-#[expect(
-    clippy::cast_possible_truncation,
-    reason = "the value is rounded and clamped to the i8 range first; ties go to \
-              even, as NEON's vcvtnq and ggml's nearest_int round"
-)]
-const fn round_to_i8(value: f32) -> i8 {
-    value.round_ties_even().clamp(-127.0, 127.0) as i8
-}
-
 #[cfg(test)]
 mod tests {
+    use half::f16;
+
     use super::*;
 
     #[test]
@@ -252,10 +176,5 @@ mod tests {
         let mut q8 = Q8Input::default();
         q8.quantize(&[0.0; 256], Q8Kind::SuperBlock);
         assert_eq!(q8.scales, [0.0; 8]);
-    }
-
-    #[test]
-    fn ties_round_to_even() {
-        assert_eq!((round_to_i8(2.5), round_to_i8(-3.5)), (2, -4));
     }
 }

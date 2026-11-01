@@ -8,9 +8,12 @@ use half::f16;
 
 /// Reads the two bytes at `offset` as a little-endian f16.
 ///
-/// Callers must guarantee `offset + 2 <= data.len()`; every block reader
-/// checks the total length first.
-pub(crate) fn read_f16_le(data: &[u8], offset: usize) -> f32 {
+/// # Panics
+///
+/// If `offset + 2 > data.len()`; every block reader checks the total length
+/// first.
+#[must_use]
+pub fn read_f16_le(data: &[u8], offset: usize) -> f32 {
     f16::from_bits(u16::from_le_bytes([data[offset], data[offset + 1]])).to_f32()
 }
 

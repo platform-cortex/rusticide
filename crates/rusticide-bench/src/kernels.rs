@@ -6,14 +6,22 @@ use std::collections::BTreeMap;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
-use rusticide_quantize::{BlockFormat, Q8Input, Q8Kind, formats};
+use rusticide_kernels::{Q8Input, Q8Kind, QuantKernel, active};
+use rusticide_quantize::{BlockFormat, formats};
 
 use crate::{BenchError, Plan, Sample, throughput};
 
-const ROWS: usize = 256;
-const COLUMNS: usize = 4096;
-const BATCH: usize = 8;
-const ROW_WORK: f64 = 256.0 * 4096.0;
+const ROWS: u32 = 256;
+const COLUMNS: u32 = 4096;
+const BATCH: u32 = 8;
+
+const fn count(value: u32) -> usize {
+    value as usize
+}
+
+fn row_work() -> f64 {
+    f64::from(ROWS) * f64::from(COLUMNS)
+}
 
 /// Deterministic values in `[-1, 1)`.
 fn activations(seed: u32) -> Vec<f32> {
@@ -47,30 +55,55 @@ fn sustained(
     throughput(work_per_pass * passes, start.elapsed())
 }
 
+fn require_kernel(
+    format: &BlockFormat,
+    kernel: Option<&'static QuantKernel>,
+) -> Result<&'static QuantKernel, BenchError> {
+    kernel.ok_or_else(|| BenchError::MissingKernel {
+        format: format.name(),
+    })
+}
+
+/// A synthetic `ROWS` x `columns` matrix of `format`, its row length in
+/// bytes, and the kernels that read it.
+fn layout(
+    format: &BlockFormat,
+    columns: u32,
+) -> Result<(Vec<u8>, usize, &'static QuantKernel), BenchError> {
+    let columns = count(columns);
+    let row_bytes = format
+        .row_bytes(columns)
+        .ok_or_else(|| BenchError::UnalignedRow {
+            format: format.name(),
+            columns,
+        })?;
+    let kernel = require_kernel(format, active().quant_kernel(format.type_id()))?;
+    let matrix = format.synthetic_blocks(count(ROWS) * columns / format.block_size(), 1);
+    Ok((matrix, row_bytes, kernel))
+}
+
 fn row_metric(format: &BlockFormat, plan: &Plan) -> Result<Sample, BenchError> {
-    let matrix = format.synthetic_blocks(ROWS * COLUMNS / format.block_size(), 1);
-    let row_bytes = format.row_bytes(COLUMNS).unwrap_or(matrix.len());
-    let input = quantized(format.activation(), 2);
+    let (matrix, row_bytes, kernel) = layout(format, COLUMNS)?;
+    let input = quantized(kernel.activation(), 2);
     plan.sample(|| {
-        sustained(plan.budget, ROW_WORK, || {
+        sustained(plan.budget, row_work(), || {
             for row in matrix.chunks_exact(row_bytes) {
-                black_box(format.dot_row_q8(black_box(row), black_box(&input)));
+                black_box(kernel.dot_row(black_box(row), black_box(&input)));
             }
         })
     })
 }
 
 fn rows8_metric(format: &BlockFormat, plan: &Plan) -> Result<Sample, BenchError> {
-    let matrix = format.synthetic_blocks(ROWS * COLUMNS / format.block_size(), 1);
-    let row_bytes = format.row_bytes(COLUMNS).unwrap_or(matrix.len());
-    let inputs: Vec<Q8Input> = (3..3 + 8)
-        .map(|seed| quantized(format.activation(), seed))
+    let (matrix, row_bytes, kernel) = layout(format, COLUMNS)?;
+    let inputs: Vec<Q8Input> = (3..3 + BATCH)
+        .map(|seed| quantized(kernel.activation(), seed))
         .collect();
-    let mut out = [0.0_f32; BATCH];
+    let mut out = [0.0_f32; count(BATCH)];
     plan.sample(|| {
-        sustained(plan.budget, ROW_WORK * 8.0, || {
+        sustained(plan.budget, row_work() * f64::from(BATCH), || {
             for row in matrix.chunks_exact(row_bytes) {
-                format.dot_rows_q8(black_box(row), black_box(&inputs), &mut out);
+                kernel.dot_rows(black_box(row), black_box(&inputs), &mut out);
                 black_box(&out);
             }
         })
@@ -81,7 +114,7 @@ fn quantize_metric(kind: Q8Kind, plan: &Plan) -> Result<Sample, BenchError> {
     let values = activations(4);
     let mut input = Q8Input::default();
     plan.sample(|| {
-        sustained(plan.budget, 4096.0, || {
+        sustained(plan.budget, f64::from(COLUMNS), || {
             input.quantize(black_box(&values), kind);
             black_box(&input);
         })

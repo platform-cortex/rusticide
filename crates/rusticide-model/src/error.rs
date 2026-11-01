@@ -23,6 +23,8 @@ pub enum ModelError {
     MissingTensor { name: String },
     #[error("missing metadata key {key}")]
     MissingMetadata { key: String },
+    #[error("no kernel for format {format}")]
+    MissingKernel { format: &'static str },
     #[error("invalid config: {reason}")]
     InvalidConfig { reason: &'static str },
     #[error("tensor {name} has shape {got:?}, expected {expected:?}")]

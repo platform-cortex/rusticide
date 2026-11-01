@@ -7,7 +7,7 @@ use rusticide_core::{DType, Device, Tensor};
 use rusticide_io::Metadata;
 use rusticide_quantize::block_format;
 
-use super::{Matrix, load_vector};
+use super::{Matrix, load_vector, require_kernel};
 use crate::error::ModelError;
 use crate::source::InMemorySource;
 
@@ -153,4 +153,14 @@ fn a_matrix_without_columns_is_invalid() {
             reason: "a weight matrix has no columns"
         })
     ));
+}
+
+#[test]
+fn a_format_without_a_kernel_fails_to_load() {
+    let error = require_kernel(block_format(12).unwrap(), None).unwrap_err();
+    assert!(matches!(
+        error,
+        ModelError::MissingKernel { format: "Q4_K" }
+    ));
+    assert_eq!(error.to_string(), "no kernel for format Q4_K");
 }

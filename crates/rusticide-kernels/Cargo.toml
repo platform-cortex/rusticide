@@ -5,7 +5,7 @@
 [package]
 authors.workspace = true
 categories = ["algorithms"]
-description = "Slice-level f32 kernels (dot, norms, rope, activations) shared by rusticide crates"
+description = "Kernel facade for rusticide: f32 slice kernels and quantized row kernels behind one adapter"
 edition.workspace = true
 keywords = ["kernels", "dot", "softmax", "rope", "f32"]
 license.workspace = true
@@ -14,6 +14,10 @@ readme = "README.md"
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
+
+[dependencies]
+half.workspace = true
+rusticide-quantize.workspace = true
 
 [lints]
 workspace = true

@@ -7,15 +7,13 @@
 mod error;
 mod format;
 mod half_bits;
-mod int_dot;
 mod q4_0;
 mod q4_k;
 mod q5_0;
 mod q6_k;
 mod q8_0;
-mod q8_input;
 
 pub use error::QuantizeError;
 pub use format::{BlockFormat, block_format, formats};
+pub use half_bits::read_f16_le;
 pub use q4_0::Quantizer;
-pub use q8_input::{Q8_BLOCK, Q8Input, Q8Kind};

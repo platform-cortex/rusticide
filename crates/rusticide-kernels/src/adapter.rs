@@ -5,6 +5,8 @@
 use std::sync::OnceLock;
 
 use crate::portable;
+use crate::q8_input::{Q8Input, Q8Kind};
+use crate::quant_kernel::QuantKernel;
 
 pub(crate) type DotRows = fn(&[f32], &[f32], usize, usize, f32, &mut [f32]);
 
@@ -25,6 +27,8 @@ pub(crate) struct F32Kernels {
 pub struct Adapter {
     pub(crate) name: &'static str,
     pub(crate) f32: F32Kernels,
+    pub(crate) quantize: fn(&mut Q8Input, &[f32], Q8Kind),
+    pub(crate) quantized: &'static [QuantKernel],
 }
 
 impl Adapter {
@@ -32,6 +36,15 @@ impl Adapter {
     #[must_use]
     pub const fn name(&self) -> &'static str {
         self.name
+    }
+
+    /// The row kernels for the block format with GGML type id `type_id`;
+    /// `None` when this adapter has none.
+    #[must_use]
+    pub fn quant_kernel(&self, type_id: u32) -> Option<&'static QuantKernel> {
+        self.quantized
+            .iter()
+            .find(|kernel| kernel.type_id == type_id)
     }
 }
 
