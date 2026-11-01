@@ -103,6 +103,12 @@ regardless, because it is cheap.
 - mmap-based loading (needs `unsafe` outside `rusticide-alloc`).
 - Quantized matmul kernels (computing on quantized blocks directly). Weights
   are dequantized at load time; see "Memory".
+
+> **Amended 2026-11-01.** Release 0.6.0 shipped quantized matmul kernels
+> (integer dot products on the blocks) and keeps weights quantized in
+> memory; see the
+> [0.6.0 notes](2026-10-31-rusticide-inference-performance.md). This is no
+> longer a non-goal.
 - Formats other than GGUF.
 - Downloading models from the CLI.
 
@@ -165,6 +171,11 @@ rejects the whole file on an unknown id. That changes:
   compatible, so llama.cpp falls back to them); `i2_s` (GGML type id 36 in
   bitnet.cpp's fork) for 3.
 
+> **Amended 2026-11-01.** The contract is now name, type id, block size,
+> block bytes and dequantizer, and the kernels for each format are
+> registered in `rusticide-kernels`; see the
+> [kernel facade design](2026-11-01-rusticide-kernel-facade-design.md).
+
 ### Tokenizer
 
 - Milestone 1 uses the existing SentencePiece path; it must match
@@ -196,6 +207,11 @@ Weights are dequantized to f32 once at load. TinyLlama needs about 4.4 GiB
 and BitNet 2B about 10 GiB; acceptable on both machines (32 GiB on the
 M1 Pro, 128 GiB on the server) and explicitly not a goal to reduce here.
 The file itself is still read whole (`fs::read`), as today.
+
+> **Amended 2026-11-01.** Weights are no longer dequantized at load: they
+> stay as GGUF blocks in memory (resident memory fell from 3.6 to 1.05 GB
+> on Qwen and from 5.4 to 1.36 GB on TinyLlama); see the
+> [0.6.0 notes](2026-10-31-rusticide-inference-performance.md).
 
 ## CLI
 

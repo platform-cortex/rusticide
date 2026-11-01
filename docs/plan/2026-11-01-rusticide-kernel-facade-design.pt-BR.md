@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 # Facade de kernels e guarda de desempenho (Design)
 
 Status: aprovado para planejamento, 2026-11-01. Segue o milestone de desempenho de inferencia
-([notas](2026-10-31-rusticide-inference-performance.md), release 0.6.0)
+([notas](2026-10-31-rusticide-inference-performance.pt-BR.md), release 0.6.0)
 e paga os debitos que ele deixou, do mais importante para o menos. Branch
 `chore/kernel-architecture`. Versao em ingles:
 [2026-11-01-rusticide-kernel-facade-design.md](2026-11-01-rusticide-kernel-facade-design.md).

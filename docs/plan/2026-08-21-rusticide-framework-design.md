@@ -345,6 +345,13 @@ improves on the original: PyTorch hand-rolls a 27-variant tagged union
 with a manual `Tag` field and hand-written payload management, and Rust
 gets exhaustive matching for free.
 
+> **Decision 2026-11-01.** Kernel selection has two levels. The dispatcher
+> picks a kernel per operator from the `DispatchKeySet`. Below it, a
+> `DispatchStub`-style adapter in `rusticide-kernels` picks the
+> implementation once per process (for example scalar or native). Native
+> adapters build on `rusticide-simd`. See the
+> [kernel facade design](2026-11-01-rusticide-kernel-facade-design.md).
+
 ### Eager ops and the SP2 removal seam
 
 The legacy eager operators ported in SP1 (`add`, `matmul`, `reshape`,
