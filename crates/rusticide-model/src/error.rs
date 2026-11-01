@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_io::GgufError;
+use rusticide_quantize::QuantizeError;
 use rusticide_sampling::SamplingError;
 use rusticide_tokenizer::TokenizerError;
 
@@ -12,6 +13,8 @@ pub enum ModelError {
     Gguf(#[from] GgufError),
     #[error("tensor error: {0}")]
     Tensor(#[from] rusticide_core::Error),
+    #[error("quantize error: {0}")]
+    Quantize(#[from] QuantizeError),
     #[error("tokenizer error: {0}")]
     Tokenizer(#[from] TokenizerError),
     #[error("sampling error: {0}")]

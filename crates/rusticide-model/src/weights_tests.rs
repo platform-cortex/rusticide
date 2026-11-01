@@ -5,6 +5,7 @@
 use half::f16;
 use rusticide_core::{DType, Device, Tensor};
 use rusticide_io::Metadata;
+use rusticide_quantize::block_format;
 
 use super::{Matrix, load_vector};
 use crate::error::ModelError;
@@ -23,8 +24,10 @@ fn matrix_source() -> InMemorySource {
 fn matrix_loads_rows_and_multiplies() {
     let matrix = Matrix::load(&matrix_source(), "w", 2, 3).unwrap();
     assert_eq!((matrix.rows(), matrix.cols()), (2, 3));
-    assert_eq!(matrix.row(1), Some(&[4.0, 5.0, 6.0][..]));
-    assert_eq!(matrix.row(2), None);
+    let mut row = [0.0; 3];
+    assert!(matrix.copy_row(1, &mut row));
+    assert_eq!(row, [4.0, 5.0, 6.0]);
+    assert!(!matrix.copy_row(2, &mut row));
     let mut output = [0.0; 2];
     matrix.matvec(&[1.0, 0.0, 1.0], &mut output);
     assert_eq!(output, [4.0, 10.0]);
@@ -59,7 +62,9 @@ fn matrix_widens_f16_weights() {
     let data = [f16::from_f32(1.5), f16::from_f32(-2.0)];
     let source = source_with("w", Tensor::from_slice(&data, &[1, 2]).unwrap());
     let matrix = Matrix::load(&source, "w", 1, 2).unwrap();
-    assert_eq!(matrix.row(0), Some(&[1.5, -2.0][..]));
+    let mut row = [0.0; 2];
+    assert!(matrix.copy_row(0, &mut row));
+    assert_eq!(row, [1.5, -2.0]);
 }
 
 #[test]
@@ -102,4 +107,39 @@ fn load_vector_reads_and_checks_length() {
         }
         other => panic!("unexpected: {other:?}"),
     }
+}
+
+/// Two `Q8_0` rows of 32: row 0 is 0.5 x [0, 1, ..., 31], row 1 is all -1.
+fn q8_0_source(rows: usize, cols: usize) -> InMemorySource {
+    let half = f16::from_f32(0.5).to_le_bytes();
+    let mut blocks = half.to_vec();
+    blocks.extend(0..32_u8);
+    blocks.extend(f16::from_f32(1.0).to_le_bytes());
+    blocks.extend([0xFF; 32]);
+    InMemorySource::new(Metadata::default())
+        .with_quantized("q", block_format(8).unwrap(), blocks, &[rows, cols])
+        .unwrap()
+}
+
+#[test]
+fn a_quantized_matrix_stays_quantized_and_multiplies() {
+    let matrix = Matrix::load(&q8_0_source(2, 32), "q", 2, 32).unwrap();
+    assert!(matrix.is_quantized());
+    let input = [1.0_f32; 32];
+    let mut output = [0.0; 2];
+    matrix.matvec(&input, &mut output);
+    assert_eq!(output, [248.0, -32.0]);
+    let mut row = [0.0; 32];
+    assert!(matrix.copy_row(1, &mut row));
+    assert_eq!(row, [-1.0; 32]);
+    assert!(!matrix.copy_row(2, &mut row));
+}
+
+#[test]
+fn a_quantized_matrix_whose_rows_split_blocks_is_widened() {
+    let matrix = Matrix::load(&q8_0_source(4, 16), "q", 4, 16).unwrap();
+    assert!(!matrix.is_quantized());
+    let mut row = [0.0; 16];
+    assert!(matrix.copy_row(3, &mut row));
+    assert_eq!(row, [-1.0; 16]);
 }

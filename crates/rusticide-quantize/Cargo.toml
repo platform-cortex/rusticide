@@ -18,6 +18,7 @@ version.workspace = true
 [dependencies]
 half.workspace = true
 rusticide-core.workspace = true
+rusticide-kernels.workspace = true
 thiserror.workspace = true
 
 [lints]

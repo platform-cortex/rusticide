@@ -5,6 +5,7 @@
 //! The table of supported block formats, keyed by GGML type id.
 
 use rusticide_core::{Shape, Tensor};
+use rusticide_kernels::dot;
 
 use crate::error::{QuantizeError, ensure_aligned, ensure_len, zeroed_f32};
 use crate::{q4_0, q4_k, q5_0, q6_k, q8_0};
@@ -19,6 +20,10 @@ pub struct BlockFormat {
     /// Receives exactly `block_bytes` bytes and `block_size` outputs.
     dequantize_block: fn(block: &[u8], out: &mut [f32]),
 }
+
+/// The largest `block_size` in the table, sizing [`BlockFormat::dot_row`]'s
+/// stack buffer.
+const MAX_BLOCK_SIZE: usize = 256;
 
 static FORMATS: [BlockFormat; 5] = [
     BlockFormat {
@@ -126,6 +131,41 @@ impl BlockFormat {
             (self.dequantize_block)(block, out);
         }
         Ok(Tensor::from_slice(&values, shape)?)
+    }
+
+    /// Bytes of one row of `cols` elements; `None` unless `cols` is a whole
+    /// number of blocks, or on overflow.
+    #[must_use]
+    pub const fn row_bytes(&self, cols: usize) -> Option<usize> {
+        if !cols.is_multiple_of(self.block_size) {
+            return None;
+        }
+        self.byte_len(cols)
+    }
+
+    /// Dot product of one quantized row with `input`, dequantizing a block at
+    /// a time into a stack buffer. The shorter of the two bounds the work.
+    #[must_use]
+    pub fn dot_row(&self, row: &[u8], input: &[f32]) -> f32 {
+        let mut buffer = [0.0_f32; MAX_BLOCK_SIZE];
+        let values = &mut buffer[..self.block_size];
+        row.chunks_exact(self.block_bytes)
+            .zip(input.chunks_exact(self.block_size))
+            .map(|(block, inputs)| {
+                (self.dequantize_block)(block, values);
+                dot(values, inputs)
+            })
+            .sum()
+    }
+
+    /// Dequantizes one row of whole blocks into `out`.
+    pub fn dequantize_row(&self, row: &[u8], out: &mut [f32]) {
+        for (block, values) in row
+            .chunks_exact(self.block_bytes)
+            .zip(out.chunks_exact_mut(self.block_size))
+        {
+            (self.dequantize_block)(block, values);
+        }
     }
 }
 

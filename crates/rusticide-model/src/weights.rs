@@ -4,16 +4,28 @@
 
 use half::f16;
 use rusticide_core::{DType, Tensor};
+use rusticide_quantize::BlockFormat;
 
 use crate::error::{ModelError, Result};
 use crate::source::ModelSource;
 
-/// A row-major `f32` weight matrix of `rows` x `cols`.
+/// A row-major weight matrix of `rows` x `cols`. Block-quantized weights stay
+/// quantized and are decoded a block at a time inside the dot product.
 #[derive(Debug)]
 pub struct Matrix {
-    data: Vec<f32>,
+    storage: Storage,
     rows: usize,
     cols: usize,
+}
+
+#[derive(Debug)]
+enum Storage {
+    Dense(Vec<f32>),
+    Blocks {
+        format: &'static BlockFormat,
+        data: Vec<u8>,
+        row_bytes: usize,
+    },
 }
 
 impl Matrix {
@@ -22,8 +34,23 @@ impl Matrix {
     /// `MissingTensor` or `ShapeMismatch` when the source lacks the tensor or
     /// its shape is not `[rows, cols]`; a tensor error for unsupported dtypes.
     pub fn load(source: &dyn ModelSource, name: &str, rows: usize, cols: usize) -> Result<Self> {
-        let data = load_checked(source, name, &[rows, cols])?;
-        Ok(Self { data, rows, cols })
+        check_shape(source, name, &[rows, cols])?;
+        let blocks = source
+            .quantized_tensor(name)?
+            .and_then(|(format, data)| Some((format, data, format.row_bytes(cols)?)));
+        let storage = match blocks {
+            Some((format, data, row_bytes)) => Storage::Blocks {
+                format,
+                data: data.to_vec(),
+                row_bytes,
+            },
+            None => Storage::Dense(widen(&source.tensor(name)?)?),
+        };
+        Ok(Self {
+            storage,
+            rows,
+            cols,
+        })
     }
 
     #[must_use]
@@ -36,14 +63,42 @@ impl Matrix {
         self.cols
     }
 
+    /// Whether the weights are held block-quantized.
     #[must_use]
-    pub fn row(&self, index: usize) -> Option<&[f32]> {
-        let start = index.checked_mul(self.cols)?;
-        self.data.get(start..start.checked_add(self.cols)?)
+    pub const fn is_quantized(&self) -> bool {
+        matches!(self.storage, Storage::Blocks { .. })
+    }
+
+    /// Decodes row `index` into `out`; `false` when the row does not exist.
+    pub fn copy_row(&self, index: usize, out: &mut [f32]) -> bool {
+        let row = match &self.storage {
+            Storage::Dense(data) => {
+                let row = data.chunks_exact(self.cols).nth(index);
+                row.map(|row| out.copy_from_slice(row))
+            }
+            Storage::Blocks {
+                format,
+                data,
+                row_bytes,
+            } => {
+                let row = data.chunks_exact(*row_bytes).nth(index);
+                row.map(|row| format.dequantize_row(row, out))
+            }
+        };
+        row.is_some()
     }
 
     pub fn matvec(&self, input: &[f32], output: &mut [f32]) {
-        rusticide_kernels::matvec(&self.data, self.cols, input, output);
+        match &self.storage {
+            Storage::Dense(data) => rusticide_kernels::matvec(data, self.cols, input, output),
+            Storage::Blocks {
+                format,
+                data,
+                row_bytes,
+            } => rusticide_kernels::map_rows(data, *row_bytes, output, |row| {
+                format.dot_row(row, input)
+            }),
+        }
     }
 }
 
@@ -55,6 +110,11 @@ pub fn load_vector(source: &dyn ModelSource, name: &str, len: usize) -> Result<V
 }
 
 fn load_checked(source: &dyn ModelSource, name: &str, expected: &[usize]) -> Result<Vec<f32>> {
+    check_shape(source, name, expected)?;
+    widen(&source.tensor(name)?)
+}
+
+fn check_shape(source: &dyn ModelSource, name: &str, expected: &[usize]) -> Result<()> {
     let got = source
         .tensor_shape(name)
         .ok_or_else(|| ModelError::MissingTensor {
@@ -67,7 +127,7 @@ fn load_checked(source: &dyn ModelSource, name: &str, expected: &[usize]) -> Res
             got,
         });
     }
-    widen(&source.tensor(name)?)
+    Ok(())
 }
 
 fn widen(tensor: &Tensor) -> Result<Vec<f32>> {

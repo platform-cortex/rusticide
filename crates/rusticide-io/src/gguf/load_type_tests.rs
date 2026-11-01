@@ -54,3 +54,31 @@ fn q8_0_tensor_loads_through_the_table() {
     let values = file.tensor("q").unwrap().to_vec::<f32>().unwrap();
     assert_eq!(values[..6], [-64.0, -0.5, 0.0, 0.5, 63.5, 0.0]);
 }
+
+#[test]
+fn quantized_tensor_borrows_the_raw_blocks() {
+    let mut block = f16::from_f32(0.5).to_le_bytes().to_vec();
+    block.extend([7; 32]);
+    let file = file(GgufBuilder::new().tensor("q", &[32], 8, &block).tensor(
+        "f",
+        &[1],
+        F32,
+        &one_f32(),
+    ));
+    let (format, bytes) = file.quantized_tensor("q").unwrap().unwrap();
+    assert_eq!((format.name(), bytes), ("Q8_0", &block[..]));
+    assert!(file.quantized_tensor("f").unwrap().is_none());
+    assert!(matches!(
+        file.quantized_tensor("nope"),
+        Err(GgufError::TensorNotFound(name)) if name == "nope"
+    ));
+}
+
+#[test]
+fn quantized_tensor_of_an_unknown_type_is_unsupported() {
+    let file = file(GgufBuilder::new().tensor("odd", &[1], 99, &[0; 4]));
+    assert!(matches!(
+        file.quantized_tensor("odd"),
+        Err(GgufError::UnsupportedTensorType { type_id: 99, .. })
+    ));
+}

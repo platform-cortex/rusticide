@@ -20,6 +20,7 @@ half.workspace = true
 rusticide-core.workspace = true
 rusticide-io.workspace = true
 rusticide-kernels.workspace = true
+rusticide-quantize.workspace = true
 rusticide-sampling.workspace = true
 rusticide-tokenizer.workspace = true
 thiserror.workspace = true

@@ -4,7 +4,7 @@
 
 use half::f16;
 use rusticide_core::{Element, Shape, Tensor, try_vec_with_capacity};
-use rusticide_quantize::block_format;
+use rusticide_quantize::{BlockFormat, block_format};
 
 use super::file::GgufFile;
 use super::tensor_info::TensorInfo;
@@ -40,7 +40,22 @@ impl GgufFile {
         self.tensor(name)
     }
 
-    fn load_tensor(&self, info: &TensorInfo) -> Result<Tensor> {
+    /// The raw blocks of a block-quantized tensor, borrowed from the file;
+    /// `None` for an F32 or F16 tensor.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::tensor`], without decoding the data.
+    pub fn quantized_tensor(&self, name: &str) -> Result<Option<(&'static BlockFormat, &[u8])>> {
+        let info = self
+            .tensors
+            .get(name)
+            .ok_or_else(|| GgufError::TensorNotFound(name.to_owned()))?;
+        let (format, bytes) = self.layout(info)?;
+        Ok(format.map(|format| (format, bytes)))
+    }
+
+    fn layout(&self, info: &TensorInfo) -> Result<(Option<&'static BlockFormat>, &[u8])> {
         let numel = Shape::new(&info.shape).numel();
         let (format, len) = match info.type_id {
             F32_TYPE_ID => (None, numel.checked_mul(size_of::<f32>())),
@@ -51,7 +66,11 @@ impl GgufFile {
             }
         };
         let len = len.ok_or(GgufError::CastOverflow("tensor byte length"))?;
-        let bytes = self.tensor_bytes(info, len)?;
+        Ok((format, self.tensor_bytes(info, len)?))
+    }
+
+    fn load_tensor(&self, info: &TensorInfo) -> Result<Tensor> {
+        let (format, bytes) = self.layout(info)?;
         match (format, info.type_id) {
             (Some(format), _) => Ok(format.dequantize(bytes, &info.shape)?),
             (None, F32_TYPE_ID) => decode_le(bytes, &info.shape, f32::from_le_bytes),

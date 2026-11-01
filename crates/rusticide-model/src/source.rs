@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use rusticide_core::Tensor;
 use rusticide_io::{GgufFile, Metadata};
+use rusticide_quantize::BlockFormat;
 
 use crate::error::{ModelError, Result};
 
@@ -17,6 +18,15 @@ pub trait ModelSource {
     ///
     /// `ModelError::MissingTensor` when `name` is absent; loader errors otherwise.
     fn tensor(&self, name: &str) -> Result<Tensor>;
+    /// The raw blocks of a block-quantized tensor; `None` when the tensor is
+    /// not block-quantized or the source only offers decoded tensors.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::tensor`].
+    fn quantized_tensor(&self, _name: &str) -> Result<Option<(&'static BlockFormat, &[u8])>> {
+        Ok(None)
+    }
 }
 
 impl ModelSource for GgufFile {
@@ -36,6 +46,15 @@ impl ModelSource for GgufFile {
         }
         Ok(Self::tensor(self, name)?)
     }
+
+    fn quantized_tensor(&self, name: &str) -> Result<Option<(&'static BlockFormat, &[u8])>> {
+        if self.tensor_info(name).is_none() {
+            return Err(ModelError::MissingTensor {
+                name: name.to_owned(),
+            });
+        }
+        Ok(Self::quantized_tensor(self, name)?)
+    }
 }
 
 /// A source built from tensors held in memory, for tests and fixtures.
@@ -43,6 +62,7 @@ impl ModelSource for GgufFile {
 pub struct InMemorySource {
     metadata: Metadata,
     tensors: HashMap<String, Tensor>,
+    quantized: HashMap<String, (&'static BlockFormat, Vec<u8>)>,
 }
 
 impl InMemorySource {
@@ -51,6 +71,7 @@ impl InMemorySource {
         Self {
             metadata,
             tensors: HashMap::new(),
+            quantized: HashMap::new(),
         }
     }
 
@@ -58,6 +79,24 @@ impl InMemorySource {
     pub fn with_tensor(mut self, name: &str, tensor: Tensor) -> Self {
         self.tensors.insert(name.to_owned(), tensor);
         self
+    }
+
+    /// Adds a block-quantized tensor, also served decoded by `tensor`.
+    ///
+    /// # Errors
+    ///
+    /// Any error dequantizing `blocks` to `shape`.
+    pub fn with_quantized(
+        mut self,
+        name: &str,
+        format: &'static BlockFormat,
+        blocks: Vec<u8>,
+        shape: &[usize],
+    ) -> Result<Self> {
+        let decoded = format.dequantize(&blocks, shape)?;
+        self.tensors.insert(name.to_owned(), decoded);
+        self.quantized.insert(name.to_owned(), (format, blocks));
+        Ok(self)
     }
 }
 
@@ -77,6 +116,13 @@ impl ModelSource for InMemorySource {
             .ok_or_else(|| ModelError::MissingTensor {
                 name: name.to_owned(),
             })
+    }
+
+    fn quantized_tensor(&self, name: &str) -> Result<Option<(&'static BlockFormat, &[u8])>> {
+        Ok(self
+            .quantized
+            .get(name)
+            .map(|(format, blocks)| (*format, blocks.as_slice())))
     }
 }
 

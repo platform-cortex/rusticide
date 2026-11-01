@@ -121,3 +121,69 @@ fn dequantize_of_an_overflowing_byte_length_is_too_short() {
         }
     ));
 }
+
+/// Deterministic bytes with bit 6 clear, so every embedded f16 scale is finite.
+fn pseudo_random_bytes(len: usize, seed: u32) -> Vec<u8> {
+    let mut state = seed;
+    (0..len)
+        .map(|_| {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (state >> 24) as u8 & 0xBF
+        })
+        .collect()
+}
+
+fn reference_dot(values: &[f32], input: &[f32]) -> f32 {
+    values.iter().zip(input).map(|(a, b)| a * b).sum()
+}
+
+#[test]
+fn dot_row_matches_dequantize_then_dot_for_every_format() {
+    for (seed, format) in (1..).zip(formats()) {
+        let blocks = 3;
+        let row = pseudo_random_bytes(blocks * format.block_bytes, seed);
+        let numel = blocks * format.block_size;
+        let input: Vec<f32> = [-0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75]
+            .into_iter()
+            .cycle()
+            .take(numel)
+            .collect();
+        let values = format
+            .dequantize(&row, &[numel])
+            .unwrap()
+            .to_vec::<f32>()
+            .unwrap();
+        let expected = reference_dot(&values, &input);
+        let got = format.dot_row(&row, &input);
+        let tolerance = 1e-4 * values.iter().map(|v| v.abs()).sum::<f32>().max(1.0);
+        assert!(
+            (got - expected).abs() <= tolerance,
+            "{}: {got} vs {expected}",
+            format.name
+        );
+    }
+}
+
+#[test]
+fn dequantize_row_matches_dequantize_for_every_format() {
+    for (seed, format) in (1..).zip(formats()) {
+        let row = pseudo_random_bytes(2 * format.block_bytes, seed);
+        let numel = 2 * format.block_size;
+        let expected = format
+            .dequantize(&row, &[numel])
+            .unwrap()
+            .to_vec::<f32>()
+            .unwrap();
+        let mut got = vec![0.0; numel];
+        format.dequantize_row(&row, &mut got);
+        assert_eq!(got, expected, "{}", format.name);
+    }
+}
+
+#[test]
+fn row_bytes_needs_whole_blocks() {
+    let format = block_format(12).unwrap();
+    assert_eq!(format.row_bytes(512), Some(288));
+    assert_eq!(format.row_bytes(300), None);
+    assert_eq!(WIDER_THAN_ITS_BLOCK.row_bytes(usize::MAX), None);
+}

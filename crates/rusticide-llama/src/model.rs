@@ -64,13 +64,13 @@ impl Model for Llama {
     }
 
     fn forward(&mut self, token: u32, position: usize) -> Result<Vec<f32>> {
-        let embedding = usize::try_from(token)
-            .ok()
-            .and_then(|row| self.weights.token_embd.row(row))
-            .ok_or(ModelError::InvalidConfig {
+        let found = usize::try_from(token)
+            .is_ok_and(|row| self.weights.token_embd.copy_row(row, &mut self.hidden));
+        if !found {
+            return Err(ModelError::InvalidConfig {
                 reason: "token out of range",
-            })?;
-        self.hidden.copy_from_slice(embedding);
+            });
+        }
         let eps = self.config.rms_norm_eps;
         for (layer, block) in self.weights.blocks.iter().enumerate() {
             normalize(&self.hidden, &block.attn_norm, eps, &mut self.normed);

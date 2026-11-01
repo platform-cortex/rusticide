@@ -369,6 +369,7 @@ dependencies = [
  "rusticide-core",
  "rusticide-io",
  "rusticide-kernels",
+ "rusticide-quantize",
  "rusticide-sampling",
  "rusticide-tokenizer",
  "thiserror",
@@ -380,6 +381,7 @@ version = "0.5.0"
 dependencies = [
  "half",
  "rusticide-core",
+ "rusticide-kernels",
  "thiserror",
 ]
 
