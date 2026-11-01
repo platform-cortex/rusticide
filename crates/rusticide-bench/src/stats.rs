@@ -20,8 +20,15 @@ pub struct Sample {
 ///
 /// # Errors
 ///
-/// Returns [`BenchError::NoRuns`] when `throughputs` is empty.
+/// Returns [`BenchError::NoRuns`] when `throughputs` is empty and
+/// [`BenchError::NotFinite`] when a run is not a finite positive number.
 pub fn summarize(throughputs: &[f64]) -> Result<Sample, BenchError> {
+    if throughputs
+        .iter()
+        .any(|value| !value.is_finite() || *value <= 0.0)
+    {
+        return Err(BenchError::NotFinite);
+    }
     let mut sorted = throughputs.to_vec();
     sorted.sort_by(f64::total_cmp);
     let (Some(&min), Some(&max)) = (sorted.first(), sorted.last()) else {
@@ -43,16 +50,24 @@ pub fn summarize(throughputs: &[f64]) -> Result<Sample, BenchError> {
 ///
 /// # Errors
 ///
-/// Returns [`BenchError::ZeroElapsed`] or [`BenchError::ZeroWork`] when the
-/// ratio would be meaningless.
+/// Returns [`BenchError::ZeroElapsed`] or [`BenchError::ZeroWork`] for zero
+/// inputs and [`BenchError::NotFinite`] for a non-finite work or result.
 pub fn throughput(work: f64, elapsed: Duration) -> Result<f64, BenchError> {
     if elapsed.is_zero() {
         return Err(BenchError::ZeroElapsed);
     }
+    if !work.is_finite() {
+        return Err(BenchError::NotFinite);
+    }
     if work <= 0.0 {
         return Err(BenchError::ZeroWork);
     }
-    Ok(work / elapsed.as_secs_f64())
+    let rate = work / elapsed.as_secs_f64();
+    if rate.is_finite() {
+        Ok(rate)
+    } else {
+        Err(BenchError::NotFinite)
+    }
 }
 
 #[cfg(test)]

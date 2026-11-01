@@ -52,3 +52,27 @@ fn throughput_rejects_zero_elapsed_and_zero_work() {
         Err(BenchError::ZeroWork)
     ));
 }
+
+#[test]
+fn throughput_rejects_non_finite_work_and_overflow() {
+    let second = Duration::from_secs(1);
+    assert!(matches!(
+        throughput(f64::NAN, second),
+        Err(BenchError::NotFinite)
+    ));
+    assert!(matches!(
+        throughput(f64::INFINITY, second),
+        Err(BenchError::NotFinite)
+    ));
+    assert!(matches!(
+        throughput(f64::MAX, Duration::from_nanos(1)),
+        Err(BenchError::NotFinite)
+    ));
+}
+
+#[test]
+fn summarize_rejects_zero_nan_and_negative_runs() {
+    for bad in [0.0, f64::NAN, -1.0, f64::INFINITY] {
+        assert!(matches!(summarize(&[5.0, bad]), Err(BenchError::NotFinite)));
+    }
+}

@@ -11,6 +11,8 @@ pub enum BenchError {
     ZeroElapsed,
     #[error("work done is zero")]
     ZeroWork,
+    #[error("throughput is not a finite positive number")]
+    NotFinite,
     #[error("baseline was recorded on {expected}, results come from {got}")]
     WrongMachine { expected: String, got: String },
     #[error("invalid json: {0}")]

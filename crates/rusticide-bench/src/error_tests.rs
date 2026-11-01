@@ -26,3 +26,11 @@ fn json_errors_convert() {
     assert!(matches!(error, BenchError::Json(_)));
     assert!(error.to_string().starts_with("invalid json: "));
 }
+
+#[test]
+fn not_finite_message() {
+    assert_eq!(
+        BenchError::NotFinite.to_string(),
+        "throughput is not a finite positive number"
+    );
+}
