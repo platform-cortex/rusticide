@@ -22,9 +22,9 @@ fn dense_data() -> Vec<f32> {
 /// A `Q8_0` matrix of one 32-wide block per scale.
 fn q8_data(scales: &[f32]) -> Vec<u8> {
     let mut data = Vec::new();
-    for (block, scale) in (0_u8..).zip(scales) {
+    for (block, scale) in (0..=u8::MAX).cycle().zip(scales) {
         data.extend(f16::from_f32(*scale).to_le_bytes());
-        data.extend((0..32_u8).map(|v| v.wrapping_mul(block + 3)));
+        data.extend((0..32_u8).map(|v| v.wrapping_mul(block.wrapping_add(3))));
     }
     data
 }
@@ -210,4 +210,54 @@ fn a_job_with_no_rows_does_no_work() {
     matvec_batch(&[1.0; 32], jobs);
     assert_eq!((first, second), ([7.0; 2], [7.0; 2]));
     assert_eq!(bits(&output), bits(&reference(&weights, &[1.0; 32])));
+}
+
+#[test]
+fn more_tokens_than_input_values_leave_the_outputs_untouched() {
+    let dense = dense_data();
+    let weights = Weights::Dense {
+        data: &dense,
+        cols: 32,
+    };
+    let mut output = [7.0; 3];
+    matmul_batch(&[1.0; 32], usize::MAX, &mut [(weights, &mut output)]);
+    matmul_batch(&[1.0; 32], 33, &mut [(weights, &mut output)]);
+    matmul_batch(&[], 1, &mut [(weights, &mut output)]);
+    assert_eq!(output, [7.0; 3]);
+}
+
+#[test]
+fn tasks_spanning_several_rows_match_a_per_row_reference() {
+    let rows = rayon::current_num_threads() * super::TASKS_PER_THREAD * 2 + 3;
+    let tokens = 2;
+    let dense: Vec<f32> = [-3.0, -1.0, 0.0, 2.0, 5.0, 1.0, -2.0]
+        .into_iter()
+        .cycle()
+        .take(rows * 32)
+        .collect();
+    let scales: Vec<f32> = [0.125, 0.25, 0.375, 0.5, 0.625]
+        .into_iter()
+        .cycle()
+        .take(rows)
+        .collect();
+    let q8 = q8_data(&scales);
+    let dense = Weights::Dense {
+        data: &dense,
+        cols: 32,
+    };
+    let quantized = blocks(Q8_0, &q8, 34);
+    let inputs: Vec<f32> = (0..64_u8).map(|v| f32::from(v % 11) / 4.0 - 1.0).collect();
+    let (mut d_batch, mut q_batch) = (vec![0.0; rows * tokens], vec![0.0; rows * tokens]);
+    matmul_batch(
+        &inputs,
+        tokens,
+        &mut [(dense, &mut d_batch[..]), (quantized, &mut q_batch[..])],
+    );
+    for (weights, batch) in [(dense, &d_batch), (quantized, &q_batch)] {
+        for (token, input) in inputs.as_chunks::<32>().0.iter().enumerate() {
+            let expected = reference(&weights, input);
+            let got: Vec<f32> = batch.iter().skip(token).step_by(tokens).copied().collect();
+            assert_eq!(bits(&got), bits(&expected));
+        }
+    }
 }

@@ -152,14 +152,14 @@ pub fn matvec_batch(input: &[f32], jobs: &mut [(Weights<'_>, &mut [f32])]) {
 }
 
 /// Multiplies every weight matrix with each of `tokens` input rows, all jobs
-/// in one parallel region.
+/// in one parallel region. More tokens than `inputs` has values is a no-op.
 ///
 /// `inputs` holds the rows token after token; each output
 /// holds `out[row * tokens + token]`, so a weight row is read once for the
 /// whole batch. Every value is bit-identical to a [`matvec_batch`] of that
 /// token alone.
 pub fn matmul_batch(inputs: &[f32], tokens: usize, jobs: &mut [(Weights<'_>, &mut [f32])]) {
-    if tokens == 0 {
+    if tokens == 0 || tokens > inputs.len() {
         return;
     }
     let activations = Activations::new(inputs, tokens, jobs.iter().map(|(weights, _)| weights));
@@ -168,7 +168,10 @@ pub fn matmul_batch(inputs: &[f32], tokens: usize, jobs: &mut [(Weights<'_>, &mu
     let rows_per_task = total.div_ceil(tasks).max(1);
     let mut runs = Vec::with_capacity(tasks + jobs.len());
     for (weights, output) in jobs.iter_mut().filter(|(weights, _)| weights.rows() > 0) {
-        for (index, run) in output.chunks_mut(rows_per_task * tokens).enumerate() {
+        for (index, run) in output
+            .chunks_mut(rows_per_task.saturating_mul(tokens))
+            .enumerate()
+        {
             runs.push((*weights, index * rows_per_task, run));
         }
     }
