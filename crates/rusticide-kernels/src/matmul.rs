@@ -17,6 +17,11 @@ use crate::quant_kernel::QuantKernel;
 const TASKS_PER_THREAD: usize = 16;
 
 /// A borrowed row-major weight matrix, as the scheduler reads it.
+///
+/// The row count is `data.len() / width` (`cols` or `row_bytes`), so each
+/// output holds `rows() * tokens` values. The width must match the input
+/// length, and for blocks the kernel's block size; `Matrix::weights()` builds
+/// a value that satisfies both.
 #[derive(Debug, Clone, Copy)]
 pub enum Weights<'a> {
     /// `f32` rows of `cols` values each.
