@@ -125,10 +125,10 @@ fn q8_0_source(rows: usize, cols: usize) -> InMemorySource {
 fn a_quantized_matrix_stays_quantized_and_multiplies() {
     let matrix = Matrix::load(&q8_0_source(2, 32), "q", 2, 32).unwrap();
     assert!(matrix.is_quantized());
-    let input = [1.0_f32; 32];
+    let input = [127.0_f32; 32];
     let mut output = [0.0; 2];
     matrix.matvec(&input, &mut output);
-    assert_eq!(output, [248.0, -32.0]);
+    assert_eq!(output, [248.0 * 127.0, -32.0 * 127.0]);
     let mut row = [0.0; 32];
     assert!(matrix.copy_row(1, &mut row));
     assert_eq!(row, [-1.0; 32]);

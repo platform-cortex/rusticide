@@ -5,10 +5,10 @@
 //! The table of supported block formats, keyed by GGML type id.
 
 use rusticide_core::{Shape, Tensor};
-use rusticide_kernels::dot;
 
 use crate::error::{QuantizeError, ensure_aligned, ensure_len, zeroed_f32};
-use crate::{q4_0, q4_k, q5_0, q6_k, q8_0};
+use crate::q8_input::{Q8Blocks, Q8Input, Q8Kind};
+use crate::{int_dot, q4_0, q4_k, q5_0, q6_k, q8_0};
 
 /// One block-quantized GGML format.
 #[derive(Debug, Clone, Copy)]
@@ -19,11 +19,10 @@ pub struct BlockFormat {
     block_bytes: usize,
     /// Receives exactly `block_bytes` bytes and `block_size` outputs.
     dequantize_block: fn(block: &[u8], out: &mut [f32]),
+    /// Receives one block and the [`Q8Input`] blocks spanning it.
+    dot_q8: fn(block: &[u8], input: Q8Blocks<'_>) -> f32,
+    activation: Q8Kind,
 }
-
-/// The largest `block_size` in the table, sizing [`BlockFormat::dot_row`]'s
-/// stack buffer.
-const MAX_BLOCK_SIZE: usize = 256;
 
 static FORMATS: [BlockFormat; 5] = [
     BlockFormat {
@@ -32,6 +31,8 @@ static FORMATS: [BlockFormat; 5] = [
         block_size: q4_0::Q4_0_BLOCK_SIZE,
         block_bytes: q4_0::Q4_0_BLOCK_BYTES,
         dequantize_block: q4_0::dequantize_block,
+        dot_q8: int_dot::q4_0,
+        activation: Q8Kind::Block,
     },
     BlockFormat {
         name: "Q5_0",
@@ -39,6 +40,8 @@ static FORMATS: [BlockFormat; 5] = [
         block_size: q5_0::Q5_0_BLOCK_SIZE,
         block_bytes: q5_0::Q5_0_BLOCK_BYTES,
         dequantize_block: q5_0::dequantize_block,
+        dot_q8: int_dot::q5_0,
+        activation: Q8Kind::Block,
     },
     BlockFormat {
         name: "Q4_K",
@@ -46,6 +49,8 @@ static FORMATS: [BlockFormat; 5] = [
         block_size: q4_k::Q4_K_BLOCK_SIZE,
         block_bytes: q4_k::Q4_K_BLOCK_BYTES,
         dequantize_block: q4_k::dequantize_block,
+        dot_q8: int_dot::q4_k,
+        activation: Q8Kind::SuperBlock,
     },
     BlockFormat {
         name: "Q6_K",
@@ -53,6 +58,8 @@ static FORMATS: [BlockFormat; 5] = [
         block_size: q6_k::Q6_K_BLOCK_SIZE,
         block_bytes: q6_k::Q6_K_BLOCK_BYTES,
         dequantize_block: q6_k::dequantize_block,
+        dot_q8: int_dot::q6_k,
+        activation: Q8Kind::SuperBlock,
     },
     BlockFormat {
         name: "Q8_0",
@@ -60,6 +67,8 @@ static FORMATS: [BlockFormat; 5] = [
         block_size: q8_0::Q8_0_BLOCK_SIZE,
         block_bytes: q8_0::Q8_0_BLOCK_BYTES,
         dequantize_block: q8_0::dequantize_block,
+        dot_q8: int_dot::q8_0,
+        activation: Q8Kind::Block,
     },
 ];
 
@@ -143,18 +152,19 @@ impl BlockFormat {
         self.byte_len(cols)
     }
 
-    /// Dot product of one quantized row with `input`, dequantizing a block at
-    /// a time into a stack buffer. The shorter of the two bounds the work.
+    /// How activations multiplied against this format are quantized.
     #[must_use]
-    pub fn dot_row(&self, row: &[u8], input: &[f32]) -> f32 {
-        let mut buffer = [0.0_f32; MAX_BLOCK_SIZE];
-        let values = &mut buffer[..self.block_size];
+    pub const fn activation(&self) -> Q8Kind {
+        self.activation
+    }
+
+    /// Dot product of one quantized row with a quantized activation, in
+    /// integer arithmetic. The shorter of the two bounds the work.
+    #[must_use]
+    pub fn dot_row_q8(&self, row: &[u8], input: &Q8Input) -> f32 {
         row.chunks_exact(self.block_bytes)
-            .zip(input.chunks_exact(self.block_size))
-            .map(|(block, inputs)| {
-                (self.dequantize_block)(block, values);
-                dot(values, inputs)
-            })
+            .zip(input.chunks(self.block_size))
+            .map(|(block, inputs)| (self.dot_q8)(block, inputs))
             .sum()
     }
 

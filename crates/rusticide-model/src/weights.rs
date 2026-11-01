@@ -4,7 +4,7 @@
 
 use half::f16;
 use rusticide_core::{DType, Tensor};
-use rusticide_quantize::BlockFormat;
+use rusticide_quantize::{BlockFormat, Q8Input};
 
 use crate::error::{ModelError, Result};
 use crate::source::ModelSource;
@@ -95,9 +95,13 @@ impl Matrix {
                 format,
                 data,
                 row_bytes,
-            } => rusticide_kernels::map_rows(data, *row_bytes, output, |row| {
-                format.dot_row(row, input)
-            }),
+            } => {
+                let mut quantized = Q8Input::default();
+                quantized.quantize(input, format.activation());
+                rusticide_kernels::map_rows(data, *row_bytes, output, |row| {
+                    format.dot_row_q8(row, &quantized)
+                });
+            }
         }
     }
 }

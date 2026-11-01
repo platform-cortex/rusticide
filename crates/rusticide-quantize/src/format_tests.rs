@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::*;
+use crate::{Q8_BLOCK, Q8Kind};
 
 #[test]
 fn table_knows_the_existing_formats() {
@@ -67,6 +68,8 @@ const WIDER_THAN_ITS_BLOCK: BlockFormat = BlockFormat {
     block_size: 1,
     block_bytes: 2,
     dequantize_block: |_, _| {},
+    dot_q8: |_, _| 0.0,
+    activation: Q8Kind::Block,
 };
 
 #[test]
@@ -138,33 +141,6 @@ fn reference_dot(values: &[f32], input: &[f32]) -> f32 {
 }
 
 #[test]
-fn dot_row_matches_dequantize_then_dot_for_every_format() {
-    for (seed, format) in (1..).zip(formats()) {
-        let blocks = 3;
-        let row = pseudo_random_bytes(blocks * format.block_bytes, seed);
-        let numel = blocks * format.block_size;
-        let input: Vec<f32> = [-0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75]
-            .into_iter()
-            .cycle()
-            .take(numel)
-            .collect();
-        let values = format
-            .dequantize(&row, &[numel])
-            .unwrap()
-            .to_vec::<f32>()
-            .unwrap();
-        let expected = reference_dot(&values, &input);
-        let got = format.dot_row(&row, &input);
-        let tolerance = 1e-4 * values.iter().map(|v| v.abs()).sum::<f32>().max(1.0);
-        assert!(
-            (got - expected).abs() <= tolerance,
-            "{}: {got} vs {expected}",
-            format.name
-        );
-    }
-}
-
-#[test]
 fn dequantize_row_matches_dequantize_for_every_format() {
     for (seed, format) in (1..).zip(formats()) {
         let row = pseudo_random_bytes(2 * format.block_bytes, seed);
@@ -186,4 +162,41 @@ fn row_bytes_needs_whole_blocks() {
     assert_eq!(format.row_bytes(512), Some(288));
     assert_eq!(format.row_bytes(300), None);
     assert_eq!(WIDER_THAN_ITS_BLOCK.row_bytes(usize::MAX), None);
+}
+
+#[test]
+fn dot_row_q8_matches_the_dequantized_operands_for_every_format() {
+    for (seed, format) in (1..).zip(formats()) {
+        let blocks = 2;
+        let row = pseudo_random_bytes(blocks * format.block_bytes, seed);
+        let numel = blocks * format.block_size;
+        let raw: Vec<f32> = pseudo_random_bytes(numel, seed + 100)
+            .into_iter()
+            .map(|b| f32::from(b) / 64.0 - 1.0)
+            .collect();
+        let mut input = Q8Input::default();
+        input.quantize(&raw, format.activation());
+        let values = format
+            .dequantize(&row, &[numel])
+            .unwrap()
+            .to_vec::<f32>()
+            .unwrap();
+        let expected = reference_dot(&values, &input.dequantize());
+        let got = format.dot_row_q8(&row, &input);
+        let tolerance = 1e-4 * values.iter().map(|v| v.abs()).sum::<f32>().max(1.0);
+        assert!(
+            (got - expected).abs() <= tolerance,
+            "{}: {got} vs {expected}",
+            format.name
+        );
+    }
+}
+
+#[test]
+fn every_format_block_spans_whole_activation_blocks() {
+    assert!(
+        formats()
+            .iter()
+            .all(|f| f.block_size.is_multiple_of(Q8_BLOCK))
+    );
 }

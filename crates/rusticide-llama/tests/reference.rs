@@ -16,7 +16,11 @@ use serde::Deserialize;
 
 const TINYLLAMA: &str = include_str!("fixtures/tinyllama-1.1b-chat-v1.0.Q4_K_M.json");
 const QWEN2: &str = include_str!("fixtures/qwen2.5-0.5b-instruct-q4_k_m.json");
-const NEAR_TIE: f32 = 0.1;
+/// A logit gap below this is quantization noise, not a disagreement. Both
+/// engines multiply weights against activations rounded to 8 bits (ggml
+/// `Q8_0`/`Q8_K`), and llama.cpp's own CPU and Metal backends already pick
+/// different Qwen2.5 tokens within three steps on two of these prompts.
+const NEAR_TIE: f32 = 0.25;
 const N_PREDICT: usize = 32;
 
 type TestResult = Result<(), Box<dyn Error>>;

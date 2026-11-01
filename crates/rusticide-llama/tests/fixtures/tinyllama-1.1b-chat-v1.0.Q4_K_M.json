@@ -6,8 +6,8 @@
   },
   "reference": {
     "tool": "llama.cpp llama-server",
-    "version": "version: 0.5.0 (build 11146, commit 7fe450e19)",
-    "settings": "temperature 0, n_predict 32, add_special true"
+    "version": "version: 0.8.0 (build 11960, commit 8642541b2)",
+    "settings": "temperature 0, n_predict 32, add_special true, CPU backend (-ngl 0)"
   },
   "cases": [
     {
