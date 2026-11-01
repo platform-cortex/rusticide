@@ -200,22 +200,22 @@ metric within tolerance. Tokens/s for `e2e/*`, G elements/s for `kernel/*`
 
 | metric | baseline | measured |
 | --- | --- | --- |
-| e2e/qwen2.5/decode | 131.0 | 132.6 |
-| e2e/qwen2.5/prefill | 348.5 | 351.1 |
-| e2e/tinyllama/decode | 96.8 | 96.0 |
-| e2e/tinyllama/prefill | 148.0 | 148.2 |
-| kernel/Q4_0/row | 31.72 | 31.99 |
+| e2e/qwen2.5/decode | 131.0 | 133.2 |
+| e2e/qwen2.5/prefill | 348.5 | 352.2 |
+| e2e/tinyllama/decode | 96.9 | 96.4 |
+| e2e/tinyllama/prefill | 148.0 | 148.1 |
+| kernel/Q4_0/row | 31.72 | 32.00 |
 | kernel/Q4_0/rows8 | 31.85 | 32.22 |
-| kernel/Q4_K/row | 29.43 | 29.45 |
-| kernel/Q4_K/rows8 | 29.78 | 29.93 |
+| kernel/Q4_K/row | 29.43 | 29.43 |
+| kernel/Q4_K/rows8 | 29.78 | 29.86 |
 | kernel/Q5_0/row | 20.23 | 20.27 |
 | kernel/Q5_0/rows8 | 24.37 | 24.36 |
 | kernel/Q6_K/row | 25.96 | 25.95 |
-| kernel/Q6_K/rows8 | 26.77 | 26.82 |
-| kernel/Q8_0/row | 35.03 | 35.06 |
-| kernel/Q8_0/rows8 | 35.48 | 35.44 |
+| kernel/Q6_K/rows8 | 26.77 | 26.81 |
+| kernel/Q8_0/row | 35.03 | 35.08 |
+| kernel/Q8_0/rows8 | 35.48 | 35.43 |
 | kernel/q8/block | 1.14 | 1.14 |
-| kernel/q8/superblock | 1.10 | 1.09 |
+| kernel/q8/superblock | 1.10 | 1.10 |
 
 Lessons:
 
@@ -225,8 +225,12 @@ Lessons:
   is the stable statistic.
 - Ports must be slice-level. A per-element `silu` port regressed decode by
   14% (a dispatch per element); it was replaced by `silu_assign`, and
-  attention got a `dot_rows` port for the same reason.
+  attention got a `dot_rows` port for the same reason. The final review
+  turned attention's softmax-weighted sum over the values into a `mix_rows`
+  port as well, called once per (token, head), so every compute loop in the
+  model crates now goes through the facade.
 - `dot` now bounds both slices to the shorter one, so a length mismatch
   never reads out of range or panics.
-- Kernels moved without changing arithmetic: the reference parity test and
-  the baseline both held after every step.
+- Kernels moved without changing arithmetic: the reference parity test
+  passed after Tasks 6, 7 and 8, and the gate passed after every refactor
+  task (5 to 8).

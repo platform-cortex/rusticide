@@ -214,22 +214,22 @@ metricas dentro da tolerancia. Tokens/s para `e2e/*`, G elementos/s para
 
 | metrica | baseline | medido |
 | --- | --- | --- |
-| e2e/qwen2.5/decode | 131.0 | 132.6 |
-| e2e/qwen2.5/prefill | 348.5 | 351.1 |
-| e2e/tinyllama/decode | 96.8 | 96.0 |
-| e2e/tinyllama/prefill | 148.0 | 148.2 |
-| kernel/Q4_0/row | 31.72 | 31.99 |
+| e2e/qwen2.5/decode | 131.0 | 133.2 |
+| e2e/qwen2.5/prefill | 348.5 | 352.2 |
+| e2e/tinyllama/decode | 96.9 | 96.4 |
+| e2e/tinyllama/prefill | 148.0 | 148.1 |
+| kernel/Q4_0/row | 31.72 | 32.00 |
 | kernel/Q4_0/rows8 | 31.85 | 32.22 |
-| kernel/Q4_K/row | 29.43 | 29.45 |
-| kernel/Q4_K/rows8 | 29.78 | 29.93 |
+| kernel/Q4_K/row | 29.43 | 29.43 |
+| kernel/Q4_K/rows8 | 29.78 | 29.86 |
 | kernel/Q5_0/row | 20.23 | 20.27 |
 | kernel/Q5_0/rows8 | 24.37 | 24.36 |
 | kernel/Q6_K/row | 25.96 | 25.95 |
-| kernel/Q6_K/rows8 | 26.77 | 26.82 |
-| kernel/Q8_0/row | 35.03 | 35.06 |
-| kernel/Q8_0/rows8 | 35.48 | 35.44 |
+| kernel/Q6_K/rows8 | 26.77 | 26.81 |
+| kernel/Q8_0/row | 35.03 | 35.08 |
+| kernel/Q8_0/rows8 | 35.48 | 35.43 |
 | kernel/q8/block | 1.14 | 1.14 |
-| kernel/q8/superblock | 1.10 | 1.09 |
+| kernel/q8/superblock | 1.10 | 1.10 |
 
 Licoes:
 
@@ -239,8 +239,12 @@ Licoes:
   entao a execucao mais rapida e a estatistica estavel.
 - Portas devem ser em nivel de slice. Uma porta `silu` por elemento piorou o
   decode em 14% (um despacho por elemento); foi trocada por `silu_assign`, e a
-  atencao ganhou uma porta `dot_rows` pelo mesmo motivo.
+  atencao ganhou uma porta `dot_rows` pelo mesmo motivo. A revisao final
+  transformou tambem a soma dos valores ponderada pelo softmax da atencao em
+  uma porta `mix_rows`, chamada uma vez por (token, cabeca), entao todo laco
+  de calculo nos crates de modelo agora passa pela fachada.
 - `dot` agora limita os dois slices ao menor, entao um tamanho divergente
   nunca le fora do intervalo nem causa panic.
 - Os kernels mudaram de lugar sem mudar a aritmetica: o teste de paridade com
-  a referencia e o baseline se mantiveram a cada passo.
+  a referencia passou depois das Tarefas 6, 7 e 8, e o gate passou depois de
+  cada tarefa de refatoracao (5 a 8).

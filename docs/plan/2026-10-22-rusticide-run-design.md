@@ -173,7 +173,9 @@ rejects the whole file on an unknown id. That changes:
 
 > **Amended 2026-11-01.** The contract is now name, type id, block size,
 > block bytes and dequantizer, and the kernels for each format are
-> registered in `rusticide-kernels`; see the
+> registered in `rusticide-kernels`. Each format also records the byte
+> offsets of its f16 scale fields, used only to build finite synthetic
+> blocks for tests and benchmarks; see the
 > [kernel facade design](2026-11-01-rusticide-kernel-facade-design.md).
 
 ### Tokenizer
