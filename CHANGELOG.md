@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-11-01
+
+### Features
+
+- **bench:** compare results with a baseline
+- **bench:** measure kernels and tokens/s
+- **bench:** gate tokens/s on a baseline
+
+### Bug Fixes
+
+- **bench:** reject non-finite throughputs
+- **bench:** gate on the fastest run
+- **bench:** baseline from three sessions
+- **bench:** fail CI on crashes, fix task refs
+- **kernels:** bound dot to the shorter slice
+- **kernels:** bound scheduler and dot sizes
+- **bench:** check sizes, drop dead error
+- **bench:** read lscpu without a SIGPIPE race
+
+### Refactor
+
+- **kernels:** route f32 kernels via adapter
+- **kernels:** own the quantized kernels
+- **kernels:** schedule matrix products
+- **kernels:** add the mix_rows port
+
+### Documentation
+
+- design the kernel facade and perf gate
+- plan the kernel facade milestone
+- record 0.6.0 decisions in the specs
+- **kernels:** document Weights invariants
+- close the kernel facade milestone
+- correct the facade results
+- record the SHA-pinned actions policy
+
 ## [0.6.0] - 2026-11-01
 
 ### Features
@@ -29,7 +65,6 @@ All notable changes to this project will be documented in this file.
 
 - **quantize:** vary every quant bit in the kernel checks
 - **model:** cover raw block access on every source
-
 ## [0.5.0] - 2026-10-31
 
 ### Features
