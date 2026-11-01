@@ -1723,7 +1723,7 @@ flag "-v --verbose" help="Trace each command before running it (set -x)"
 
 [tasks."bench:baseline"]
 alias = ["bnb"]
-description = "Measure, then record crates/rusticide-bench/baselines/<machine>.json; rewriting a baseline is a reviewed change"
+description = "Measure in three sessions, then record the median of their bests in crates/rusticide-bench/baselines/<machine>.json; rewriting a baseline is a reviewed change"
 run = '''
 #!/usr/bin/env bash
 
@@ -1733,11 +1733,15 @@ if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 cargo build --release -p rusticide-bench
 machine="$(mise run -q bench:machine)"
 mkdir -p target/bench
-args=(run --machine "$machine" --out target/bench/results.json)
-if [ -n "${RUSTICIDE_MODELS:-}" ]; then args+=(--models "$RUSTICIDE_MODELS"); fi
-target/release/rusticide-bench "${args[@]}"
+sessions=()
+for session in 1 2 3; do
+    args=(run --machine "$machine" --out "target/bench/session-$session.json")
+    if [ -n "${RUSTICIDE_MODELS:-}" ]; then args+=(--models "$RUSTICIDE_MODELS"); fi
+    target/release/rusticide-bench "${args[@]}"
+    sessions+=(--results "target/bench/session-$session.json")
+done
 mkdir -p crates/rusticide-bench/baselines
-target/release/rusticide-bench baseline --results target/bench/results.json \
+target/release/rusticide-bench baseline "${sessions[@]}" \
     --out "crates/rusticide-bench/baselines/$machine.json"
 '''
 shell = "bash -c"

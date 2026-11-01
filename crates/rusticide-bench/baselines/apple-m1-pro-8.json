@@ -2,68 +2,68 @@
   "machine": "apple-m1-pro-8",
   "metrics": {
     "e2e/qwen2.5/decode": {
-      "best": 127.44857234040906,
-      "tolerance": 0.15
+      "best": 131.01038948211746,
+      "tolerance": 0.05
     },
     "e2e/qwen2.5/prefill": {
-      "best": 348.9956390905837,
-      "tolerance": 0.15
+      "best": 348.4848218613815,
+      "tolerance": 0.05
     },
     "e2e/tinyllama/decode": {
-      "best": 90.6414528355365,
-      "tolerance": 0.15
+      "best": 96.853362873609,
+      "tolerance": 0.05
     },
     "e2e/tinyllama/prefill": {
-      "best": 145.6280492286123,
-      "tolerance": 0.15
+      "best": 147.99541483731122,
+      "tolerance": 0.05
     },
     "kernel/Q4_0/row": {
-      "best": 32063042778.867813,
-      "tolerance": 0.1
+      "best": 31721864729.079155,
+      "tolerance": 0.05
     },
     "kernel/Q4_0/rows8": {
-      "best": 32156953038.56872,
-      "tolerance": 0.1
+      "best": 31847198715.602207,
+      "tolerance": 0.05
     },
     "kernel/Q4_K/row": {
-      "best": 29172032604.864735,
-      "tolerance": 0.1
+      "best": 29431639838.829742,
+      "tolerance": 0.05
     },
     "kernel/Q4_K/rows8": {
-      "best": 29491343133.42196,
-      "tolerance": 0.1
+      "best": 29782405926.827824,
+      "tolerance": 0.05
     },
     "kernel/Q5_0/row": {
-      "best": 20064489219.694237,
-      "tolerance": 0.1
+      "best": 20234237234.82898,
+      "tolerance": 0.05
     },
     "kernel/Q5_0/rows8": {
-      "best": 24285611967.0756,
-      "tolerance": 0.1
+      "best": 24366266520.516502,
+      "tolerance": 0.05
     },
     "kernel/Q6_K/row": {
-      "best": 25683900580.109123,
-      "tolerance": 0.1
+      "best": 25964933760.28317,
+      "tolerance": 0.05
     },
     "kernel/Q6_K/rows8": {
-      "best": 26533791874.196583,
-      "tolerance": 0.1
+      "best": 26769089225.76273,
+      "tolerance": 0.05
     },
     "kernel/Q8_0/row": {
-      "best": 34749142672.68068,
-      "tolerance": 0.1
+      "best": 35033641919.64145,
+      "tolerance": 0.05
     },
     "kernel/Q8_0/rows8": {
-      "best": 35064889352.19919,
-      "tolerance": 0.1
+      "best": 35483530987.85223,
+      "tolerance": 0.05
     },
     "kernel/q8/block": {
-      "best": 1124403601.468487,
-      "tolerance": 0.1
+      "best": 1138702547.3597283,
+      "tolerance": 0.05
     },
     "kernel/q8/superblock": {
-      "best": 1083719002.6756234,
-      "tolerance": 0.1
+      "best": 1099635476.348782,
+      "tolerance": 0.05
     }
   }
 }

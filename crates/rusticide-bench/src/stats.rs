@@ -37,17 +37,22 @@ pub fn summarize(throughputs: &[f64]) -> Result<Sample, BenchError> {
     let (Some(&min), Some(&max)) = (sorted.first(), sorted.last()) else {
         return Err(BenchError::NoRuns);
     };
-    let middle = sorted.len() / 2;
-    let median = if sorted.len().is_multiple_of(2) {
-        f64::midpoint(sorted[middle - 1], sorted[middle])
-    } else {
-        sorted[middle]
-    };
+    let median = median_of_sorted(&sorted);
     Ok(Sample {
         best: max,
         median,
         spread: (max - min) / median,
     })
+}
+
+/// Median of a non-empty slice already sorted ascending.
+pub(crate) const fn median_of_sorted(sorted: &[f64]) -> f64 {
+    let middle = sorted.len() / 2;
+    if sorted.len().is_multiple_of(2) {
+        f64::midpoint(sorted[middle - 1], sorted[middle])
+    } else {
+        sorted[middle]
+    }
 }
 
 /// Work units per second.

@@ -51,8 +51,9 @@ enum Command {
     },
     /// Record results as the baseline.
     Baseline {
-        #[arg(long)]
-        results: PathBuf,
+        /// One results file per capture session; repeat the flag.
+        #[arg(long = "results", required = true)]
+        sessions: Vec<PathBuf>,
         #[arg(long)]
         out: PathBuf,
     },
@@ -142,8 +143,12 @@ fn dispatch(command: Command) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         Command::Gate { results, baseline } => gate(&results, &baseline),
-        Command::Baseline { results, out } => {
-            write_json(&out, &Baseline::from_results(&read_json(&results)?))?;
+        Command::Baseline { sessions, out } => {
+            let sessions = sessions
+                .iter()
+                .map(|path| read_json(path))
+                .collect::<anyhow::Result<Vec<Results>>>()?;
+            write_json(&out, &Baseline::from_sessions(&sessions)?)?;
             Ok(ExitCode::SUCCESS)
         }
     }

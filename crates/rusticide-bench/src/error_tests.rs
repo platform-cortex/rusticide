@@ -20,6 +20,14 @@ fn messages_name_the_failure() {
 }
 
 #[test]
+fn missing_metric_message_names_it() {
+    let error = BenchError::MissingInSession {
+        metric: "e2e/x".into(),
+    };
+    assert_eq!(error.to_string(), "metric e2e/x is missing from a session");
+}
+
+#[test]
 fn json_errors_convert() {
     let parse = serde_json::from_str::<u8>("x").unwrap_err();
     let error = BenchError::from(parse);
