@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use rayon::prelude::*;
 use rusticide_kernels::{add_assign, dot, softmax};
 use rusticide_model::{KvCache, Result, matmul_batch};
 
@@ -33,33 +34,29 @@ impl Heads {
         }
     }
 
-    /// Writes into `mixed` each query head attending over every cached row.
+    /// Writes into `mixed` query head `head` attending over every row of
+    /// `keys` and `values`.
     fn mix(
         &self,
+        head: usize,
         query: &[f32],
         cache: (&[f32], &[f32]),
         scores: &mut Vec<f32>,
         mixed: &mut [f32],
     ) {
         let (keys, values) = cache;
-        for (head, (query, mixed)) in query
-            .chunks_exact(self.head_dim)
-            .zip(mixed.chunks_exact_mut(self.head_dim))
-            .enumerate()
-        {
-            let offset = (head / self.group) * self.head_dim;
-            let span = offset..offset + self.head_dim;
-            scores.clear();
-            scores.extend(
-                keys.chunks_exact(self.kv_dim)
-                    .map(|key| dot(query, &key[span.clone()]) / self.scale),
-            );
-            softmax(scores);
-            mixed.fill(0.0);
-            for (&weight, value) in scores.iter().zip(values.chunks_exact(self.kv_dim)) {
-                for (slot, &entry) in mixed.iter_mut().zip(&value[span.clone()]) {
-                    *slot = entry.mul_add(weight, *slot);
-                }
+        let offset = (head / self.group) * self.head_dim;
+        let span = offset..offset + self.head_dim;
+        scores.clear();
+        scores.extend(
+            keys.chunks_exact(self.kv_dim)
+                .map(|key| dot(query, &key[span.clone()]) / self.scale),
+        );
+        softmax(scores);
+        mixed.fill(0.0);
+        for (&weight, value) in scores.iter().zip(values.chunks_exact(self.kv_dim)) {
+            for (slot, &entry) in mixed.iter_mut().zip(&value[span.clone()]) {
+                *slot = entry.mul_add(weight, *slot);
             }
         }
     }
@@ -78,7 +75,6 @@ pub(crate) struct Attention {
     query: Vec<f32>,
     key: Vec<f32>,
     value: Vec<f32>,
-    scores: Vec<f32>,
     mixed: Vec<f32>,
 }
 
@@ -106,7 +102,6 @@ impl Attention {
             query: Vec::new(),
             key: Vec::new(),
             value: Vec::new(),
-            scores: Vec::new(),
             mixed: Vec::new(),
         })
     }
@@ -127,27 +122,48 @@ impl Attention {
         let tokens = input.len() / self.width;
         self.project(block, input, tokens);
         let (width, kv_dim) = (self.width, self.heads.kv_dim);
-        self.mixed.resize(input.len(), 0.0);
         let rows = self
             .query
             .chunks_exact_mut(width)
             .zip(self.key.chunks_exact_mut(kv_dim))
-            .zip(self.value.chunks_exact_mut(kv_dim))
-            .zip(self.mixed.chunks_exact_mut(width));
-        for (offset, (((query, key), value), mixed)) in rows.enumerate() {
+            .zip(self.value.chunks_exact_mut(kv_dim));
+        for (offset, ((query, key), value)) in rows.enumerate() {
             let position = start + offset;
             add_bias(query, block.attn_q_bias.as_deref());
             add_bias(key, block.attn_k_bias.as_deref());
             add_bias(value, block.attn_v_bias.as_deref());
             self.heads.rotate(query, key, position);
             cache.store(layer, position, key, value)?;
-            let cached = (cache.keys(layer), cache.values(layer));
-            self.heads.mix(query, cached, &mut self.scores, mixed);
         }
+        self.attend(cache.keys(layer), cache.values(layer), start);
         let jobs = &mut [(&block.attn_output, &mut self.query_rows[..])];
         matmul_batch(&self.mixed, tokens, jobs);
         to_token_major(&self.query_rows, tokens, output);
         Ok(())
+    }
+
+    /// Mixes every (token, head) of the batch in parallel, all cached first.
+    /// Token `t` sees only the rows up to position `start + t`, which keeps
+    /// attention causal. Decode takes this path too: its heads gain more
+    /// from the parallel region than the region costs.
+    fn attend(&mut self, keys: &[f32], values: &[f32], start: usize) {
+        let (heads, head_dim) = (self.heads, self.heads.head_dim);
+        let head_count = self.width / head_dim;
+        self.mixed.resize(self.query.len(), 0.0);
+        let items = self
+            .mixed
+            .par_chunks_exact_mut(head_dim)
+            .zip(self.query.par_chunks_exact(head_dim));
+        items
+            .enumerate()
+            .for_each_init(Vec::new, |scores, (index, (mixed, query))| {
+                let rows = (start + index / head_count + 1) * heads.kv_dim;
+                let cache = (
+                    keys.get(..rows).unwrap_or(keys),
+                    values.get(..rows).unwrap_or(values),
+                );
+                heads.mix(index % head_count, query, cache, scores, mixed);
+            });
     }
 
     /// Projects `input` to token-major queries, keys and values.
