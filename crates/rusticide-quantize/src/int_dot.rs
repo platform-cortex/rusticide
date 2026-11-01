@@ -99,17 +99,6 @@ pub(crate) fn q5_0(row: &[u8], input: &Q8Input) -> f32 {
     })
 }
 
-/// ggml `get_scale_min_k4`.
-const fn scale_min_k4(j: usize, scales: &[u8]) -> (u8, u8) {
-    if j < 4 {
-        (scales[j] & 63, scales[j + 4] & 63)
-    } else {
-        let d = (scales[j + 4] & 0x0F) | ((scales[j - 4] >> 6) << 4);
-        let m = (scales[j + 4] >> 4) | ((scales[j] >> 6) << 4);
-        (d, m)
-    }
-}
-
 /// The dot products of 32 packed bytes' low and high nibbles, each offset by
 /// -8, with two activation blocks.
 #[inline]
@@ -127,10 +116,22 @@ fn pair_dots(
     (low, high)
 }
 
-/// The eight 6-bit scales and mins of a `Q4_K` block.
+/// The eight 6-bit scales and mins packed in a `Q4_K` block's 12 bytes,
+/// unpacked four at a time in `u32` words as ggml does.
 fn k4_scales_and_mins(packed: &[u8]) -> ([u8; 8], [u8; 8]) {
-    let pairs: [(u8, u8); 8] = std::array::from_fn(|j| scale_min_k4(j, packed));
-    (pairs.map(|(scale, _)| scale), pairs.map(|(_, min)| min))
+    const LOW_SIX: u32 = 0x3F3F_3F3F;
+    const LOW_FOUR: u32 = 0x0F0F_0F0F;
+    const LOW_TWO: u32 = 0x0303_0303;
+    let word =
+        |i: usize| u32::from_le_bytes([packed[i], packed[i + 1], packed[i + 2], packed[i + 3]]);
+    let (first, second, third) = (word(0), word(4), word(8));
+    let high_scales = (third & LOW_FOUR) | (((first >> 6) & LOW_TWO) << 4);
+    let high_mins = ((third >> 4) & LOW_FOUR) | (((second >> 6) & LOW_TWO) << 4);
+    let join = |low: u32, high: u32| (u64::from(low) | (u64::from(high) << 32)).to_le_bytes();
+    (
+        join(first & LOW_SIX, high_scales),
+        join(second & LOW_SIX, high_mins),
+    )
 }
 
 /// `Q4_K`: eight 32-element sub-blocks, each `d * scale * q - dmin * min`.
@@ -151,18 +152,13 @@ pub(crate) fn q4_k(row: &[u8], input: &Q8Input) -> f32 {
             sum += i32::from(*high_scale) * high;
         }
         // The nibbles were offset by -8 so both operands are signed, which is
-        // what lets the compiler pick a signed dot instruction; add it back.
-        let offset: i32 = scales
-            .iter()
-            .zip(span.sums)
-            .map(|(&c, &s)| i32::from(c) * s)
-            .sum();
-        sum += 8 * offset;
-        let min_sum: i32 = mins
-            .iter()
-            .zip(span.sums)
-            .map(|(&m, &s)| i32::from(m) * s)
-            .sum();
+        // what lets the compiler pick a signed dot instruction; the offset
+        // comes back through the block sums, alongside the min term.
+        let mut min_sum = 0_i32;
+        for ((&scale, &min), &block_sum) in scales.iter().zip(&mins).zip(span.sums) {
+            sum += 8 * i32::from(scale) * block_sum;
+            min_sum += i32::from(min) * block_sum;
+        }
         let d = read_f16_le(block, 0);
         let dmin = read_f16_le(block, 2);
         span.scales[0] * d.mul_add(lossy(sum), -(dmin * lossy(min_sum)))
