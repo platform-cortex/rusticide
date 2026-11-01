@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_kernels::{mul_assign, silu};
+use rusticide_model::matvec_batch;
 
 use crate::config::LlamaConfig;
 use crate::weights::BlockWeights;
@@ -24,8 +25,13 @@ impl FeedForward {
 
     /// Writes `ffn_down(silu(ffn_gate(input)) * ffn_up(input))`.
     pub(crate) fn forward(&mut self, block: &BlockWeights, input: &[f32], output: &mut [f32]) {
-        block.ffn_gate.matvec(input, &mut self.gate);
-        block.ffn_up.matvec(input, &mut self.up);
+        matvec_batch(
+            input,
+            &mut [
+                (&block.ffn_gate, &mut self.gate),
+                (&block.ffn_up, &mut self.up),
+            ],
+        );
         for value in &mut self.gate {
             *value = silu(*value);
         }

@@ -4,7 +4,10 @@
 
 use half::f16;
 use rusticide_core::{DType, Tensor};
-use rusticide_quantize::{BlockFormat, Q8Input};
+use rusticide_kernels::dot;
+use rusticide_quantize::{BlockFormat, Q8Kind};
+
+use crate::batch::{Activations, matvec_batch};
 
 use crate::error::{ModelError, Result};
 use crate::source::ModelSource;
@@ -32,9 +35,15 @@ impl Matrix {
     /// # Errors
     ///
     /// `MissingTensor` or `ShapeMismatch` when the source lacks the tensor or
-    /// its shape is not `[rows, cols]`; a tensor error for unsupported dtypes.
+    /// its shape is not `[rows, cols]`, `InvalidConfig` when `cols` is zero,
+    /// and a tensor error for unsupported dtypes.
     pub fn load(source: &dyn ModelSource, name: &str, rows: usize, cols: usize) -> Result<Self> {
         check_shape(source, name, &[rows, cols])?;
+        if cols == 0 {
+            return Err(ModelError::InvalidConfig {
+                reason: "a weight matrix has no columns",
+            });
+        }
         let blocks = source
             .quantized_tensor(name)?
             .and_then(|(format, data)| Some((format, data, format.row_bytes(cols)?)));
@@ -89,18 +98,38 @@ impl Matrix {
     }
 
     pub fn matvec(&self, input: &[f32], output: &mut [f32]) {
+        matvec_batch(input, &mut [(self, output)]);
+    }
+
+    /// The activation format the weights multiply against; `None` for
+    /// dense weights, which take the input as is.
+    pub(crate) const fn activation(&self) -> Option<Q8Kind> {
         match &self.storage {
-            Storage::Dense(data) => rusticide_kernels::matvec(data, self.cols, input, output),
+            Storage::Dense(_) => None,
+            Storage::Blocks { format, .. } => Some(format.activation()),
+        }
+    }
+
+    /// Writes the products of rows `first_row..` with the input into `out`,
+    /// one row per slot.
+    pub(crate) fn compute_rows(&self, first_row: usize, out: &mut [f32], input: &Activations<'_>) {
+        match &self.storage {
+            Storage::Dense(data) => {
+                let rows = data.chunks_exact(self.cols).skip(first_row);
+                for (slot, row) in out.iter_mut().zip(rows) {
+                    *slot = dot(row, input.dense);
+                }
+            }
             Storage::Blocks {
                 format,
                 data,
                 row_bytes,
             } => {
-                let mut quantized = Q8Input::default();
-                quantized.quantize(input, format.activation());
-                rusticide_kernels::map_rows(data, *row_bytes, output, |row| {
-                    format.dot_row_q8(row, &quantized)
-                });
+                let quantized = input.quantized(format.activation());
+                let rows = data.chunks_exact(*row_bytes).skip(first_row);
+                for (slot, row) in out.iter_mut().zip(rows) {
+                    *slot = format.dot_row_q8(row, quantized);
+                }
             }
         }
     }

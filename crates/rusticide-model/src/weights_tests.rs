@@ -143,3 +143,14 @@ fn a_quantized_matrix_whose_rows_split_blocks_is_widened() {
     assert!(matrix.copy_row(3, &mut row));
     assert_eq!(row, [-1.0; 16]);
 }
+
+#[test]
+fn a_matrix_without_columns_is_invalid() {
+    let source = source_with("w", Tensor::from_slice::<f32>(&[], &[2, 0]).unwrap());
+    assert!(matches!(
+        Matrix::load(&source, "w", 2, 0),
+        Err(ModelError::InvalidConfig {
+            reason: "a weight matrix has no columns"
+        })
+    ));
+}

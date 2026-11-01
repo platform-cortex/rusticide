@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_kernels::{add_assign, dot, softmax};
-use rusticide_model::{KvCache, Result};
+use rusticide_model::{KvCache, Result, matvec_batch};
 
 use crate::config::LlamaConfig;
 use crate::variant::RopeStyle;
@@ -59,11 +59,16 @@ impl Attention {
         input: &[f32],
         output: &mut [f32],
     ) -> Result<()> {
-        block.attn_q.matvec(input, &mut self.query);
+        matvec_batch(
+            input,
+            &mut [
+                (&block.attn_q, &mut self.query),
+                (&block.attn_k, &mut self.key),
+                (&block.attn_v, &mut self.value),
+            ],
+        );
         add_bias(&mut self.query, block.attn_q_bias.as_deref());
-        block.attn_k.matvec(input, &mut self.key);
         add_bias(&mut self.key, block.attn_k_bias.as_deref());
-        block.attn_v.matvec(input, &mut self.value);
         add_bias(&mut self.value, block.attn_v_bias.as_deref());
         let pairs = self.head_dim / 2;
         for head in self

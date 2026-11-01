@@ -4,6 +4,7 @@
 
 //! Family-independent model runtime: sources, weights and the KV cache.
 
+mod batch;
 mod cache;
 mod error;
 mod generate;
@@ -13,6 +14,7 @@ mod source;
 mod stream;
 mod weights;
 
+pub use batch::matvec_batch;
 pub use cache::KvCache;
 pub use error::{ModelError, Result};
 pub use generate::{GenerateOptions, Generation, generate};
