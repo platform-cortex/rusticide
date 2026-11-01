@@ -12,6 +12,7 @@ fn results() -> Results {
     metrics.insert(
         "zeta".to_string(),
         Sample {
+            best: 3.0,
             median: 2.0,
             spread: 0.25,
         },
@@ -19,6 +20,7 @@ fn results() -> Results {
     metrics.insert(
         "alpha".to_string(),
         Sample {
+            best: 105.0,
             median: 100.5,
             spread: 0.05,
         },

@@ -13,7 +13,7 @@ mod plan;
 mod results;
 mod stats;
 
-pub use baseline::{Baseline, Expected, TOLERANCE_FLOOR};
+pub use baseline::{Baseline, E2E_TOLERANCE, Expected, KERNEL_TOLERANCE};
 pub use compare::{Row, Status, compare, passed, rows_to_markdown};
 pub use e2e::{DECODE_PROMPT, DECODE_TOKENS, PREFILL_PROMPT, e2e_metrics};
 pub use error::BenchError;

@@ -57,11 +57,11 @@ pub fn compare(baseline: &Baseline, results: &Results) -> Result<Vec<Row>, Bench
         .into_iter()
         .map(|name| {
             let expected = baseline.metrics.get(name);
-            let measured = results.metrics.get(name).map(|sample| sample.median);
+            let measured = results.metrics.get(name).map(|sample| sample.best);
             Row {
                 metric: name.clone(),
                 status: status(expected, measured),
-                baseline: expected.map(|e| e.median),
+                baseline: expected.map(|e| e.best),
                 measured,
             }
         })
@@ -72,7 +72,7 @@ pub fn compare(baseline: &Baseline, results: &Results) -> Result<Vec<Row>, Bench
 fn status(expected: Option<&Expected>, measured: Option<f64>) -> Status {
     match (expected, measured) {
         (Some(expected), Some(measured))
-            if measured < expected.median * (1.0 - expected.tolerance) =>
+            if measured < expected.best * (1.0 - expected.tolerance) =>
         {
             Status::Regressed
         }

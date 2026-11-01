@@ -10,11 +10,11 @@ use crate::{Baseline, BenchError, Expected, Results, Sample};
 fn baseline(entries: &[(&str, f64)]) -> Baseline {
     let metrics = entries
         .iter()
-        .map(|(name, median)| {
+        .map(|(name, best)| {
             (
                 (*name).to_string(),
                 Expected {
-                    median: *median,
+                    best: *best,
                     tolerance: 0.05,
                 },
             )
@@ -29,11 +29,12 @@ fn baseline(entries: &[(&str, f64)]) -> Baseline {
 fn results(entries: &[(&str, f64)]) -> Results {
     let metrics = entries
         .iter()
-        .map(|(name, median)| {
+        .map(|(name, best)| {
             (
                 (*name).to_string(),
                 Sample {
-                    median: *median,
+                    best: *best,
+                    median: *best * 0.5,
                     spread: 0.0,
                 },
             )

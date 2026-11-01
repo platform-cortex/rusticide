@@ -8,11 +8,12 @@ use super::{Sample, summarize, throughput};
 use crate::BenchError;
 
 #[test]
-fn summarize_takes_the_median_and_relative_spread() {
+fn summarize_takes_the_best_median_and_relative_spread() {
     let sample = summarize(&[9.0, 10.0, 12.0]).unwrap();
     assert_eq!(
         sample,
         Sample {
+            best: 12.0,
             median: 10.0,
             spread: 0.3
         }
@@ -25,6 +26,7 @@ fn summarize_averages_the_middle_pair_of_an_even_count() {
     assert_eq!(
         sample,
         Sample {
+            best: 8.0,
             median: 5.0,
             spread: 1.2
         }

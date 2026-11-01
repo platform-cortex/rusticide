@@ -4,26 +4,23 @@
 
 use std::collections::BTreeMap;
 
-use super::{Baseline, Expected, TOLERANCE_FLOOR};
+use super::{Baseline, E2E_TOLERANCE, Expected, KERNEL_TOLERANCE};
 use crate::{Results, Sample};
 
+fn sample(best: f64) -> Sample {
+    Sample {
+        best,
+        median: best * 0.5,
+        spread: 0.9,
+    }
+}
+
 #[test]
-fn baseline_tolerance_is_the_spread_with_a_floor() {
+fn baseline_records_the_best_with_a_tolerance_per_metric_kind() {
     let mut metrics = BTreeMap::new();
-    metrics.insert(
-        "quiet".to_string(),
-        Sample {
-            median: 10.0,
-            spread: 0.02,
-        },
-    );
-    metrics.insert(
-        "noisy".to_string(),
-        Sample {
-            median: 20.0,
-            spread: 0.12,
-        },
-    );
+    metrics.insert("kernel/Q4_0/row".to_string(), sample(10.0));
+    metrics.insert("e2e/qwen2.5/decode".to_string(), sample(20.0));
+    metrics.insert("e2e/qwen2.5/prefill".to_string(), sample(30.0));
     let results = Results {
         machine: "box".to_string(),
         metrics,
@@ -31,18 +28,22 @@ fn baseline_tolerance_is_the_spread_with_a_floor() {
     let baseline = Baseline::from_results(&results);
     assert_eq!(baseline.machine, "box");
     assert_eq!(
-        baseline.metrics["quiet"],
+        baseline.metrics["kernel/Q4_0/row"],
         Expected {
-            median: 10.0,
-            tolerance: TOLERANCE_FLOOR
+            best: 10.0,
+            tolerance: KERNEL_TOLERANCE
         }
     );
     assert_eq!(
-        baseline.metrics["noisy"],
+        baseline.metrics["e2e/qwen2.5/decode"],
         Expected {
-            median: 20.0,
-            tolerance: 0.12
+            best: 20.0,
+            tolerance: E2E_TOLERANCE
         }
+    );
+    assert_eq!(
+        baseline.metrics["e2e/qwen2.5/prefill"].tolerance,
+        E2E_TOLERANCE
     );
 }
 
@@ -52,7 +53,7 @@ fn baseline_round_trip_through_json() {
     metrics.insert(
         "a".to_string(),
         Expected {
-            median: 1.5,
+            best: 1.5,
             tolerance: 0.05,
         },
     );

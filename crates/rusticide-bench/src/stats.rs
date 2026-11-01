@@ -8,15 +8,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::BenchError;
 
-/// Median throughput of several runs and its relative spread.
+/// Fastest and median throughput of several runs and the relative spread.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Sample {
+    /// Interference only slows a run down, so the fastest run is the stable
+    /// estimator the gate compares.
+    pub best: f64,
     pub median: f64,
     /// `(max - min) / median`.
     pub spread: f64,
 }
 
-/// Summarizes throughputs into their median and relative spread.
+/// Summarizes throughputs into their best, median and relative spread.
 ///
 /// # Errors
 ///
@@ -41,6 +44,7 @@ pub fn summarize(throughputs: &[f64]) -> Result<Sample, BenchError> {
         sorted[middle]
     };
     Ok(Sample {
+        best: max,
         median,
         spread: (max - min) / median,
     })
