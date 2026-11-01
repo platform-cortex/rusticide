@@ -1666,7 +1666,11 @@ case "$(uname -s)" in
     *)
         brand="$(sed -n '/^model name/{s/^model name[[:space:]]*:[[:space:]]*//p;q}' /proc/cpuinfo)"
         if [ -z "$brand" ] && command -v lscpu >/dev/null 2>&1; then
-            brand="$(lscpu | sed -n '/^Model name:/{s/^Model name:[[:space:]]*//p;q}')"
+            # Captured whole and fed as a here-string: piping lscpu into a
+            # `q`-ing sed can kill the writer with SIGPIPE, which pipefail
+            # turns into a task failure.
+            cpu_info="$(lscpu)"
+            brand="$(sed -n '/^Model name:/{s/^Model name:[[:space:]]*//p;q}' <<<"$cpu_info")"
         fi
         if [ -z "$brand" ]; then brand="$(uname -m)"; fi
         cpus="$(nproc)"
