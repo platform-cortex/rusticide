@@ -39,46 +39,80 @@ pub enum Q8Kind {
     SuperBlock,
 }
 
-const SUPER_BLOCK: usize = 256;
+/// Activation blocks per `Q8_K` super block of 256 elements.
+const PER_SUPER_BLOCK: usize = 8;
+
+fn abs_max(values: &[f32]) -> f32 {
+    values.iter().fold(0.0_f32, |max, v| max.max(v.abs()))
+}
+
+/// The element of largest magnitude, the first one on a tie, as ggml's
+/// `Q8_K` picks it; zero for an all-zero input.
+#[expect(
+    clippy::float_cmp,
+    reason = "amax is exactly the magnitude of one of the elements, so exact equality finds it"
+)]
+fn signed_max(blocks: &[[f32; Q8_BLOCK]]) -> f32 {
+    let amax = blocks
+        .iter()
+        .map(|block| abs_max(block))
+        .fold(0.0_f32, f32::max);
+    blocks
+        .as_flattened()
+        .iter()
+        .copied()
+        .find(|v| v.abs() == amax)
+        .unwrap_or(0.0)
+}
+
+/// Rounds `block * inverse` into `quants`, returning their sum.
+fn quantize_block(block: &[f32; Q8_BLOCK], inverse: f32, quants: &mut [i8; Q8_BLOCK]) -> i32 {
+    for (quant, &value) in quants.iter_mut().zip(block) {
+        *quant = round_to_i8(value * inverse);
+    }
+    quants.iter().map(|&q| i32::from(q)).sum()
+}
 
 impl Q8Input {
     /// Quantizes `input` as `kind`, reusing this value's buffers. A trailing
     /// partial block is dropped; callers pass whole blocks.
     pub fn quantize(&mut self, input: &[f32], kind: Q8Kind) {
-        self.scales.clear();
-        self.quants.clear();
-        self.sums.clear();
+        let (blocks, _) = input.as_chunks::<Q8_BLOCK>();
+        let blocks = match kind {
+            Q8Kind::Block => blocks,
+            Q8Kind::SuperBlock => &blocks[..blocks.len() / PER_SUPER_BLOCK * PER_SUPER_BLOCK],
+        };
+        self.quants.resize(blocks.len() * Q8_BLOCK, 0);
+        self.scales.resize(blocks.len(), 0.0);
+        self.sums.resize(blocks.len(), 0);
+        let (quants, _) = self.quants.as_chunks_mut::<Q8_BLOCK>();
+        let outputs = quants
+            .iter_mut()
+            .zip(self.scales.iter_mut().zip(&mut self.sums));
         match kind {
             Q8Kind::Block => {
-                for block in input.as_chunks::<Q8_BLOCK>().0 {
-                    let amax = block.iter().fold(0.0_f32, |max, v| max.max(v.abs()));
-                    let scale = amax / 127.0;
-                    let inverse = if scale == 0.0 { 0.0 } else { 1.0 / scale };
-                    self.push_block(block, inverse, f16::from_f32(scale).to_f32());
+                for (block, (quants, (scale, sum))) in blocks.iter().zip(outputs) {
+                    let step = abs_max(block) / 127.0;
+                    let inverse = if step == 0.0 { 0.0 } else { 1.0 / step };
+                    *sum = quantize_block(block, inverse, quants);
+                    *scale = f16::from_f32(step).to_f32();
                 }
             }
             Q8Kind::SuperBlock => {
-                for super_block in input.as_chunks::<SUPER_BLOCK>().0 {
-                    let max = super_block
-                        .iter()
-                        .fold(0.0_f32, |max, &v| if v.abs() > max.abs() { v } else { max });
+                let (supers, _) = blocks.as_chunks::<PER_SUPER_BLOCK>();
+                let mut outputs = outputs;
+                for super_block in supers {
+                    let max = signed_max(super_block);
                     let inverse = if max == 0.0 { 0.0 } else { -127.0 / max };
-                    let scale = if max == 0.0 { 0.0 } else { 1.0 / inverse };
-                    for block in super_block.as_chunks::<Q8_BLOCK>().0 {
-                        self.push_block(block, inverse, scale);
+                    let step = if max == 0.0 { 0.0 } else { 1.0 / inverse };
+                    for (block, (quants, (scale, sum))) in super_block.iter().zip(outputs.by_ref())
+                    {
+                        *sum = quantize_block(block, inverse, quants);
+                        *scale = step;
                     }
                 }
             }
         }
-    }
-
-    fn push_block(&mut self, block: &[f32; Q8_BLOCK], inverse: f32, scale: f32) {
-        let start = self.quants.len();
-        self.quants
-            .extend(block.iter().map(|value| round_to_i8(value * inverse)));
-        self.sums
-            .push(self.quants[start..].iter().map(|&q| i32::from(q)).sum());
-        self.scales.push(scale);
     }
 
     /// The number of quantized elements.

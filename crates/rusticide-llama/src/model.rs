@@ -64,6 +64,19 @@ impl Model for Llama {
     }
 
     fn forward(&mut self, token: u32, position: usize) -> Result<Vec<f32>> {
+        // On a pool thread every parallel region below is a local fork-join;
+        // from outside the pool each one is a cross-thread injection and
+        // wake-up, about 2.5x the cost on an M1 Pro.
+        rayon::scope(|_| self.forward_on_pool(token, position))
+    }
+
+    fn reset(&mut self) {
+        self.cache.clear();
+    }
+}
+
+impl Llama {
+    fn forward_on_pool(&mut self, token: u32, position: usize) -> Result<Vec<f32>> {
         let found = usize::try_from(token)
             .is_ok_and(|row| self.weights.token_embd.copy_row(row, &mut self.hidden));
         if !found {
@@ -102,10 +115,6 @@ impl Model for Llama {
         let mut logits = vec![0.0; self.config.vocab_size];
         output.matvec(&self.normed, &mut logits);
         Ok(logits)
-    }
-
-    fn reset(&mut self) {
-        self.cache.clear();
     }
 }
 
