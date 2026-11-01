@@ -69,6 +69,7 @@ const WIDER_THAN_ITS_BLOCK: BlockFormat = BlockFormat {
     block_bytes: 2,
     dequantize_block: |_, _| {},
     dot_q8: |_, _| 0.0,
+    dot_rows: None,
     activation: Q8Kind::Block,
 };
 
@@ -217,4 +218,31 @@ fn every_format_block_spans_whole_activation_blocks() {
             .iter()
             .all(|f| f.block_size.is_multiple_of(Q8_BLOCK))
     );
+}
+
+#[test]
+fn dot_rows_q8_matches_one_dot_row_q8_per_input_bit_for_bit() {
+    for (seed, format) in (1..).zip(formats()) {
+        let blocks = 256 / format.block_size + 1;
+        let row = random_blocks(format, blocks, seed);
+        let inputs: Vec<Q8Input> = (0..3)
+            .map(|token| {
+                let raw: Vec<f32> = pseudo_random_bytes(blocks * format.block_size, seed + token)
+                    .into_iter()
+                    .map(|b| f32::from(b) / 64.0 - 2.0)
+                    .collect();
+                let mut input = Q8Input::default();
+                input.quantize(&raw, format.activation());
+                input
+            })
+            .collect();
+        let expected: Vec<u32> = inputs
+            .iter()
+            .map(|input| format.dot_row_q8(&row, input).to_bits())
+            .collect();
+        let mut out = [f32::NAN; 3];
+        format.dot_rows_q8(&row, &inputs, &mut out);
+        assert_eq!(out.map(f32::to_bits), *expected, "{}", format.name);
+        assert_ne!(out[0], out[1], "{}", format.name);
+    }
 }

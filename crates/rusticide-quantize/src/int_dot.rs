@@ -82,6 +82,21 @@ const FIFTH_BITS: [u64; 256] = {
     table
 };
 
+/// The 32 weights of a `Q5_0` block as `i8`, in activation order.
+fn q5_0_weights(block: &[u8; 22]) -> [i8; Q8_BLOCK] {
+    let mut fifth = [0_u8; Q8_BLOCK];
+    for (spread, &bits) in fifth.as_chunks_mut::<8>().0.iter_mut().zip(&block[2..6]) {
+        *spread = FIFTH_BITS[usize::from(bits)].to_le_bytes();
+    }
+    let mut weights = [0_i8; Q8_BLOCK];
+    let (low, high) = weights.split_at_mut(HALF);
+    for (i, &byte) in block[6..].iter().enumerate() {
+        low[i] = signed((byte & 0x0F) | fifth[i]) - 16;
+        high[i] = signed((byte >> 4) | fifth[i + HALF]) - 16;
+    }
+    weights
+}
+
 pub(crate) fn q5_0(row: &[u8], input: &Q8Input) -> f32 {
     dot_row::<22, 1>(row, input, |block, span| {
         let mut fifth = [0_u8; Q8_BLOCK];
@@ -97,6 +112,42 @@ pub(crate) fn q5_0(row: &[u8], input: &Q8Input) -> f32 {
         }
         read_f16_le(block, 0) * span.scales[0] * lossy(sum)
     })
+}
+
+/// `Q5_0` blocks unpacked at a time by [`q5_0_rows`].
+const Q5_0_RUN: usize = 8;
+
+/// `Q5_0` against several inputs: unpacking the fifth bits costs more than
+/// the dot itself, so each run of blocks is unpacked once, on the stack,
+/// for all the inputs. Each output adds the terms of [`q5_0`] in its order,
+/// from the `-0.0` that `f32`'s `Sum` starts at, so the two agree to the
+/// bit. For a single input the fused [`q5_0`] is faster: it skips the
+/// round trip through the stack.
+#[expect(
+    clippy::suboptimal_flops,
+    reason = "a fused multiply-add would round differently from q5_0's sum"
+)]
+pub(crate) fn q5_0_rows(row: &[u8], inputs: &[Q8Input], out: &mut [f32]) {
+    out.fill(-0.0);
+    let (blocks, _) = row.as_chunks::<22>();
+    for (run, run_blocks) in blocks.chunks(Q5_0_RUN).enumerate() {
+        let mut weights = [([0_i8; Q8_BLOCK], 0.0_f32); Q5_0_RUN];
+        for (unpacked, block) in weights.iter_mut().zip(run_blocks) {
+            *unpacked = (q5_0_weights(block), read_f16_le(block, 0));
+        }
+        let weights = &weights[..run_blocks.len()];
+        for (slot, input) in out.iter_mut().zip(inputs) {
+            let (scales, quants) = input.blocks_from(run * Q5_0_RUN);
+            for ((weights, d), (scale, quants)) in weights.iter().zip(scales.iter().zip(quants)) {
+                let sum: i32 = weights
+                    .iter()
+                    .zip(quants)
+                    .map(|(&w, &q)| i32::from(w) * i32::from(q))
+                    .sum();
+                *slot += d * scale * lossy(sum);
+            }
+        }
+    }
 }
 
 /// The dot products of 32 packed bytes' low and high nibbles, each offset by

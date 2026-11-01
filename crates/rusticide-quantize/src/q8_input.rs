@@ -139,6 +139,13 @@ impl Q8Input {
             .collect()
     }
 
+    /// The scales and quants of the blocks from `first` on.
+    pub(crate) fn blocks_from(&self, first: usize) -> (&[f32], &[[i8; Q8_BLOCK]]) {
+        let (blocks, _) = self.quants.as_chunks::<Q8_BLOCK>();
+        let scales = self.scales.get(first..).unwrap_or_default();
+        (scales, blocks.get(first..).unwrap_or_default())
+    }
+
     /// Consecutive runs of `K` blocks, one per weight block.
     pub(crate) fn spans<const K: usize>(&self) -> impl Iterator<Item = Span<'_, K>> {
         let (blocks, _) = self.quants.as_chunks::<Q8_BLOCK>();

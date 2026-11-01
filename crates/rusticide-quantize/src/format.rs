@@ -10,6 +10,9 @@ use crate::error::{QuantizeError, ensure_aligned, ensure_len, zeroed_f32};
 use crate::q8_input::{Q8Input, Q8Kind};
 use crate::{int_dot, q4_0, q4_k, q5_0, q6_k, q8_0};
 
+/// One row against several inputs, one output slot per input.
+type DotRows = fn(row: &[u8], inputs: &[Q8Input], out: &mut [f32]);
+
 /// One block-quantized GGML format.
 #[derive(Debug, Clone, Copy)]
 pub struct BlockFormat {
@@ -21,6 +24,8 @@ pub struct BlockFormat {
     dequantize_block: fn(block: &[u8], out: &mut [f32]),
     /// One row of whole blocks against a [`Q8Input`].
     dot_q8: fn(row: &[u8], input: &Q8Input) -> f32,
+    /// One row against two or more inputs, when that beats one `dot_q8` each.
+    dot_rows: Option<DotRows>,
     activation: Q8Kind,
 }
 
@@ -32,6 +37,7 @@ static FORMATS: [BlockFormat; 5] = [
         block_bytes: q4_0::Q4_0_BLOCK_BYTES,
         dequantize_block: q4_0::dequantize_block,
         dot_q8: int_dot::q4_0,
+        dot_rows: None,
         activation: Q8Kind::Block,
     },
     BlockFormat {
@@ -41,6 +47,7 @@ static FORMATS: [BlockFormat; 5] = [
         block_bytes: q5_0::Q5_0_BLOCK_BYTES,
         dequantize_block: q5_0::dequantize_block,
         dot_q8: int_dot::q5_0,
+        dot_rows: Some(int_dot::q5_0_rows),
         activation: Q8Kind::Block,
     },
     BlockFormat {
@@ -50,6 +57,7 @@ static FORMATS: [BlockFormat; 5] = [
         block_bytes: q4_k::Q4_K_BLOCK_BYTES,
         dequantize_block: q4_k::dequantize_block,
         dot_q8: int_dot::q4_k,
+        dot_rows: None,
         activation: Q8Kind::SuperBlock,
     },
     BlockFormat {
@@ -59,6 +67,7 @@ static FORMATS: [BlockFormat; 5] = [
         block_bytes: q6_k::Q6_K_BLOCK_BYTES,
         dequantize_block: q6_k::dequantize_block,
         dot_q8: int_dot::q6_k,
+        dot_rows: None,
         activation: Q8Kind::SuperBlock,
     },
     BlockFormat {
@@ -68,6 +77,7 @@ static FORMATS: [BlockFormat; 5] = [
         block_bytes: q8_0::Q8_0_BLOCK_BYTES,
         dequantize_block: q8_0::dequantize_block,
         dot_q8: int_dot::q8_0,
+        dot_rows: None,
         activation: Q8Kind::Block,
     },
 ];
@@ -163,6 +173,19 @@ impl BlockFormat {
     #[must_use]
     pub fn dot_row_q8(&self, row: &[u8], input: &Q8Input) -> f32 {
         (self.dot_q8)(row, input)
+    }
+
+    /// [`Self::dot_row_q8`] of one row with each input, into the matching
+    /// slot of `out`; every value is bit-identical to its own `dot_row_q8`.
+    pub fn dot_rows_q8(&self, row: &[u8], inputs: &[Q8Input], out: &mut [f32]) {
+        match (self.dot_rows, inputs) {
+            (Some(dot_rows), [_, _, ..]) => dot_rows(row, inputs, out),
+            _ => {
+                for (slot, input) in out.iter_mut().zip(inputs) {
+                    *slot = (self.dot_q8)(row, input);
+                }
+            }
+        }
     }
 
     /// Dequantizes one row of whole blocks into `out`.

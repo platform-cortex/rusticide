@@ -131,9 +131,7 @@ impl Matrix {
                 let quantized = input.quantized(format.activation());
                 let rows = data.chunks_exact(*row_bytes).skip(first_row);
                 for (slots, row) in out.chunks_mut(tokens).zip(rows) {
-                    for (slot, token) in slots.iter_mut().zip(quantized) {
-                        *slot = format.dot_row_q8(row, token);
-                    }
+                    format.dot_rows_q8(row, quantized, slots);
                 }
             }
         }
