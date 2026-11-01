@@ -9,6 +9,7 @@ mod config;
 mod feed_forward;
 mod layout;
 mod model;
+mod registry;
 mod variant;
 mod weights;
 
@@ -20,5 +21,6 @@ mod test_support;
 
 pub use config::LlamaConfig;
 pub use model::{Llama, load, load_qwen2};
+pub use registry::registry;
 pub use variant::{RopeStyle, Variant};
 pub use weights::{BlockWeights, LlamaWeights};

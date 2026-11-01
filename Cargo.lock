@@ -308,6 +308,8 @@ version = "0.6.0"
 name = "rusticide-bench"
 version = "0.6.0"
 dependencies = [
+ "rusticide-model",
+ "rusticide-quantize",
  "serde",
  "serde_json",
  "thiserror",

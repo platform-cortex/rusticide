@@ -5,7 +5,6 @@
 //! The clap command line behind the `cli` feature.
 
 mod cmd;
-mod registry;
 
 use std::ffi::OsString;
 use std::io::Write;

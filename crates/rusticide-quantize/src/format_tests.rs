@@ -71,6 +71,7 @@ const WIDER_THAN_ITS_BLOCK: BlockFormat = BlockFormat {
     dot_q8: |_, _| 0.0,
     dot_rows: None,
     activation: Q8Kind::Block,
+    scale_offsets: &[0],
 };
 
 #[test]
@@ -126,35 +127,6 @@ fn dequantize_of_an_overflowing_byte_length_is_too_short() {
     ));
 }
 
-/// Deterministic bytes over the whole `u8` range.
-fn pseudo_random_bytes(len: usize, seed: u32) -> Vec<u8> {
-    let mut state = seed;
-    (0..len)
-        .map(|_| {
-            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            state.to_be_bytes()[0]
-        })
-        .collect()
-}
-
-/// Random blocks of `format` whose f16 scales are overwritten with finite
-/// values, so every quant bit varies but no scale is infinite or NaN.
-fn random_blocks(format: &BlockFormat, blocks: usize, seed: u32) -> Vec<u8> {
-    let mut data = pseudo_random_bytes(blocks * format.block_bytes, seed);
-    let scale_offsets: &[usize] = match format.name {
-        "Q4_K" => &[0, 2],
-        "Q6_K" => &[208],
-        _ => &[0],
-    };
-    for (index, block) in data.chunks_exact_mut(format.block_bytes).enumerate() {
-        for &offset in scale_offsets {
-            let scale = 0.01 * f32::from(u8::try_from(index % 7 + 1).unwrap());
-            block[offset..offset + 2].copy_from_slice(&half::f16::from_f32(scale).to_le_bytes());
-        }
-    }
-    data
-}
-
 fn reference_dot(values: &[f32], input: &[f32]) -> f32 {
     values.iter().zip(input).map(|(a, b)| a * b).sum()
 }
@@ -162,7 +134,7 @@ fn reference_dot(values: &[f32], input: &[f32]) -> f32 {
 #[test]
 fn dequantize_row_matches_dequantize_for_every_format() {
     for (seed, format) in (1..).zip(formats()) {
-        let row = random_blocks(format, 2, seed);
+        let row = format.synthetic_blocks(2, seed);
         let numel = 2 * format.block_size;
         let expected = format
             .dequantize(&row, &[numel])
@@ -187,7 +159,7 @@ fn row_bytes_needs_whole_blocks() {
 fn dot_row_q8_matches_the_dequantized_operands_for_every_format() {
     for (seed, format) in (1..).zip(formats()) {
         let blocks = 2;
-        let row = random_blocks(format, blocks, seed);
+        let row = format.synthetic_blocks(blocks, seed);
         let numel = blocks * format.block_size;
         let raw: Vec<f32> = pseudo_random_bytes(numel, seed + 100)
             .into_iter()
@@ -225,7 +197,7 @@ fn dot_rows_q8_matches_one_dot_row_q8_per_input_bit_for_bit() {
     for (seed, format) in (1..).zip(formats()) {
         // Past one run of unpacked blocks for every format, ending mid-run.
         let blocks = 1280 / format.block_size + 1;
-        let row = random_blocks(format, blocks, seed);
+        let row = format.synthetic_blocks(blocks, seed);
         let inputs: Vec<Q8Input> = (0..3)
             .map(|token| {
                 let raw: Vec<f32> = pseudo_random_bytes(blocks * format.block_size, seed + token)
@@ -256,4 +228,20 @@ fn batched_kernels_cover_q5_0_and_the_k_formats() {
         .map(|format| format.name)
         .collect();
     assert_eq!(batched, ["Q5_0", "Q4_K", "Q6_K"]);
+}
+
+#[test]
+fn synthetic_blocks_dequantize_to_finite_values() {
+    for (seed, format) in (1..).zip(formats()) {
+        let blocks = 4;
+        let data = format.synthetic_blocks(blocks, seed);
+        assert_eq!(data.len(), blocks * format.block_bytes, "{}", format.name);
+        let values = format
+            .dequantize(&data, &[blocks * format.block_size])
+            .unwrap()
+            .to_vec::<f32>()
+            .unwrap();
+        assert!(values.iter().all(|v| v.is_finite()), "{}", format.name);
+        assert!(values.iter().any(|v| *v != 0.0), "{}", format.name);
+    }
 }

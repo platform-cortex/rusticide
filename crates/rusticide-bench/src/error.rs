@@ -15,6 +15,8 @@ pub enum BenchError {
     NotFinite,
     #[error("baseline was recorded on {expected}, results come from {got}")]
     WrongMachine { expected: String, got: String },
+    #[error("model error: {0}")]
+    Model(#[from] rusticide_model::ModelError),
     #[error("invalid json: {0}")]
     Json(#[from] serde_json::Error),
 }

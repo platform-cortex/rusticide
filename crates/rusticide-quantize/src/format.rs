@@ -27,6 +27,8 @@ pub struct BlockFormat {
     /// One row against two or more inputs, when that beats one `dot_q8` each.
     dot_rows: Option<DotRows>,
     activation: Q8Kind,
+    /// Byte offsets of the f16 scale fields within a block.
+    scale_offsets: &'static [usize],
 }
 
 static FORMATS: [BlockFormat; 5] = [
@@ -39,6 +41,7 @@ static FORMATS: [BlockFormat; 5] = [
         dot_q8: int_dot::q4_0,
         dot_rows: None,
         activation: Q8Kind::Block,
+        scale_offsets: &[0],
     },
     BlockFormat {
         name: "Q5_0",
@@ -49,6 +52,7 @@ static FORMATS: [BlockFormat; 5] = [
         dot_q8: int_dot::q5_0,
         dot_rows: Some(int_dot::q5_0_rows),
         activation: Q8Kind::Block,
+        scale_offsets: &[0],
     },
     BlockFormat {
         name: "Q4_K",
@@ -59,6 +63,7 @@ static FORMATS: [BlockFormat; 5] = [
         dot_q8: int_dot::q4_k,
         dot_rows: Some(int_dot::q4_k_rows),
         activation: Q8Kind::SuperBlock,
+        scale_offsets: &[0, 2],
     },
     BlockFormat {
         name: "Q6_K",
@@ -69,6 +74,7 @@ static FORMATS: [BlockFormat; 5] = [
         dot_q8: int_dot::q6_k,
         dot_rows: Some(int_dot::q6_k_rows),
         activation: Q8Kind::SuperBlock,
+        scale_offsets: &[208],
     },
     BlockFormat {
         name: "Q8_0",
@@ -79,6 +85,7 @@ static FORMATS: [BlockFormat; 5] = [
         dot_q8: int_dot::q8_0,
         dot_rows: None,
         activation: Q8Kind::Block,
+        scale_offsets: &[0],
     },
 ];
 
@@ -92,6 +99,19 @@ pub fn formats() -> &'static [BlockFormat] {
 #[must_use]
 pub fn block_format(type_id: u32) -> Option<&'static BlockFormat> {
     FORMATS.iter().find(|format| format.type_id == type_id)
+}
+
+const SYNTHETIC_SCALES: [f32; 7] = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07];
+
+/// Deterministic bytes over the whole `u8` range.
+fn pseudo_random_bytes(len: usize, seed: u32) -> Vec<u8> {
+    let mut state = seed;
+    (0..len)
+        .map(|_| {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            state.to_be_bytes()[0]
+        })
+        .collect()
 }
 
 impl BlockFormat {
@@ -186,6 +206,22 @@ impl BlockFormat {
                 }
             }
         }
+    }
+
+    /// `blocks` blocks of pseudo-random bytes over the whole `u8` range, with
+    /// every f16 scale field set to a finite value so no block dequantizes to
+    /// infinity or NaN.
+    #[must_use]
+    pub fn synthetic_blocks(&self, blocks: usize, seed: u32) -> Vec<u8> {
+        let mut data = pseudo_random_bytes(blocks * self.block_bytes, seed);
+        for (index, block) in data.chunks_exact_mut(self.block_bytes).enumerate() {
+            let scale = SYNTHETIC_SCALES[index % SYNTHETIC_SCALES.len()];
+            for &offset in self.scale_offsets {
+                block[offset..offset + 2]
+                    .copy_from_slice(&half::f16::from_f32(scale).to_le_bytes());
+            }
+        }
+        data
     }
 
     /// Dequantizes one row of whole blocks into `out`.

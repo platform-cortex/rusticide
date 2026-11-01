@@ -12,8 +12,6 @@ use rusticide_model::{GenerateOptions, ModelError, ModelSource, generate};
 use rusticide_sampling::{Sampler, SamplingParams};
 use rusticide_tokenizer::Tokenizer;
 
-use crate::cli::registry::registry;
-
 /// The parsed `run` arguments.
 #[derive(Debug, Clone)]
 pub(crate) struct RunArgs {
@@ -45,7 +43,7 @@ pub(crate) fn run_source(
     err: &mut impl Write,
 ) -> anyhow::Result<()> {
     let tokenizer = Tokenizer::from_gguf(source.metadata())?;
-    let mut model = registry().load(source)?;
+    let mut model = rusticide_llama::registry().load(source)?;
     let seed = args.seed.unwrap_or_else(clock_seed);
     let options = GenerateOptions {
         max_tokens: args.max_tokens,
