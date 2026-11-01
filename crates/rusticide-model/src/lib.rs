@@ -14,7 +14,7 @@ mod source;
 mod stream;
 mod weights;
 
-pub use batch::matvec_batch;
+pub use batch::{matmul_batch, matvec_batch};
 pub use cache::KvCache;
 pub use error::{ModelError, Result};
 pub use generate::{GenerateOptions, Generation, generate};

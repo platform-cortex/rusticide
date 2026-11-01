@@ -110,14 +110,17 @@ impl Matrix {
         }
     }
 
-    /// Writes the products of rows `first_row..` with the input into `out`,
-    /// one row per slot.
+    /// Writes the products of rows `first_row..` with every token of the
+    /// input into `out`, the tokens of one row side by side.
     pub(crate) fn compute_rows(&self, first_row: usize, out: &mut [f32], input: &Activations<'_>) {
+        let tokens = input.tokens().max(1);
         match &self.storage {
             Storage::Dense(data) => {
                 let rows = data.chunks_exact(self.cols).skip(first_row);
-                for (slot, row) in out.iter_mut().zip(rows) {
-                    *slot = dot(row, input.dense);
+                for (slots, row) in out.chunks_mut(tokens).zip(rows) {
+                    for (slot, token) in slots.iter_mut().zip(&input.dense) {
+                        *slot = dot(row, token);
+                    }
                 }
             }
             Storage::Blocks {
@@ -127,8 +130,10 @@ impl Matrix {
             } => {
                 let quantized = input.quantized(format.activation());
                 let rows = data.chunks_exact(*row_bytes).skip(first_row);
-                for (slot, row) in out.iter_mut().zip(rows) {
-                    *slot = format.dot_row_q8(row, quantized);
+                for (slots, row) in out.chunks_mut(tokens).zip(rows) {
+                    for (slot, token) in slots.iter_mut().zip(quantized) {
+                        *slot = format.dot_row_q8(row, token);
+                    }
                 }
             }
         }

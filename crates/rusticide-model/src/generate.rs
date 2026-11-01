@@ -64,11 +64,17 @@ pub fn generate(
     })
 }
 
+/// Prompt tokens per [`Model::forward_batch`]: enough that each weight row,
+/// read once per batch, is amortized over many tokens, few enough that the
+/// batch's activations (64 rows of the widest layer, quantized per token)
+/// still fit in the L2 cache next to the weight runs being streamed.
+const PREFILL_CHUNK: usize = 64;
+
 fn prefill(model: &mut dyn Model, tokens: &[u32]) -> Result<Vec<f32>> {
     model.reset();
     let mut last = None;
-    for (position, &token) in tokens.iter().enumerate() {
-        last = Some(model.forward(token, position)?);
+    for (index, chunk) in tokens.chunks(PREFILL_CHUNK).enumerate() {
+        last = Some(model.forward_batch(chunk, index * PREFILL_CHUNK)?);
     }
     last.ok_or(ModelError::InvalidConfig {
         reason: "prompt encodes to no tokens",
@@ -122,3 +128,7 @@ fn pick(sampler: &mut Sampler, logits: &[f32], params: &SamplingParams) -> Resul
 #[cfg(test)]
 #[path = "generate_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "prefill_tests.rs"]
+mod prefill_tests;
