@@ -7,6 +7,7 @@
 mod attention;
 mod config;
 mod feed_forward;
+mod layout;
 mod model;
 mod variant;
 mod weights;

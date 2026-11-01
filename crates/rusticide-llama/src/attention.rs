@@ -3,21 +3,78 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_kernels::{add_assign, dot, softmax};
-use rusticide_model::{KvCache, Result, matvec_batch};
+use rusticide_model::{KvCache, Result, matmul_batch};
 
 use crate::config::LlamaConfig;
+use crate::layout::to_token_major;
 use crate::variant::RopeStyle;
 use crate::weights::BlockWeights;
 
-/// Grouped-query self-attention for one token, with reusable scratch buffers.
-#[derive(Debug)]
-pub(crate) struct Attention {
+/// The head layout of grouped-query attention.
+#[derive(Debug, Clone, Copy)]
+struct Heads {
     head_dim: usize,
     group: usize,
     kv_dim: usize,
     scale: f32,
     rope_freq_base: f32,
     rope: RopeStyle,
+}
+
+impl Heads {
+    /// Rotates every head of `query` and `key` to `position`.
+    fn rotate(&self, query: &mut [f32], key: &mut [f32], position: usize) {
+        let pairs = self.head_dim / 2;
+        for head in query
+            .chunks_exact_mut(self.head_dim)
+            .chain(key.chunks_exact_mut(self.head_dim))
+        {
+            self.rope.apply(head, position, self.rope_freq_base, pairs);
+        }
+    }
+
+    /// Writes into `mixed` each query head attending over every cached row.
+    fn mix(
+        &self,
+        query: &[f32],
+        cache: (&[f32], &[f32]),
+        scores: &mut Vec<f32>,
+        mixed: &mut [f32],
+    ) {
+        let (keys, values) = cache;
+        for (head, (query, mixed)) in query
+            .chunks_exact(self.head_dim)
+            .zip(mixed.chunks_exact_mut(self.head_dim))
+            .enumerate()
+        {
+            let offset = (head / self.group) * self.head_dim;
+            let span = offset..offset + self.head_dim;
+            scores.clear();
+            scores.extend(
+                keys.chunks_exact(self.kv_dim)
+                    .map(|key| dot(query, &key[span.clone()]) / self.scale),
+            );
+            softmax(scores);
+            mixed.fill(0.0);
+            for (&weight, value) in scores.iter().zip(values.chunks_exact(self.kv_dim)) {
+                for (slot, &entry) in mixed.iter_mut().zip(&value[span.clone()]) {
+                    *slot = entry.mul_add(weight, *slot);
+                }
+            }
+        }
+    }
+}
+
+/// Grouped-query self-attention for a batch of tokens, with reusable
+/// scratch buffers. Rows named `*_rows` are laid out by weight row, the
+/// rest token after token.
+#[derive(Debug)]
+pub(crate) struct Attention {
+    heads: Heads,
+    width: usize,
+    query_rows: Vec<f32>,
+    key_rows: Vec<f32>,
+    value_rows: Vec<f32>,
     query: Vec<f32>,
     key: Vec<f32>,
     value: Vec<f32>,
@@ -27,82 +84,93 @@ pub(crate) struct Attention {
 
 impl Attention {
     pub(crate) fn new(config: &LlamaConfig) -> Result<Self> {
-        let kv_dim = config.kv_dim()?;
         #[expect(
             clippy::cast_precision_loss,
             reason = "head dimensions are far below 2^24, where f32 is exact"
         )]
         let head_dim = config.head_dim as f32;
-        Ok(Self {
+        let heads = Heads {
             head_dim: config.head_dim,
             group: config.head_count / config.head_count_kv,
-            kv_dim,
+            kv_dim: config.kv_dim()?,
             scale: head_dim.sqrt(),
             rope_freq_base: config.rope_freq_base,
             rope: config.variant.rope(),
-            query: vec![0.0; config.embedding_length],
-            key: vec![0.0; kv_dim],
-            value: vec![0.0; kv_dim],
+        };
+        Ok(Self {
+            heads,
+            width: config.embedding_length,
+            query_rows: Vec::new(),
+            key_rows: Vec::new(),
+            value_rows: Vec::new(),
+            query: Vec::new(),
+            key: Vec::new(),
+            value: Vec::new(),
             scores: Vec::new(),
-            mixed: vec![0.0; config.embedding_length],
+            mixed: Vec::new(),
         })
     }
 
-    /// Writes `attn_output(attention(input))` for the token at `position`,
-    /// storing its key and value in `cache` under `layer`.
+    /// Writes `attn_output(attention(input))` for the tokens of `input`, one
+    /// row each, at positions `start..`, storing their keys and values in
+    /// `cache` under `layer`. Each token attends only to the rows cached up
+    /// to and including its own.
     pub(crate) fn forward(
         &mut self,
         block: &BlockWeights,
         cache: &mut KvCache,
         layer: usize,
-        position: usize,
+        start: usize,
         input: &[f32],
         output: &mut [f32],
     ) -> Result<()> {
-        matvec_batch(
+        let tokens = input.len() / self.width;
+        self.project(block, input, tokens);
+        let (width, kv_dim) = (self.width, self.heads.kv_dim);
+        self.mixed.resize(input.len(), 0.0);
+        let rows = self
+            .query
+            .chunks_exact_mut(width)
+            .zip(self.key.chunks_exact_mut(kv_dim))
+            .zip(self.value.chunks_exact_mut(kv_dim))
+            .zip(self.mixed.chunks_exact_mut(width));
+        for (offset, (((query, key), value), mixed)) in rows.enumerate() {
+            let position = start + offset;
+            add_bias(query, block.attn_q_bias.as_deref());
+            add_bias(key, block.attn_k_bias.as_deref());
+            add_bias(value, block.attn_v_bias.as_deref());
+            self.heads.rotate(query, key, position);
+            cache.store(layer, position, key, value)?;
+            let cached = (cache.keys(layer), cache.values(layer));
+            self.heads.mix(query, cached, &mut self.scores, mixed);
+        }
+        let jobs = &mut [(&block.attn_output, &mut self.query_rows[..])];
+        matmul_batch(&self.mixed, tokens, jobs);
+        to_token_major(&self.query_rows, tokens, output);
+        Ok(())
+    }
+
+    /// Projects `input` to token-major queries, keys and values.
+    fn project(&mut self, block: &BlockWeights, input: &[f32], tokens: usize) {
+        let kv_len = self.heads.kv_dim * tokens;
+        self.query_rows.resize(input.len(), 0.0);
+        self.key_rows.resize(kv_len, 0.0);
+        self.value_rows.resize(kv_len, 0.0);
+        matmul_batch(
             input,
+            tokens,
             &mut [
-                (&block.attn_q, &mut self.query),
-                (&block.attn_k, &mut self.key),
-                (&block.attn_v, &mut self.value),
+                (&block.attn_q, &mut self.query_rows),
+                (&block.attn_k, &mut self.key_rows),
+                (&block.attn_v, &mut self.value_rows),
             ],
         );
-        add_bias(&mut self.query, block.attn_q_bias.as_deref());
-        add_bias(&mut self.key, block.attn_k_bias.as_deref());
-        add_bias(&mut self.value, block.attn_v_bias.as_deref());
-        let pairs = self.head_dim / 2;
-        for head in self
-            .query
-            .chunks_exact_mut(self.head_dim)
-            .chain(self.key.chunks_exact_mut(self.head_dim))
-        {
-            self.rope.apply(head, position, self.rope_freq_base, pairs);
-        }
-        cache.store(layer, position, &self.key, &self.value)?;
-        let (keys, values) = (cache.keys(layer), cache.values(layer));
-        for (head, (query, mixed)) in self
-            .query
-            .chunks_exact(self.head_dim)
-            .zip(self.mixed.chunks_exact_mut(self.head_dim))
-            .enumerate()
-        {
-            let offset = (head / self.group) * self.head_dim;
-            let span = offset..offset + self.head_dim;
-            self.scores.clear();
-            self.scores.extend(
-                keys.chunks_exact(self.kv_dim)
-                    .map(|key| dot(query, &key[span.clone()]) / self.scale),
-            );
-            softmax(&mut self.scores);
-            mixed.fill(0.0);
-            for (&weight, value) in self.scores.iter().zip(values.chunks_exact(self.kv_dim)) {
-                for (slot, &entry) in mixed.iter_mut().zip(&value[span.clone()]) {
-                    *slot = entry.mul_add(weight, *slot);
-                }
-            }
-        }
-        block.attn_output.matvec(&self.mixed, output);
-        Ok(())
+        self.query.resize(input.len(), 0.0);
+        self.key.resize(kv_len, 0.0);
+        self.value.resize(kv_len, 0.0);
+        to_token_major(&self.query_rows, tokens, &mut self.query);
+        to_token_major(&self.key_rows, tokens, &mut self.key);
+        to_token_major(&self.value_rows, tokens, &mut self.value);
     }
 }
 
