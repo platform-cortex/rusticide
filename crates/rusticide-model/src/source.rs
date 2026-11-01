@@ -191,5 +191,39 @@ mod tests {
             Err(ModelError::MissingTensor { name }) => assert_eq!(name, "nope"),
             other => panic!("unexpected: {other:?}"),
         }
+        assert!(source.quantized_tensor("w").unwrap().is_none());
+        match source.quantized_tensor("nope") {
+            Err(ModelError::MissingTensor { name }) => assert_eq!(name, "nope"),
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    /// A source that keeps the trait's default `quantized_tensor`.
+    struct DecodedOnly(InMemorySource);
+
+    impl ModelSource for DecodedOnly {
+        fn metadata(&self) -> &Metadata {
+            self.0.metadata()
+        }
+
+        fn tensor_shape(&self, name: &str) -> Option<Vec<usize>> {
+            self.0.tensor_shape(name)
+        }
+
+        fn tensor(&self, name: &str) -> crate::error::Result<Tensor> {
+            self.0.tensor(name)
+        }
+    }
+
+    #[test]
+    fn a_source_offers_no_raw_blocks_by_default() {
+        let source = DecodedOnly(source());
+        assert_eq!(source.tensor_shape("a"), Some(vec![2]));
+        assert!(source.metadata().is_empty());
+        assert_eq!(
+            source.tensor("a").unwrap().to_vec::<f32>().unwrap(),
+            [1.0, 2.0]
+        );
+        assert!(source.quantized_tensor("a").unwrap().is_none());
     }
 }
