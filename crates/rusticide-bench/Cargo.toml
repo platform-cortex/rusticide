@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+authors.workspace = true
+categories = ["development-tools::profiling"]
+description = "Local performance gate: benchmark results, baselines and comparison"
+edition.workspace = true
+keywords = ["benchmark", "baseline", "performance", "regression"]
+license.workspace = true
+name = "rusticide-bench"
+publish = false
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

@@ -305,6 +305,15 @@ name = "rusticide-alloc"
 version = "0.6.0"
 
 [[package]]
+name = "rusticide-bench"
+version = "0.6.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "rusticide-core"
 version = "0.6.0"
 dependencies = [
