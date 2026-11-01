@@ -103,14 +103,14 @@ regardless, because it is cheap.
 - mmap-based loading (needs `unsafe` outside `rusticide-alloc`).
 - Quantized matmul kernels (computing on quantized blocks directly). Weights
   are dequantized at load time; see "Memory".
+- Formats other than GGUF.
+- Downloading models from the CLI.
 
 > **Amended 2026-11-01.** Release 0.6.0 shipped quantized matmul kernels
 > (integer dot products on the blocks) and keeps weights quantized in
 > memory; see the
 > [0.6.0 notes](2026-10-31-rusticide-inference-performance.md). This is no
 > longer a non-goal.
-- Formats other than GGUF.
-- Downloading models from the CLI.
 
 ## Anti-goals
 

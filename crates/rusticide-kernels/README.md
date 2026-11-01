@@ -11,7 +11,10 @@ dot product, RMS norm, softmax, rotary embeddings, SiLU and element-wise
 multiply/add. Quantized kernels: activation quantization (`Q8Input`, the ggml
 `Q8_0` and `Q8_K` schemes) and, per block format, the integer row kernels
 (`QuantKernel`, looked up by GGML type id). Every call routes through one
-`Adapter`, chosen once per process.
+`Adapter`, chosen once per process; the only adapter today is `portable`,
+safe Rust the compiler auto-vectorizes. Matrix products (`Weights`,
+`matmul_batch`, `matvec_batch`) are scheduled across the rayon pool here, above
+the adapter, so every adapter shares one scheduler.
 
 Kernels never panic on mismatched slice lengths: they iterate with `zip`, so
 the shorter slice bounds the work. Callers validate lengths.

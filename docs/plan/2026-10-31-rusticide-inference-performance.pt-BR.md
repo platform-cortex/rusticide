@@ -148,3 +148,13 @@ sequencial.
   despertar do rayon. Um pool seguro exige todos os buffers compartilhados
   como atomicos; um com `unsafe` pertence a `docs/UNSAFE.md`, uma decisao de
   politica.
+
+## Onde os kernels vivem agora
+
+Depois do milestone da facade de kernels
+([design](2026-11-01-rusticide-kernel-facade-design.pt-BR.md)) o codigo
+descrito acima passou para `rusticide-kernels`: os kernels de linha estao em
+`portable/int_dot*`, o quantizador de ativacao (`Q8Input`, `Q8Kind`) em
+`q8_input.rs` e o escalonador (`matmul_batch`, `matvec_batch`) em `matmul.rs`.
+`rusticide-quantize` mantem apenas os layouts de bloco e os dequantizadores, e
+`rusticide-model` nao depende mais de rayon.

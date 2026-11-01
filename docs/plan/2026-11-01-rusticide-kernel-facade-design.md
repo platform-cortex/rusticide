@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Kernel facade and performance guard (Design)
 
-Status: approved for planning, 2026-11-01. Follows the inference performance milestone
+Status: done, 2026-11-01. Follows the inference performance milestone
 ([notes](2026-10-31-rusticide-inference-performance.md), release 0.6.0)
 and pays the debts it left, most important first. Branch
 `chore/kernel-architecture`.
@@ -191,3 +191,42 @@ headers, `-D warnings`, MSRV 1.96, rebase-only integration.
 - How the end-to-end benchmark times prefill separately from loading.
 - How a machine is identified, run counts, warm-up and the statistic
   compared (one rule for decode and prefill).
+
+## Results
+
+Status: done. The gate (`mise run bench:gate`, M1 Pro) passes with every
+metric within tolerance. Tokens/s for `e2e/*`, G elements/s for `kernel/*`
+(the q8 rows are quantization throughput):
+
+| metric | baseline | measured |
+| --- | --- | --- |
+| e2e/qwen2.5/decode | 131.0 | 132.6 |
+| e2e/qwen2.5/prefill | 348.5 | 351.1 |
+| e2e/tinyllama/decode | 96.8 | 96.0 |
+| e2e/tinyllama/prefill | 148.0 | 148.2 |
+| kernel/Q4_0/row | 31.72 | 31.99 |
+| kernel/Q4_0/rows8 | 31.85 | 32.22 |
+| kernel/Q4_K/row | 29.43 | 29.45 |
+| kernel/Q4_K/rows8 | 29.78 | 29.93 |
+| kernel/Q5_0/row | 20.23 | 20.27 |
+| kernel/Q5_0/rows8 | 24.37 | 24.36 |
+| kernel/Q6_K/row | 25.96 | 25.95 |
+| kernel/Q6_K/rows8 | 26.77 | 26.82 |
+| kernel/Q8_0/row | 35.03 | 35.06 |
+| kernel/Q8_0/rows8 | 35.48 | 35.44 |
+| kernel/q8/block | 1.14 | 1.14 |
+| kernel/q8/superblock | 1.10 | 1.09 |
+
+Lessons:
+
+- The gate compares each metric's best of N runs, not the median, against a
+  baseline that is the median of three capture sessions' bests. The owner's
+  desktop is noisy, and noise only ever slows a run down, so the fastest run
+  is the stable statistic.
+- Ports must be slice-level. A per-element `silu` port regressed decode by
+  14% (a dispatch per element); it was replaced by `silu_assign`, and
+  attention got a `dot_rows` port for the same reason.
+- `dot` now bounds both slices to the shorter one, so a length mismatch
+  never reads out of range or panics.
+- Kernels moved without changing arithmetic: the reference parity test and
+  the baseline both held after every step.

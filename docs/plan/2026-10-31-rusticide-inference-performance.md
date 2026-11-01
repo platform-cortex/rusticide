@@ -132,3 +132,13 @@ the batched path is checked bit for bit against the sequential one.
 - A spinning thread pool: the remaining per-region cost is rayon's wake-up.
   A safe one needs every buffer shared as atomics; an `unsafe` one belongs
   under `docs/UNSAFE.md`, a policy decision.
+
+## Where the kernels live now
+
+After the kernel facade milestone
+([design](2026-11-01-rusticide-kernel-facade-design.md)) the code described
+above moved into `rusticide-kernels`: the row kernels are `portable/int_dot*`,
+the activation quantizer (`Q8Input`, `Q8Kind`) is `q8_input.rs`, and the
+scheduler (`matmul_batch`, `matvec_batch`) is `matmul.rs`. `rusticide-quantize`
+keeps only the block layouts and dequantizers, and `rusticide-model` no longer
+depends on rayon.

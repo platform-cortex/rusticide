@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Facade de kernels e guarda de desempenho (Design)
 
-Status: aprovado para planejamento, 2026-11-01. Segue o milestone de desempenho de inferencia
+Status: concluido, 2026-11-01. Segue o milestone de desempenho de inferencia
 ([notas](2026-10-31-rusticide-inference-performance.pt-BR.md), release 0.6.0)
 e paga os debitos que ele deixou, do mais importante para o menos. Branch
 `chore/kernel-architecture`. Versao em ingles:
@@ -205,3 +205,42 @@ cabecalhos SPDX, `-D warnings`, MSRV 1.96, integracao so por rebase.
   carregamento.
 - Como uma maquina e identificada, numero de execucoes, aquecimento e a
   estatistica comparada (uma regra so para decode e prefill).
+
+## Resultados
+
+Status: concluido. O gate (`mise run bench:gate`, M1 Pro) passa com todas as
+metricas dentro da tolerancia. Tokens/s para `e2e/*`, G elementos/s para
+`kernel/*` (as linhas q8 medem a quantizacao):
+
+| metrica | baseline | medido |
+| --- | --- | --- |
+| e2e/qwen2.5/decode | 131.0 | 132.6 |
+| e2e/qwen2.5/prefill | 348.5 | 351.1 |
+| e2e/tinyllama/decode | 96.8 | 96.0 |
+| e2e/tinyllama/prefill | 148.0 | 148.2 |
+| kernel/Q4_0/row | 31.72 | 31.99 |
+| kernel/Q4_0/rows8 | 31.85 | 32.22 |
+| kernel/Q4_K/row | 29.43 | 29.45 |
+| kernel/Q4_K/rows8 | 29.78 | 29.93 |
+| kernel/Q5_0/row | 20.23 | 20.27 |
+| kernel/Q5_0/rows8 | 24.37 | 24.36 |
+| kernel/Q6_K/row | 25.96 | 25.95 |
+| kernel/Q6_K/rows8 | 26.77 | 26.82 |
+| kernel/Q8_0/row | 35.03 | 35.06 |
+| kernel/Q8_0/rows8 | 35.48 | 35.44 |
+| kernel/q8/block | 1.14 | 1.14 |
+| kernel/q8/superblock | 1.10 | 1.09 |
+
+Licoes:
+
+- O gate compara a melhor de N execucoes de cada metrica, nao a mediana,
+  contra um baseline que e a mediana dos melhores de tres sessoes de captura.
+  O desktop do dono e ruidoso, e o ruido so deixa uma execucao mais lenta,
+  entao a execucao mais rapida e a estatistica estavel.
+- Portas devem ser em nivel de slice. Uma porta `silu` por elemento piorou o
+  decode em 14% (um despacho por elemento); foi trocada por `silu_assign`, e a
+  atencao ganhou uma porta `dot_rows` pelo mesmo motivo.
+- `dot` agora limita os dois slices ao menor, entao um tamanho divergente
+  nunca le fora do intervalo nem causa panic.
+- Os kernels mudaram de lugar sem mudar a aritmetica: o teste de paridade com
+  a referencia e o baseline se mantiveram a cada passo.

@@ -5,9 +5,9 @@
 [package]
 authors.workspace = true
 categories = ["algorithms"]
-description = "Kernel facade for rusticide: f32 slice kernels and quantized row kernels behind one adapter"
+description = "Kernel facade for rusticide: f32, quantized and matmul-scheduling kernels behind one portable adapter"
 edition.workspace = true
-keywords = ["kernels", "dot", "softmax", "rope", "f32"]
+keywords = ["kernels", "quantization", "matmul", "llm", "inference"]
 license.workspace = true
 name = "rusticide-kernels"
 readme = "README.md"

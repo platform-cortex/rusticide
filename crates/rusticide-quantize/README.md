@@ -6,11 +6,11 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # rusticide-quantize
 
-Model quantization formats.
+Model quantization formats as data.
 
-Implements the Q4_0, Q4_K and Q6_K block formats on top of `rusticide-core`
-tensors. Q4_0 quantizes and dequantizes; Q4_K and Q6_K dequantize, for
-reduced memory usage and faster CPU inference.
+Block layouts and dequantizers for Q4_0, Q5_0, Q8_0, Q4_K and Q6_K, plus the
+`f16` reader and synthetic blocks for tests. The integer kernels that compute
+on these blocks live in `rusticide-kernels`.
 
 ## License
 
