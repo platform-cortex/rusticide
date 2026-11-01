@@ -1664,11 +1664,19 @@ case "$(uname -s)" in
         cpus="$(sysctl -n hw.logicalcpu)"
         ;;
     *)
-        brand="$(sed -n 's/^model name[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -n 1)"
+        brand="$(sed -n '/^model name/{s/^model name[[:space:]]*:[[:space:]]*//p;q}' /proc/cpuinfo)"
+        if [ -z "$brand" ] && command -v lscpu >/dev/null 2>&1; then
+            brand="$(lscpu | sed -n '/^Model name:/{s/^Model name:[[:space:]]*//p;q}')"
+        fi
+        if [ -z "$brand" ]; then brand="$(uname -m)"; fi
         cpus="$(nproc)"
         ;;
 esac
 slug="$(printf '%s' "$brand" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
+if [ -z "$slug" ]; then
+    echo "bench:machine: cannot derive a CPU brand on this machine" >&2
+    exit 1
+fi
 echo "$slug-$cpus"
 '''
 shell = "bash -c"
@@ -1687,11 +1695,12 @@ if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 
 cargo build --release -p rusticide-bench
 machine="$(mise run -q bench:machine)"
-mkdir -p target/bench
-args=(run --machine "$machine" --out target/bench/results.json)
+bench_dir="${CARGO_TARGET_DIR:-target}/bench"
+mkdir -p "$bench_dir"
+args=(run --machine "$machine" --out "$bench_dir/results.json")
 if [ -n "${RUSTICIDE_MODELS:-}" ]; then args+=(--models "$RUSTICIDE_MODELS"); fi
-target/release/rusticide-bench "${args[@]}"
-target/release/rusticide-bench report --results target/bench/results.json
+"${CARGO_TARGET_DIR:-target}/release/rusticide-bench" "${args[@]}"
+"${CARGO_TARGET_DIR:-target}/release/rusticide-bench" report --results "$bench_dir/results.json"
 '''
 shell = "bash -c"
 usage = '''
@@ -1709,11 +1718,12 @@ if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 
 cargo build --release -p rusticide-bench
 machine="$(mise run -q bench:machine)"
-mkdir -p target/bench
-args=(run --machine "$machine" --out target/bench/results.json)
+bench_dir="${CARGO_TARGET_DIR:-target}/bench"
+mkdir -p "$bench_dir"
+args=(run --machine "$machine" --out "$bench_dir/results.json")
 if [ -n "${RUSTICIDE_MODELS:-}" ]; then args+=(--models "$RUSTICIDE_MODELS"); fi
-target/release/rusticide-bench "${args[@]}"
-target/release/rusticide-bench gate --results target/bench/results.json \
+"${CARGO_TARGET_DIR:-target}/release/rusticide-bench" "${args[@]}"
+"${CARGO_TARGET_DIR:-target}/release/rusticide-bench" gate --results "$bench_dir/results.json" \
     --baseline "crates/rusticide-bench/baselines/$machine.json"
 '''
 shell = "bash -c"
@@ -1732,16 +1742,17 @@ if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 
 cargo build --release -p rusticide-bench
 machine="$(mise run -q bench:machine)"
-mkdir -p target/bench
+bench_dir="${CARGO_TARGET_DIR:-target}/bench"
+mkdir -p "$bench_dir"
 sessions=()
 for session in 1 2 3; do
-    args=(run --machine "$machine" --out "target/bench/session-$session.json")
+    args=(run --machine "$machine" --out "$bench_dir/session-$session.json")
     if [ -n "${RUSTICIDE_MODELS:-}" ]; then args+=(--models "$RUSTICIDE_MODELS"); fi
-    target/release/rusticide-bench "${args[@]}"
-    sessions+=(--results "target/bench/session-$session.json")
+    "${CARGO_TARGET_DIR:-target}/release/rusticide-bench" "${args[@]}"
+    sessions+=(--results "$bench_dir/session-$session.json")
 done
 mkdir -p crates/rusticide-bench/baselines
-target/release/rusticide-bench baseline "${sessions[@]}" \
+"${CARGO_TARGET_DIR:-target}/release/rusticide-bench" baseline "${sessions[@]}" \
     --out "crates/rusticide-bench/baselines/$machine.json"
 '''
 shell = "bash -c"
@@ -3104,7 +3115,7 @@ run = ["mise run bench:bencher"]
 alias = []
 depends = ["ci"]
 description = "Nightly pipeline (mirrors .github/workflows/nightly.yml): fuzz-all + bench"
-run = ["mise run fuzz:all", "mise run bench"]
+run = ["mise run fuzz:all", "mise run bench:criterion"]
 
 [tasks."actions:pins"]
 alias = ["uap"]

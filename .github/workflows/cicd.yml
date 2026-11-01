@@ -110,6 +110,7 @@ jobs:
       - uses: ./.github/actions/setup-rust-env
 
       - name: mise run bench
+        shell: bash
         run: mise run bench | tee bench-report.md
 
       - name: Publish the table

@@ -81,7 +81,8 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 - Run `mise run bench:gate` before merging any change to kernels, scheduling
   or the forward pass; rewriting a baseline is a reviewed change. Baselines
   live in `crates/rusticide-bench/baselines/<machine>.json`; results go to
-  `target/bench/`. Close heavy apps first: background load makes it flaky.
+  `target/bench/`. Baselines and gates are measured on a quiet machine on AC
+  power; the 0.05 tolerance holds there, a loaded desktop can trip it.
 - Full lint picture:
   `cargo clippy --keep-going --workspace --all-targets --all-features -- -D warnings`;
   without `--keep-going` the first failing crate hides the rest.
