@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-11-01
+
+### Features
+
+- **model:** keep block-quantized weights quantized
+- **model:** batch matmul and forward over tokens
+
+### Documentation
+
+- record the inference performance milestone
+
+### Performance
+
+- **quantize:** multiply weights in integer arithmetic
+- **quantize:** monomorphize the integer row kernels
+- **model:** share one parallel region per input
+- run the forward pass on the thread pool
+- **quantize:** unpack Q4_K scales a word at a time
+- **llama:** run the prompt as one batched pass
+- **quantize:** unpack Q5_0 once per token batch
+- **quantize:** batch the Q4_K and Q6_K dots
+- **llama:** run attention heads in parallel
+
+### Testing
+
+- **quantize:** vary every quant bit in the kernel checks
+- **model:** cover raw block access on every source
+
 ## [0.5.0] - 2026-10-31
 
 ### Features
