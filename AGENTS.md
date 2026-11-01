@@ -112,6 +112,12 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
   reproduces the pipeline locally for this machine's target.
 - Release binaries must run on every CPU of their target: never add
   `target-cpu=native` to committed config.
+- Actions are pinned to a commit SHA with the release as a trailing comment
+  (`uses: actions/checkout@<sha> # v7.0.1`), on purpose: the OSSF Scorecard
+  (`scorecards.yml`) scores pinned dependencies and releases are signed. This
+  overrides any "loosest tag" rule elsewhere. Never hand-edit a pin: run
+  `uv run --script scripts/update-actions-pins.py --write` (config
+  `.github/action-pins.toml`); `action-pin-checker.yml` verifies them.
 
 ## Code rules
 
