@@ -17,7 +17,6 @@ version.workspace = true
 
 [dependencies]
 half.workspace = true
-rayon.workspace = true
 rusticide-core.workspace = true
 rusticide-io.workspace = true
 rusticide-kernels.workspace = true

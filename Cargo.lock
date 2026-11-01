@@ -363,6 +363,7 @@ name = "rusticide-kernels"
 version = "0.6.0"
 dependencies = [
  "half",
+ "rayon",
  "rusticide-quantize",
 ]
 
@@ -385,7 +386,6 @@ name = "rusticide-model"
 version = "0.6.0"
 dependencies = [
  "half",
- "rayon",
  "rusticide-core",
  "rusticide-io",
  "rusticide-kernels",

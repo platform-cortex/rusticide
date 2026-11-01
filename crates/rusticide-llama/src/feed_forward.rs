@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_kernels::{mul_assign, silu_assign};
-use rusticide_model::matmul_batch;
+use rusticide_kernels::{matmul_batch, mul_assign, silu_assign};
 
 use crate::config::LlamaConfig;
 use crate::layout::to_token_major;
@@ -45,8 +44,8 @@ impl FeedForward {
             input,
             tokens,
             &mut [
-                (&block.ffn_gate, &mut self.gate),
-                (&block.ffn_up, &mut self.up),
+                (block.ffn_gate.weights(), &mut self.gate),
+                (block.ffn_up.weights(), &mut self.up),
             ],
         );
         silu_assign(&mut self.gate);
@@ -56,7 +55,7 @@ impl FeedForward {
         matmul_batch(
             &self.hidden,
             tokens,
-            &mut [(&block.ffn_down, &mut self.down)],
+            &mut [(block.ffn_down.weights(), &mut self.down)],
         );
         to_token_major(&self.down, tokens, output);
     }

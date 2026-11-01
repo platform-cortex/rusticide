@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rayon::prelude::*;
-use rusticide_kernels::{add_assign, dot_rows, softmax};
-use rusticide_model::{KvCache, Result, matmul_batch};
+use rusticide_kernels::{add_assign, dot_rows, matmul_batch, softmax};
+use rusticide_model::{KvCache, Result};
 
 use crate::config::LlamaConfig;
 use crate::layout::to_token_major;
@@ -134,7 +134,7 @@ impl Attention {
             cache.store(layer, position, key, value)?;
         }
         self.attend(cache.keys(layer), cache.values(layer), start);
-        let jobs = &mut [(&block.attn_output, &mut self.query_rows[..])];
+        let jobs = &mut [(block.attn_output.weights(), &mut self.query_rows[..])];
         matmul_batch(&self.mixed, tokens, jobs);
         to_token_major(&self.query_rows, tokens, output);
         Ok(())
@@ -174,9 +174,9 @@ impl Attention {
             input,
             tokens,
             &mut [
-                (&block.attn_q, &mut self.query_rows),
-                (&block.attn_k, &mut self.key_rows),
-                (&block.attn_v, &mut self.value_rows),
+                (block.attn_q.weights(), &mut self.query_rows),
+                (block.attn_k.weights(), &mut self.key_rows),
+                (block.attn_v.weights(), &mut self.value_rows),
             ],
         );
         self.query.resize(input.len(), 0.0);

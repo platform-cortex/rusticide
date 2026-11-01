@@ -4,10 +4,8 @@
 
 use half::f16;
 use rusticide_core::{DType, Tensor};
-use rusticide_kernels::{Q8Kind, QuantKernel, active, dot};
+use rusticide_kernels::{QuantKernel, Weights, active, matvec_batch};
 use rusticide_quantize::BlockFormat;
-
-use crate::batch::{Activations, matvec_batch};
 
 use crate::error::{ModelError, Result};
 use crate::source::ModelSource;
@@ -102,43 +100,27 @@ impl Matrix {
     }
 
     pub fn matvec(&self, input: &[f32], output: &mut [f32]) {
-        matvec_batch(input, &mut [(self, output)]);
+        matvec_batch(input, &mut [(self.weights(), output)]);
     }
 
-    /// The activation format the weights multiply against; `None` for
-    /// dense weights, which take the input as is.
-    pub(crate) const fn activation(&self) -> Option<Q8Kind> {
+    /// The weights as the matrix-product scheduler reads them.
+    #[must_use]
+    pub fn weights(&self) -> Weights<'_> {
         match &self.storage {
-            Storage::Dense(_) => None,
-            Storage::Blocks { kernel, .. } => Some(kernel.activation()),
-        }
-    }
-
-    /// Writes the products of rows `first_row..` with every token of the
-    /// input into `out`, the tokens of one row side by side.
-    pub(crate) fn compute_rows(&self, first_row: usize, out: &mut [f32], input: &Activations<'_>) {
-        let tokens = input.tokens().max(1);
-        match &self.storage {
-            Storage::Dense(data) => {
-                let rows = data.chunks_exact(self.cols).skip(first_row);
-                for (slots, row) in out.chunks_mut(tokens).zip(rows) {
-                    for (slot, token) in slots.iter_mut().zip(&input.dense) {
-                        *slot = dot(row, token);
-                    }
-                }
-            }
+            Storage::Dense(data) => Weights::Dense {
+                data,
+                cols: self.cols,
+            },
             Storage::Blocks {
                 kernel,
                 data,
                 row_bytes,
                 ..
-            } => {
-                let quantized = input.quantized(kernel.activation());
-                let rows = data.chunks_exact(*row_bytes).skip(first_row);
-                for (slots, row) in out.chunks_mut(tokens).zip(rows) {
-                    kernel.dot_rows(row, quantized, slots);
-                }
-            }
+            } => Weights::Blocks {
+                kernel,
+                data,
+                row_bytes: *row_bytes,
+            },
         }
     }
 }

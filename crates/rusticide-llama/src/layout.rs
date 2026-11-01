@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-/// Rewrites a [`rusticide_model::matmul_batch`] output, `by_row[row *
+/// Rewrites a [`rusticide_kernels::matmul_batch`] output, `by_row[row *
 /// tokens + token]`, as one row per token into `by_token`.
 pub(crate) fn to_token_major(by_row: &[f32], tokens: usize, by_token: &mut [f32]) {
     if tokens == 1 {
