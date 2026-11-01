@@ -160,10 +160,10 @@ impl BlockFormat {
 
     /// `blocks` blocks of pseudo-random bytes over the whole `u8` range, with
     /// every f16 scale field set to a finite value so no block dequantizes to
-    /// infinity or NaN.
+    /// infinity or NaN; `None` when the byte length overflows.
     #[must_use]
-    pub fn synthetic_blocks(&self, blocks: usize, seed: u32) -> Vec<u8> {
-        let mut data = pseudo_random_bytes(blocks * self.block_bytes, seed);
+    pub fn synthetic_blocks(&self, blocks: usize, seed: u32) -> Option<Vec<u8>> {
+        let mut data = pseudo_random_bytes(blocks.checked_mul(self.block_bytes)?, seed);
         for (index, block) in data.chunks_exact_mut(self.block_bytes).enumerate() {
             let scale = SYNTHETIC_SCALES[index % SYNTHETIC_SCALES.len()];
             for &offset in self.scale_offsets {
@@ -171,7 +171,7 @@ impl BlockFormat {
                     .copy_from_slice(&half::f16::from_f32(scale).to_le_bytes());
             }
         }
-        data
+        Some(data)
     }
 
     /// Dequantizes one row of whole blocks into `out`.

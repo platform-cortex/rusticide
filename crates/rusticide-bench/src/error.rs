@@ -24,10 +24,10 @@ pub enum BenchError {
         format: &'static str,
         columns: usize,
     },
+    #[error("synthetic {format} blocks do not fit in memory")]
+    TooLarge { format: &'static str },
     #[error("model error: {0}")]
     Model(#[from] rusticide_model::ModelError),
-    #[error("invalid json: {0}")]
-    Json(#[from] serde_json::Error),
 }
 
 #[cfg(test)]

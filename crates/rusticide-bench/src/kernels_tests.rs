@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use rusticide_quantize::block_format;
 
-use super::{kernel_metrics, layout, require_kernel};
+use super::{kernel_metrics, layout, require_kernel, synthetic};
 use crate::{BenchError, Plan};
 
 #[test]
@@ -56,4 +56,14 @@ fn a_format_without_a_kernel_is_an_error() {
         BenchError::MissingKernel { format: "Q4_0" }
     ));
     assert_eq!(error.to_string(), "no kernel for format Q4_0");
+}
+
+#[test]
+fn synthetic_data_too_large_for_memory_is_an_error() {
+    let error = synthetic(block_format(2).unwrap(), usize::MAX).unwrap_err();
+    assert!(matches!(error, BenchError::TooLarge { format: "Q4_0" }));
+    assert_eq!(
+        error.to_string(),
+        "synthetic Q4_0 blocks do not fit in memory"
+    );
 }

@@ -40,6 +40,6 @@ fn results_round_trip_through_json() {
 
 #[test]
 fn to_markdown_lists_one_row_per_metric_in_name_order() {
-    let expected = "| metric | median | spread |\n| --- | --- | --- |\n| alpha | 100.50 | 5.0% |\n| zeta | 2.00 | 25.0% |\n";
+    let expected = "| metric | best | median | spread |\n| --- | --- | --- | --- |\n| alpha | 105.00 | 100.50 | 5.0% |\n| zeta | 3.00 | 2.00 | 25.0% |\n";
     assert_eq!(results().to_markdown(), expected);
 }

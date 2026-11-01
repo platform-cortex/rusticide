@@ -17,14 +17,17 @@ pub struct Results {
 }
 
 impl Results {
-    /// One table row per metric: name, median and spread in percent.
+    /// One table row per metric: name, best (the figure the gate compares),
+    /// median and spread in percent.
     #[must_use]
     pub fn to_markdown(&self) -> String {
-        let mut table = String::from("| metric | median | spread |\n| --- | --- | --- |\n");
+        let mut table =
+            String::from("| metric | best | median | spread |\n| --- | --- | --- | --- |\n");
         for (name, sample) in &self.metrics {
             let _ = writeln!(
                 table,
-                "| {name} | {:.2} | {:.1}% |",
+                "| {name} | {:.2} | {:.2} | {:.1}% |",
+                sample.best,
                 sample.median,
                 sample.spread * 100.0
             );

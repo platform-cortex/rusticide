@@ -53,7 +53,7 @@ fn dot_row_matches_the_dequantized_operands_for_every_format() {
     for (seed, format) in (1..).zip(formats()) {
         let kernel = kernel(format);
         let blocks = 2;
-        let row = format.synthetic_blocks(blocks, seed);
+        let row = format.synthetic_blocks(blocks, seed).unwrap();
         let numel = blocks * format.block_size();
         let input = quantized(numel, seed + 100, kernel.activation());
         let mut values = vec![0.0; numel];
@@ -84,7 +84,7 @@ fn dot_rows_matches_one_dot_row_per_input_bit_for_bit() {
         let kernel = kernel(format);
         // Past one run of unpacked blocks for every format, ending mid-run.
         let blocks = 1280 / format.block_size() + 1;
-        let row = format.synthetic_blocks(blocks, seed);
+        let row = format.synthetic_blocks(blocks, seed).unwrap();
         let inputs: Vec<Q8Input> = (0..3)
             .map(|token| {
                 quantized(

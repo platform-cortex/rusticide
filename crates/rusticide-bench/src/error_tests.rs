@@ -28,14 +28,6 @@ fn missing_metric_message_names_it() {
 }
 
 #[test]
-fn json_errors_convert() {
-    let parse = serde_json::from_str::<u8>("x").unwrap_err();
-    let error = BenchError::from(parse);
-    assert!(matches!(error, BenchError::Json(_)));
-    assert!(error.to_string().starts_with("invalid json: "));
-}
-
-#[test]
 fn not_finite_message() {
     assert_eq!(
         BenchError::NotFinite.to_string(),

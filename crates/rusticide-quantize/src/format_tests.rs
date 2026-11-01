@@ -126,7 +126,7 @@ fn dequantize_of_an_overflowing_byte_length_is_too_short() {
 #[test]
 fn dequantize_row_matches_dequantize_for_every_format() {
     for (seed, format) in (1..).zip(formats()) {
-        let row = format.synthetic_blocks(2, seed);
+        let row = format.synthetic_blocks(2, seed).unwrap();
         let numel = 2 * format.block_size;
         let expected = format
             .dequantize(&row, &[numel])
@@ -151,7 +151,7 @@ fn row_bytes_needs_whole_blocks() {
 fn synthetic_blocks_dequantize_to_finite_values() {
     for (seed, format) in (1..).zip(formats()) {
         let blocks = 4;
-        let data = format.synthetic_blocks(blocks, seed);
+        let data = format.synthetic_blocks(blocks, seed).unwrap();
         assert_eq!(data.len(), blocks * format.block_bytes, "{}", format.name);
         let values = format
             .dequantize(&data, &[blocks * format.block_size])
@@ -160,5 +160,17 @@ fn synthetic_blocks_dequantize_to_finite_values() {
             .unwrap();
         assert!(values.iter().all(|v| v.is_finite()), "{}", format.name);
         assert!(values.iter().any(|v| *v != 0.0), "{}", format.name);
+    }
+}
+
+#[test]
+fn synthetic_blocks_that_overflow_are_none() {
+    for format in formats() {
+        assert_eq!(
+            format.synthetic_blocks(usize::MAX, 1),
+            None,
+            "{}",
+            format.name
+        );
     }
 }

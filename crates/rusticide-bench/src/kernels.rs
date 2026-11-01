@@ -64,6 +64,14 @@ fn require_kernel(
     })
 }
 
+fn synthetic(format: &BlockFormat, blocks: usize) -> Result<Vec<u8>, BenchError> {
+    format
+        .synthetic_blocks(blocks, 1)
+        .ok_or_else(|| BenchError::TooLarge {
+            format: format.name(),
+        })
+}
+
 /// A synthetic `ROWS` x `columns` matrix of `format`, its row length in
 /// bytes, and the kernels that read it.
 fn layout(
@@ -78,7 +86,7 @@ fn layout(
             columns,
         })?;
     let kernel = require_kernel(format, active().quant_kernel(format.type_id()))?;
-    let matrix = format.synthetic_blocks(count(ROWS) * columns / format.block_size(), 1);
+    let matrix = synthetic(format, count(ROWS) * columns / format.block_size())?;
     Ok((matrix, row_bytes, kernel))
 }
 
