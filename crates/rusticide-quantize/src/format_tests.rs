@@ -223,7 +223,8 @@ fn every_format_block_spans_whole_activation_blocks() {
 #[test]
 fn dot_rows_q8_matches_one_dot_row_q8_per_input_bit_for_bit() {
     for (seed, format) in (1..).zip(formats()) {
-        let blocks = 256 / format.block_size + 1;
+        // Past one run of unpacked blocks for every format, ending mid-run.
+        let blocks = 1280 / format.block_size + 1;
         let row = random_blocks(format, blocks, seed);
         let inputs: Vec<Q8Input> = (0..3)
             .map(|token| {
@@ -245,4 +246,14 @@ fn dot_rows_q8_matches_one_dot_row_q8_per_input_bit_for_bit() {
         assert_eq!(out.map(f32::to_bits), *expected, "{}", format.name);
         assert_ne!(out[0], out[1], "{}", format.name);
     }
+}
+
+#[test]
+fn batched_kernels_cover_q5_0_and_the_k_formats() {
+    let batched: Vec<&str> = formats()
+        .iter()
+        .filter(|format| format.dot_rows.is_some())
+        .map(|format| format.name)
+        .collect();
+    assert_eq!(batched, ["Q5_0", "Q4_K", "Q6_K"]);
 }

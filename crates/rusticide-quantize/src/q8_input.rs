@@ -139,23 +139,25 @@ impl Q8Input {
             .collect()
     }
 
-    /// The scales and quants of the blocks from `first` on.
-    pub(crate) fn blocks_from(&self, first: usize) -> (&[f32], &[[i8; Q8_BLOCK]]) {
-        let (blocks, _) = self.quants.as_chunks::<Q8_BLOCK>();
-        let scales = self.scales.get(first..).unwrap_or_default();
-        (scales, blocks.get(first..).unwrap_or_default())
-    }
-
     /// Consecutive runs of `K` blocks, one per weight block.
     pub(crate) fn spans<const K: usize>(&self) -> impl Iterator<Item = Span<'_, K>> {
+        self.spans_from(0)
+    }
+
+    /// [`Self::spans`] from the span of weight block `first` on.
+    pub(crate) fn spans_from<const K: usize>(
+        &self,
+        first: usize,
+    ) -> impl Iterator<Item = Span<'_, K>> {
         let (blocks, _) = self.quants.as_chunks::<Q8_BLOCK>();
         let (quants, _) = blocks.as_chunks::<K>();
         let (scales, _) = self.scales.as_chunks::<K>();
         let (sums, _) = self.sums.as_chunks::<K>();
-        scales
+        let tail = |len: usize| first.min(len)..;
+        scales[tail(scales.len())]
             .iter()
-            .zip(quants)
-            .zip(sums)
+            .zip(&quants[tail(quants.len())])
+            .zip(&sums[tail(sums.len())])
             .map(|((scales, quants), sums)| Span {
                 scales,
                 quants,

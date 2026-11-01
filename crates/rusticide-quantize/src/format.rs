@@ -57,7 +57,7 @@ static FORMATS: [BlockFormat; 5] = [
         block_bytes: q4_k::Q4_K_BLOCK_BYTES,
         dequantize_block: q4_k::dequantize_block,
         dot_q8: int_dot::q4_k,
-        dot_rows: None,
+        dot_rows: Some(int_dot::q4_k_rows),
         activation: Q8Kind::SuperBlock,
     },
     BlockFormat {
@@ -67,7 +67,7 @@ static FORMATS: [BlockFormat; 5] = [
         block_bytes: q6_k::Q6_K_BLOCK_BYTES,
         dequantize_block: q6_k::dequantize_block,
         dot_q8: int_dot::q6_k,
-        dot_rows: None,
+        dot_rows: Some(int_dot::q6_k_rows),
         activation: Q8Kind::SuperBlock,
     },
     BlockFormat {
