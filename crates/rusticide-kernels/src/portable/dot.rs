@@ -6,7 +6,7 @@ const LANES: usize = 8;
 
 /// Dot product. The shorter slice bounds the work.
 #[must_use]
-pub fn dot(lhs: &[f32], rhs: &[f32]) -> f32 {
+pub(super) fn dot(lhs: &[f32], rhs: &[f32]) -> f32 {
     let (lhs_blocks, lhs_tail) = lhs.as_chunks::<LANES>();
     let (rhs_blocks, rhs_tail) = rhs.as_chunks::<LANES>();
     let mut lanes = [0.0_f32; LANES];
@@ -17,6 +17,19 @@ pub fn dot(lhs: &[f32], rhs: &[f32]) -> f32 {
     }
     let tail: f32 = lhs_tail.iter().zip(rhs_tail).map(|(&a, &b)| a * b).sum();
     lanes.iter().sum::<f32>() + tail
+}
+
+pub(super) fn dot_rows(
+    query: &[f32],
+    rows: &[f32],
+    row_stride: usize,
+    offset: usize,
+    scale: f32,
+    out: &mut [f32],
+) {
+    for (slot, row) in out.iter_mut().zip(rows.chunks_exact(row_stride.max(1))) {
+        *slot = dot(query, row.get(offset..).unwrap_or_default()) / scale;
+    }
 }
 
 #[cfg(test)]
@@ -37,5 +50,22 @@ mod tests {
     #[test]
     fn dot_is_bounded_by_the_shorter_slice() {
         assert_eq!(dot(&[1.0, 2.0, 3.0], &[1.0, 1.0]), 3.0);
+    }
+
+    #[test]
+    fn dot_rows_scores_each_stride_window() {
+        let rows = [1.0, 2.0, 9.0, 3.0, 4.0, 9.0];
+        let mut out = [0.0; 2];
+        dot_rows(&[1.0, 1.0], &rows, 3, 0, 2.0, &mut out);
+        assert_eq!(out, [1.5, 3.5]);
+        dot_rows(&[1.0], &rows, 3, 2, 1.0, &mut out);
+        assert_eq!(out, [9.0, 9.0]);
+    }
+
+    #[test]
+    fn dot_rows_with_an_offset_past_the_row_scores_zero() {
+        let mut out = [1.0];
+        dot_rows(&[1.0], &[1.0, 2.0], 2, 5, 1.0, &mut out);
+        assert_eq!(out, [0.0]);
     }
 }

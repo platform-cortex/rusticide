@@ -7,17 +7,17 @@
 //! Mismatched slice lengths never panic: kernels iterate with `zip`, so the
 //! shorter slice bounds the work. Callers validate lengths.
 
-mod dot;
-mod elementwise;
-mod norm;
-mod rope;
+mod adapter;
+mod facade;
+mod portable;
 #[cfg(test)]
 mod test_support;
 
-pub use dot::dot;
-pub use elementwise::{add_assign, mul_assign, silu};
-pub use norm::{rms_norm, softmax};
-pub use rope::{rope_adjacent, rope_half_split};
+pub use adapter::{Adapter, active};
+pub use facade::{
+    add_assign, dot, dot_rows, mul_assign, rms_norm, rope_adjacent, rope_half_split, silu_assign,
+    softmax,
+};
 
 #[expect(
     clippy::cast_precision_loss,

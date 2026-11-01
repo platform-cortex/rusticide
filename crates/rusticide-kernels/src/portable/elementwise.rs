@@ -2,21 +2,26 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-/// Sigmoid linear unit: `value / (1 + exp(-value))`.
-#[must_use]
-pub fn silu(value: f32) -> f32 {
+#[inline]
+fn silu(value: f32) -> f32 {
     value / (1.0 + (-value).exp())
 }
 
+pub(super) fn silu_assign(values: &mut [f32]) {
+    for value in values {
+        *value = silu(*value);
+    }
+}
+
 /// Element-wise `target *= factor`; the shorter slice bounds the work.
-pub fn mul_assign(target: &mut [f32], factor: &[f32]) {
+pub(super) fn mul_assign(target: &mut [f32], factor: &[f32]) {
     for (slot, &by) in target.iter_mut().zip(factor) {
         *slot *= by;
     }
 }
 
 /// Element-wise `target += addend`; the shorter slice bounds the work.
-pub fn add_assign(target: &mut [f32], addend: &[f32]) {
+pub(super) fn add_assign(target: &mut [f32], addend: &[f32]) {
     for (slot, &by) in target.iter_mut().zip(addend) {
         *slot += by;
     }
@@ -27,14 +32,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn silu_of_zero_is_zero() {
-        assert_eq!(silu(0.0), 0.0);
+    fn silu_assign_of_zero_is_zero() {
+        let mut values = [0.0];
+        silu_assign(&mut values);
+        assert_eq!(values, [0.0]);
     }
 
     #[test]
-    fn silu_matches_the_definition() {
+    fn silu_assign_matches_the_definition() {
         let expected = 2.0_f32 / (1.0 + (-2.0_f32).exp());
-        assert_eq!(silu(2.0), expected);
+        let mut values = [2.0, 2.0];
+        silu_assign(&mut values);
+        assert_eq!(values, [expected, expected]);
     }
 
     #[test]

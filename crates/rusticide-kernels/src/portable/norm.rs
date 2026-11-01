@@ -5,7 +5,7 @@
 use crate::lossy;
 
 /// Divides the row by `sqrt(mean(x^2) + eps)`. An empty row is a no-op.
-pub fn rms_norm(row: &mut [f32], eps: f32) {
+pub(super) fn rms_norm(row: &mut [f32], eps: f32) {
     let mean_square = row.iter().map(|&value| value * value).sum::<f32>() / lossy(row.len());
     let rms = (mean_square + eps).sqrt();
     for value in row.iter_mut() {
@@ -14,7 +14,7 @@ pub fn rms_norm(row: &mut [f32], eps: f32) {
 }
 
 /// Max-subtracted softmax in place. An empty row is a no-op.
-pub fn softmax(row: &mut [f32]) {
+pub(super) fn softmax(row: &mut [f32]) {
     let max = row
         .iter()
         .fold(f32::NEG_INFINITY, |acc, &value| acc.max(value));

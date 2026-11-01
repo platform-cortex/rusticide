@@ -13,7 +13,7 @@ fn rotate(low: &mut f32, high: &mut f32, position: f32, frequency: f32) {
 
 /// Rotates adjacent pairs `(2p, 2p+1)` for `p < min(dim_pairs, row.len() / 2)`
 /// by angle `position * theta^(-2p / row.len())`.
-pub fn rope_adjacent(row: &mut [f32], position: usize, theta: f32, dim_pairs: usize) {
+pub(super) fn rope_adjacent(row: &mut [f32], position: usize, theta: f32, dim_pairs: usize) {
     let columns = lossy(row.len());
     let position = lossy(position);
     let (pairs, _) = row.as_chunks_mut::<2>();
@@ -25,7 +25,7 @@ pub fn rope_adjacent(row: &mut [f32], position: usize, theta: f32, dim_pairs: us
 /// Rotates the half-split pairs `(p, p + row.len() / 2)` for
 /// `p < min(dim_pairs, row.len() / 2)` by angle
 /// `position * theta^(-2p / row.len())`.
-pub fn rope_half_split(row: &mut [f32], position: usize, theta: f32, dim_pairs: usize) {
+pub(super) fn rope_half_split(row: &mut [f32], position: usize, theta: f32, dim_pairs: usize) {
     let columns = lossy(row.len());
     let position = lossy(position);
     let (first, second) = row.split_at_mut(row.len() / 2);

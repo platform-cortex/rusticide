@@ -11,7 +11,9 @@ pub(super) fn scale(input: &Tensor, factor: f32) -> Result<Tensor> {
 }
 
 pub(super) fn silu(input: &Tensor) -> Result<Tensor> {
-    map_f32(input, rusticide_kernels::silu)
+    let mut values = input.to_vec::<f32>()?;
+    rusticide_kernels::silu_assign(&mut values);
+    Ok(Tensor::from_slice(&values, input.shape().dims())?)
 }
 
 /// Applies `function` to every element, in place on the fallibly allocated

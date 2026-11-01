@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_kernels::{mul_assign, silu};
+use rusticide_kernels::{mul_assign, silu_assign};
 use rusticide_model::matmul_batch;
 
 use crate::config::LlamaConfig;
@@ -49,9 +49,7 @@ impl FeedForward {
                 (&block.ffn_up, &mut self.up),
             ],
         );
-        for value in &mut self.gate {
-            *value = silu(*value);
-        }
+        silu_assign(&mut self.gate);
         mul_assign(&mut self.gate, &self.up);
         to_token_major(&self.gate, tokens, &mut self.hidden);
         self.down.resize(input.len(), 0.0);
