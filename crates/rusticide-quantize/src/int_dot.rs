@@ -2,29 +2,20 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Integer dot kernels: one weight block against the [`Q8Input`] blocks it
-//! spans. Weights are unpacked to `i8` on the stack and multiplied in `i32`,
-//! which the compiler vectorizes; floats appear only once per 16 or 32
-//! elements, for the scales.
-//!
-//! [`Q8Input`]: crate::Q8Input
+//! Integer dot kernels: a quantized row against a [`Q8Input`]. Each format's
+//! row function is monomorphized over fixed-size blocks, so every inner loop
+//! has a compile-time length; weights are unpacked to `i8` on the stack and
+//! multiplied in `i32`, which the compiler vectorizes (to `sdot` where the
+//! target has it). Floats appear only once per 16 or 32 elements.
 
 use crate::half_bits::read_f16_le;
-use crate::q8_input::{Q8_BLOCK, Q8Blocks};
+use crate::q8_input::{Q8_BLOCK, Q8Input, Span};
 
 const HALF: usize = Q8_BLOCK / 2;
 
-fn dot_i8<const N: usize>(weights: &[i8; N], quants: &[i8]) -> i32 {
-    weights
-        .iter()
-        .zip(quants)
-        .map(|(&w, &q)| i32::from(w) * i32::from(q))
-        .sum()
-}
-
 #[expect(
     clippy::cast_precision_loss,
-    reason = "an i32 block sum is far below 2^24 in magnitude for i8 x i8 over 32 lanes"
+    reason = "a block sum past 2^24 loses low bits, as ggml's int-to-float conversion does"
 )]
 const fn lossy(value: i32) -> f32 {
     value as f32
@@ -35,32 +26,77 @@ const fn signed(value: u8) -> i8 {
     value.cast_signed()
 }
 
-pub(crate) fn q8_0(block: &[u8], input: Q8Blocks<'_>) -> f32 {
-    let mut weights = [0_i8; Q8_BLOCK];
-    for (weight, &byte) in weights.iter_mut().zip(&block[2..]) {
-        *weight = byte.cast_signed();
-    }
-    read_f16_le(block, 0) * input.scales[0] * lossy(dot_i8(&weights, input.quants))
+/// Sums `kernel` over the `BYTES`-byte blocks of `row` and the [`Span`]s of
+/// `K` activation blocks each covers.
+fn dot_row<const BYTES: usize, const K: usize>(
+    row: &[u8],
+    input: &Q8Input,
+    kernel: impl Fn(&[u8; BYTES], Span<'_, K>) -> f32,
+) -> f32 {
+    let (blocks, _) = row.as_chunks::<BYTES>();
+    blocks
+        .iter()
+        .zip(input.spans::<K>())
+        .map(|(block, span)| kernel(block, span))
+        .sum()
 }
 
-pub(crate) fn q4_0(block: &[u8], input: Q8Blocks<'_>) -> f32 {
-    let mut weights = [0_i8; Q8_BLOCK];
-    for (index, &byte) in block[2..2 + HALF].iter().enumerate() {
-        weights[index] = signed(byte & 0x0F) - 8;
-        weights[index + HALF] = signed(byte >> 4) - 8;
-    }
-    read_f16_le(block, 0) * input.scales[0] * lossy(dot_i8(&weights, input.quants))
+pub(crate) fn q8_0(row: &[u8], input: &Q8Input) -> f32 {
+    dot_row::<34, 1>(row, input, |block, span| {
+        let product: i32 = block[2..]
+            .iter()
+            .zip(&span.quants[0])
+            .map(|(&w, &q)| i32::from(w.cast_signed()) * i32::from(q))
+            .sum();
+        read_f16_le(block, 0) * span.scales[0] * lossy(product)
+    })
 }
 
-pub(crate) fn q5_0(block: &[u8], input: Q8Blocks<'_>) -> f32 {
-    let high_bits = u32::from_le_bytes([block[2], block[3], block[4], block[5]]);
-    let fifth = |bit: usize| u8::from((high_bits >> bit) & 1 != 0) << 4;
-    let mut weights = [0_i8; Q8_BLOCK];
-    for (index, &byte) in block[6..6 + HALF].iter().enumerate() {
-        weights[index] = signed((byte & 0x0F) | fifth(index)) - 16;
-        weights[index + HALF] = signed((byte >> 4) | fifth(index + HALF)) - 16;
+pub(crate) fn q4_0(row: &[u8], input: &Q8Input) -> f32 {
+    dot_row::<18, 1>(row, input, |block, span| {
+        let (low_q, high_q) = span.quants[0].split_at(HALF);
+        let mut sum = 0_i32;
+        for ((&byte, &lq), &hq) in block[2..].iter().zip(low_q).zip(high_q) {
+            sum += i32::from(signed(byte & 0x0F) - 8) * i32::from(lq);
+            sum += i32::from(signed(byte >> 4) - 8) * i32::from(hq);
+        }
+        read_f16_le(block, 0) * span.scales[0] * lossy(sum)
+    })
+}
+
+/// Byte `b` spread to eight bytes: byte `i` is `0x10` when bit `i` of `b` is
+/// set, the fifth bit of eight `Q5_0` values at once (ggml `table_b2b_1`).
+const FIFTH_BITS: [u64; 256] = {
+    let mut table = [0_u64; 256];
+    let mut byte = 0;
+    while byte < 256 {
+        let mut bit = 0;
+        while bit < 8 {
+            if byte >> bit & 1 != 0 {
+                table[byte] |= 0x10 << (8 * bit);
+            }
+            bit += 1;
+        }
+        byte += 1;
     }
-    read_f16_le(block, 0) * input.scales[0] * lossy(dot_i8(&weights, input.quants))
+    table
+};
+
+pub(crate) fn q5_0(row: &[u8], input: &Q8Input) -> f32 {
+    dot_row::<22, 1>(row, input, |block, span| {
+        let mut fifth = [0_u8; Q8_BLOCK];
+        for (spread, &bits) in fifth.as_chunks_mut::<8>().0.iter_mut().zip(&block[2..6]) {
+            *spread = FIFTH_BITS[usize::from(bits)].to_le_bytes();
+        }
+        let quants = &span.quants[0];
+        let mut sum = 0_i32;
+        for (i, &byte) in block[6..].iter().enumerate() {
+            sum += i32::from(signed((byte & 0x0F) | fifth[i]) - 16) * i32::from(quants[i]);
+            sum +=
+                i32::from(signed((byte >> 4) | fifth[i + HALF]) - 16) * i32::from(quants[i + HALF]);
+        }
+        read_f16_le(block, 0) * span.scales[0] * lossy(sum)
+    })
 }
 
 /// ggml `get_scale_min_k4`.
@@ -74,30 +110,63 @@ const fn scale_min_k4(j: usize, scales: &[u8]) -> (u8, u8) {
     }
 }
 
-/// `Q4_K`: eight 32-element sub-blocks, each `d * scale * q - dmin * min`.
-/// The `min` term needs only the input block's sum.
-pub(crate) fn q4_k(block: &[u8], input: Q8Blocks<'_>) -> f32 {
-    let scales = &block[4..16];
-    let mut by_scale = 0.0_f32;
-    let mut by_min = 0.0_f32;
-    let (pairs, _) = block[16..144].as_chunks::<Q8_BLOCK>();
-    let (activations, _) = input.quants.as_chunks::<Q8_BLOCK>();
-    for (pair, packed) in pairs.iter().enumerate() {
-        let mut low = [0_i8; Q8_BLOCK];
-        let mut high = [0_i8; Q8_BLOCK];
-        for ((l, h), &byte) in low.iter_mut().zip(high.iter_mut()).zip(packed) {
-            *l = signed(byte & 0x0F);
-            *h = signed(byte >> 4);
-        }
-        for (sub, weights) in [(2 * pair, &low), (2 * pair + 1, &high)] {
-            let (scale, min) = scale_min_k4(sub, scales);
-            let x_scale = input.scales[sub];
-            let product = lossy(dot_i8(weights, &activations[sub]));
-            by_scale = (x_scale * f32::from(scale)).mul_add(product, by_scale);
-            by_min = (x_scale * f32::from(min)).mul_add(lossy(input.sums[sub]), by_min);
-        }
+/// The dot products of 32 packed bytes' low and high nibbles, each offset by
+/// -8, with two activation blocks.
+#[inline]
+fn pair_dots(
+    packed: &[u8; Q8_BLOCK],
+    low_q: &[i8; Q8_BLOCK],
+    high_q: &[i8; Q8_BLOCK],
+) -> (i32, i32) {
+    let mut low = 0_i32;
+    let mut high = 0_i32;
+    for ((&byte, &lq), &hq) in packed.iter().zip(low_q).zip(high_q) {
+        low += i32::from(signed(byte & 0x0F) - 8) * i32::from(lq);
+        high += i32::from(signed(byte >> 4) - 8) * i32::from(hq);
     }
-    read_f16_le(block, 2).mul_add(-by_min, read_f16_le(block, 0) * by_scale)
+    (low, high)
+}
+
+/// The eight 6-bit scales and mins of a `Q4_K` block.
+fn k4_scales_and_mins(packed: &[u8]) -> ([u8; 8], [u8; 8]) {
+    let pairs: [(u8, u8); 8] = std::array::from_fn(|j| scale_min_k4(j, packed));
+    (pairs.map(|(scale, _)| scale), pairs.map(|(_, min)| min))
+}
+
+/// `Q4_K`: eight 32-element sub-blocks, each `d * scale * q - dmin * min`.
+/// Its activations are `Q8_K`, one scale per block, so the sub-blocks
+/// accumulate in `i32` and convert to float once, as ggml does.
+pub(crate) fn q4_k(row: &[u8], input: &Q8Input) -> f32 {
+    dot_row::<144, 8>(row, input, |block, span| {
+        let (scales, mins) = k4_scales_and_mins(&block[4..16]);
+        let (pairs, _) = block[16..].as_chunks::<Q8_BLOCK>();
+        let (quant_pairs, _) = span.quants.as_chunks::<2>();
+        let (scale_pairs, _) = scales.as_chunks::<2>();
+        let mut sum = 0_i32;
+        for ((packed, [low_q, high_q]), [low_scale, high_scale]) in
+            pairs.iter().zip(quant_pairs).zip(scale_pairs)
+        {
+            let (low, high) = pair_dots(packed, low_q, high_q);
+            sum += i32::from(*low_scale) * low;
+            sum += i32::from(*high_scale) * high;
+        }
+        // The nibbles were offset by -8 so both operands are signed, which is
+        // what lets the compiler pick a signed dot instruction; add it back.
+        let offset: i32 = scales
+            .iter()
+            .zip(span.sums)
+            .map(|(&c, &s)| i32::from(c) * s)
+            .sum();
+        sum += 8 * offset;
+        let min_sum: i32 = mins
+            .iter()
+            .zip(span.sums)
+            .map(|(&m, &s)| i32::from(m) * s)
+            .sum();
+        let d = read_f16_le(block, 0);
+        let dmin = read_f16_le(block, 2);
+        span.scales[0] * d.mul_add(lossy(sum), -(dmin * lossy(min_sum)))
+    })
 }
 
 /// One `Q6_K` value: four low bits, two high bits, offset by 32.
@@ -105,40 +174,31 @@ const fn six_bit(low: u8, high: u8, shift: u32) -> i8 {
     signed(low | (((high >> shift) & 3) << 4)) - 32
 }
 
-/// The four 32-element runs of one `Q6_K` half block.
-fn q6_k_runs(low: &[u8], high: &[u8]) -> [[i8; Q8_BLOCK]; 4] {
-    let mut runs = [[0_i8; Q8_BLOCK]; 4];
-    for (l, (&h, (&first, &second))) in high.iter().zip(low.iter().zip(&low[32..])).enumerate() {
-        runs[0][l] = six_bit(first & 0x0F, h, 0);
-        runs[1][l] = six_bit(second & 0x0F, h, 2);
-        runs[2][l] = six_bit(first >> 4, h, 4);
-        runs[3][l] = six_bit(second >> 4, h, 6);
-    }
-    runs
-}
-
 /// `Q6_K`: two halves of 128, each four 32-element runs whose two 16-element
-/// halves carry their own signed scale.
-pub(crate) fn q6_k(block: &[u8], input: Q8Blocks<'_>) -> f32 {
-    let (activations, _) = input.quants.as_chunks::<HALF>();
-    let mut total = 0.0_f32;
-    for half in 0..2 {
-        let runs = q6_k_runs(
-            &block[64 * half..64 * half + 64],
-            &block[128 + 32 * half..160 + 32 * half],
-        );
-        let scales = &block[192 + 8 * half..200 + 8 * half];
-        for (run, weights) in runs.iter().enumerate() {
-            let index = 4 * half + run;
-            let (groups, _) = weights.as_chunks::<HALF>();
-            let sum: i32 = groups
-                .iter()
-                .zip(&activations[2 * index..2 * index + 2])
-                .zip(&scales[2 * run..2 * run + 2])
-                .map(|((w, q), &scale)| i32::from(scale.cast_signed()) * dot_i8(w, q))
-                .sum();
-            total = input.scales[index].mul_add(lossy(sum), total);
+/// halves carry their own signed scale. Like `Q4_K`, it pairs with `Q8_K`
+/// activations and accumulates in `i32`.
+pub(crate) fn q6_k(row: &[u8], input: &Q8Input) -> f32 {
+    dot_row::<210, 8>(row, input, |block, span| {
+        let mut sum = 0_i32;
+        let (halves, _) = span.quants.as_chunks::<4>();
+        for (half, quants) in halves.iter().enumerate() {
+            let low = &block[64 * half..64 * half + 64];
+            let high = &block[128 + 32 * half..160 + 32 * half];
+            let scales = &block[192 + 8 * half..200 + 8 * half];
+            for group in 0..2 {
+                let mut runs = [0_i32; 4];
+                for l in HALF * group..HALF * (group + 1) {
+                    let (first, second, bits) = (low[l], low[l + 32], high[l]);
+                    runs[0] += i32::from(six_bit(first & 0x0F, bits, 0)) * i32::from(quants[0][l]);
+                    runs[1] += i32::from(six_bit(second & 0x0F, bits, 2)) * i32::from(quants[1][l]);
+                    runs[2] += i32::from(six_bit(first >> 4, bits, 4)) * i32::from(quants[2][l]);
+                    runs[3] += i32::from(six_bit(second >> 4, bits, 6)) * i32::from(quants[3][l]);
+                }
+                for (run, partial) in runs.iter().enumerate() {
+                    sum += i32::from(scales[2 * run + group].cast_signed()) * partial;
+                }
+            }
         }
-    }
-    read_f16_le(block, 208) * total
+        read_f16_le(block, 208) * span.scales[0] * lossy(sum)
+    })
 }

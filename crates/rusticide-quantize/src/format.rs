@@ -7,7 +7,7 @@
 use rusticide_core::{Shape, Tensor};
 
 use crate::error::{QuantizeError, ensure_aligned, ensure_len, zeroed_f32};
-use crate::q8_input::{Q8Blocks, Q8Input, Q8Kind};
+use crate::q8_input::{Q8Input, Q8Kind};
 use crate::{int_dot, q4_0, q4_k, q5_0, q6_k, q8_0};
 
 /// One block-quantized GGML format.
@@ -19,8 +19,8 @@ pub struct BlockFormat {
     block_bytes: usize,
     /// Receives exactly `block_bytes` bytes and `block_size` outputs.
     dequantize_block: fn(block: &[u8], out: &mut [f32]),
-    /// Receives one block and the [`Q8Input`] blocks spanning it.
-    dot_q8: fn(block: &[u8], input: Q8Blocks<'_>) -> f32,
+    /// One row of whole blocks against a [`Q8Input`].
+    dot_q8: fn(row: &[u8], input: &Q8Input) -> f32,
     activation: Q8Kind,
 }
 
@@ -162,10 +162,7 @@ impl BlockFormat {
     /// integer arithmetic. The shorter of the two bounds the work.
     #[must_use]
     pub fn dot_row_q8(&self, row: &[u8], input: &Q8Input) -> f32 {
-        row.chunks_exact(self.block_bytes)
-            .zip(input.chunks(self.block_size))
-            .map(|(block, inputs)| (self.dot_q8)(block, inputs))
-            .sum()
+        (self.dot_q8)(row, input)
     }
 
     /// Dequantizes one row of whole blocks into `out`.

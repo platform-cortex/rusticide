@@ -19,12 +19,12 @@ pub struct Q8Input {
     sums: Vec<i32>,
 }
 
-/// The [`Q8Input`] blocks covering one weight block.
+/// The `K` [`Q8Input`] blocks covering one weight block.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Q8Blocks<'a> {
-    pub(crate) scales: &'a [f32],
-    pub(crate) quants: &'a [i8],
-    pub(crate) sums: &'a [i32],
+pub(crate) struct Span<'a, const K: usize> {
+    pub(crate) scales: &'a [f32; K],
+    pub(crate) quants: &'a [[i8; Q8_BLOCK]; K],
+    pub(crate) sums: &'a [i32; K],
 }
 
 /// How [`Q8Input::quantize`] scales the activation, after ggml: matching the
@@ -105,14 +105,17 @@ impl Q8Input {
             .collect()
     }
 
-    /// Runs of `block_size` elements, one per weight block.
-    pub(crate) fn chunks(&self, block_size: usize) -> impl Iterator<Item = Q8Blocks<'_>> {
-        let per_block = block_size / Q8_BLOCK;
-        self.scales
-            .chunks_exact(per_block)
-            .zip(self.quants.chunks_exact(block_size))
-            .zip(self.sums.chunks_exact(per_block))
-            .map(|((scales, quants), sums)| Q8Blocks {
+    /// Consecutive runs of `K` blocks, one per weight block.
+    pub(crate) fn spans<const K: usize>(&self) -> impl Iterator<Item = Span<'_, K>> {
+        let (blocks, _) = self.quants.as_chunks::<Q8_BLOCK>();
+        let (quants, _) = blocks.as_chunks::<K>();
+        let (scales, _) = self.scales.as_chunks::<K>();
+        let (sums, _) = self.sums.as_chunks::<K>();
+        scales
+            .iter()
+            .zip(quants)
+            .zip(sums)
+            .map(|((scales, quants), sums)| Span {
                 scales,
                 quants,
                 sums,
