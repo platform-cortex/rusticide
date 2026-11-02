@@ -50,7 +50,9 @@ jobs:
     uses: ./.github/workflows/version.yml
 
   # The same gate a developer runs before pushing: fmt, cargo-sort, taplo,
-  # version/lock drift, clippy and the 100% tarpaulin coverage gate.
+  # version/lock drift, clippy and the 100% tarpaulin coverage gate. On an
+  # x86_64 runner (GitHub's have AVX2) the release binary must then select
+  # `avx2`, as the arm job checks `neon`.
   gates:
     name: Gates (mise run ci:quick)
     needs: [version]
@@ -71,6 +73,13 @@ jobs:
         env:
           RUST_COVERAGE_THRESHOLD: ${{ vars.RUST_COVERAGE_THRESHOLD || '100' }}
         run: mise run ci:quick
+
+      - name: The release binary selects the avx2 kernels
+        if: runner.arch == 'X64'
+        run: |
+          version="$(cargo run --release -p rusticide --features cli -- version)"
+          printf '%s\n' "$version"
+          grep -qx 'kernels: avx2' <<<"$version"
 
       # tarpaulin.toml writes cobertura.xml and lcov.info; both are absent
       # when the gate fails before the coverage step, hence the hashFiles guard.

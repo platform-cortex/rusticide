@@ -96,10 +96,11 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 ## CI/CD and releases
 
 - `.github/workflows/cicd.yml` runs on every push and pull request: `version`
-  (GitVersion, `version.yml`), then `gates` (`mise run ci:quick`), `arm`
+  (GitVersion, `version.yml`), then `gates` (`mise run ci:quick`, then on
+  an x86_64 runner `rusticide version` must print `kernels: avx2`), `arm`
   (the same gate on Linux arm64, adapters selected at run time, then
   `rusticide version` must print `kernels: neon`), `miri` (`rusticide-simd`
-  on `nightly-2026-08-03`), SAST (`codeql.yml`), MSRV, a release build,
+  for aarch64 and x86_64 on `nightly-2026-08-03`), SAST (`codeql.yml`), MSRV, a release build,
   markdown/YAML/secrets/supply-chain.
   On a push to `main` it then runs `tag` and calls `publish.yml`.
 - `tag` creates `v<version>` only when `Cargo.toml` declares exactly the

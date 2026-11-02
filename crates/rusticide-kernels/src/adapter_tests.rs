@@ -36,7 +36,7 @@ fn available_ends_with_portable() {
     #[cfg(target_arch = "aarch64")]
     let simd = Some("neon");
     #[cfg(target_arch = "x86_64")]
-    let simd = std::arch::is_x86_feature_detected!("avx2").then_some("avx2");
+    let simd = (cfg!(miri) || std::arch::is_x86_feature_detected!("avx2")).then_some("avx2");
     #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
     let simd = None;
     let expected: Vec<_> = simd.into_iter().chain(["portable"]).collect();

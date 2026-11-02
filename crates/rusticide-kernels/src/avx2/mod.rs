@@ -17,7 +17,8 @@ pub(crate) static ADAPTER: Adapter = Adapter {
 };
 
 /// The proof the kernel wrappers will hand their SIMD kernels, stored by
-/// adapter detection.
+/// adapter detection; while it is unset they must compute with the
+/// portable kernels.
 static TOKEN: OnceLock<Avx2> = OnceLock::new();
 
 /// Stores `proof` for the kernel wrappers and returns the adapter.
