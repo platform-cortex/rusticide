@@ -222,9 +222,21 @@ baseline (median of three sessions).
 - Qwen2.5 decode: 131.01 before, 132.60 after (within tolerance).
 - TinyLlama prefill: 148.00 before, 166.82 after (+13%).
 - TinyLlama decode: 96.85 before, 96.36 after (within tolerance).
+- Thread count numbers come from separate `mise run bench` runs and are not
+  comparable to the baseline rows above.
 - Thread count, `RAYON_NUM_THREADS=6` (best): Qwen2.5 prefill 405.53,
   decode 117.98; TinyLlama prefill 154.23, decode 80.04.
 - Thread count, `RAYON_NUM_THREADS=8` (best): Qwen2.5 prefill 422.72,
   decode 117.10; TinyLlama prefill 159.25, decode 89.63.
-- Decision: keep the default (8 threads); 8 is at least as fast as 6 on
-  prefill and the decode difference is within run-to-run noise.
+- Decision: keep the default (8 threads); 8 threads is faster or equal on
+  every row except Qwen2.5 decode (117.98 vs 117.10, under 1%).
+
+Part 2, Apple M1 Pro (8 cores), tokens/s. Sampling decode is `rusticide run`
+on Qwen2.5 with `--temperature 0.8 --seed 1 --max-tokens 256`, three runs
+alternating before (commit 6e56270) and after.
+
+- Qwen2.5 sampling decode: 100.08, 105.03, 105.56 before; 117.25, 117.51,
+  117.44 after (about +12%).
+- Baseline re-recorded: Qwen2.5 prefill 426.03 -> 424.68, decode 132.60 ->
+  130.38; TinyLlama prefill 166.82 -> 167.55, decode 96.36 -> 96.25. The
+  greedy bench does not exercise sampling, so these are noise-level moves.

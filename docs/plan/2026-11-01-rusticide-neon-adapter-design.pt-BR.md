@@ -237,9 +237,22 @@ Parte 1, Apple M1 Pro (8 nucleos), tokens/s, `PARALLEL_MIN_TOKENS` = 2
 - Decode do Qwen2.5: 131,01 antes, 132,60 depois (dentro da tolerancia).
 - Prefill do TinyLlama: 148,00 antes, 166,82 depois (+13%).
 - Decode do TinyLlama: 96,85 antes, 96,36 depois (dentro da tolerancia).
+- Os numeros de contagem de threads vem de execucoes separadas de
+  `mise run bench` e nao sao comparaveis com as linhas do baseline acima.
 - Contagem de threads, `RAYON_NUM_THREADS=6` (melhor): prefill do Qwen2.5
   405,53, decode 117,98; prefill do TinyLlama 154,23, decode 80,04.
 - Contagem de threads, `RAYON_NUM_THREADS=8` (melhor): prefill do Qwen2.5
   422,72, decode 117,10; prefill do TinyLlama 159,25, decode 89,63.
-- Decisao: manter o padrao (8 threads); 8 e ao menos tao rapido quanto 6
-  no prefill e a diferenca no decode esta dentro do ruido entre execucoes.
+- Decisao: manter o padrao (8 threads); 8 threads e mais rapido ou igual
+  em todas as linhas, exceto o decode do Qwen2.5 (117,98 contra 117,10,
+  menos de 1%).
+
+Parte 2, Apple M1 Pro (8 nucleos), tokens/s. O decode com amostragem e
+`rusticide run` no Qwen2.5 com `--temperature 0.8 --seed 1 --max-tokens
+256`, tres execucoes alternando antes (commit 6e56270) e depois.
+
+- Decode com amostragem do Qwen2.5: 100,08, 105,03, 105,56 antes; 117,25,
+  117,51, 117,44 depois (cerca de +12%).
+- Baseline regravado: prefill do Qwen2.5 426,03 -> 424,68, decode 132,60 ->
+  130,38; prefill do TinyLlama 166,82 -> 167,55, decode 96,36 -> 96,25. O
+  bench guloso nao exercita a amostragem, entao sao variacoes de ruido.
