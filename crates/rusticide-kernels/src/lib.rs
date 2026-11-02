@@ -10,6 +10,8 @@
 //! shorter slice bounds the work. Callers validate lengths.
 
 mod adapter;
+#[cfg(target_arch = "x86_64")]
+mod avx2;
 mod facade;
 mod group_views;
 mod matmul;

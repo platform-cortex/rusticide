@@ -36,6 +36,35 @@ const fn dotprod_detected() -> bool {
     true
 }
 
+/// Proof that this CPU runs AVX2: only [`Avx2::detect`] makes one. No
+/// kernel needs FMA, so detection asks for `avx2` alone.
+#[cfg(target_arch = "x86_64")]
+#[derive(Clone, Copy, Debug)]
+pub struct Avx2(());
+
+#[cfg(target_arch = "x86_64")]
+impl Avx2 {
+    /// A token when this CPU has `avx2`; std caches the answer.
+    #[must_use]
+    pub fn detect() -> Option<Self> {
+        Self::from_detected(avx2_detected())
+    }
+
+    const fn from_detected(detected: bool) -> Option<Self> {
+        if detected { Some(Self(())) } else { None }
+    }
+}
+
+#[cfg(all(target_arch = "x86_64", not(miri)))]
+fn avx2_detected() -> bool {
+    std::arch::is_x86_feature_detected!("avx2")
+}
+
+#[cfg(all(target_arch = "x86_64", miri))]
+const fn avx2_detected() -> bool {
+    true
+}
+
 #[cfg(all(test, target_arch = "aarch64"))]
 mod tests {
     use super::Dotprod;
@@ -54,5 +83,26 @@ mod tests {
     fn detect_matches_std() {
         let expected = cfg!(miri) || std::arch::is_aarch64_feature_detected!("dotprod");
         assert_eq!(Dotprod::detect().is_some(), expected);
+    }
+}
+
+#[cfg(all(test, target_arch = "x86_64"))]
+mod avx2_tests {
+    use super::Avx2;
+
+    #[test]
+    fn from_detected_true_yields_a_token() {
+        assert!(Avx2::from_detected(true).is_some());
+    }
+
+    #[test]
+    fn from_detected_false_yields_none() {
+        assert!(Avx2::from_detected(false).is_none());
+    }
+
+    #[test]
+    fn detect_matches_std() {
+        let expected = cfg!(miri) || std::arch::is_x86_feature_detected!("avx2");
+        assert_eq!(Avx2::detect().is_some(), expected);
     }
 }

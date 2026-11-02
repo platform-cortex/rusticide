@@ -33,11 +33,13 @@ fn available_ends_with_portable() {
         available.last().map(|adapter| adapter.name()),
         Some("portable")
     );
-    let expected = if cfg!(target_arch = "aarch64") {
-        vec!["neon", "portable"]
-    } else {
-        vec!["portable"]
-    };
+    #[cfg(target_arch = "aarch64")]
+    let simd = Some("neon");
+    #[cfg(target_arch = "x86_64")]
+    let simd = std::arch::is_x86_feature_detected!("avx2").then_some("avx2");
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    let simd = None;
+    let expected: Vec<_> = simd.into_iter().chain(["portable"]).collect();
     assert_eq!(names(&available), expected);
 }
 

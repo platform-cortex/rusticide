@@ -75,5 +75,5 @@ fn the_matrix_is_prepared_for_the_active_adapter() {
     let active = rusticide_kernels::active();
     assert!(std::ptr::eq(kernel, active.quant_kernel(12).unwrap()));
     let row_major = synthetic(format, matrix.len() / format.block_bytes()).unwrap();
-    assert_eq!(matrix == row_major, active.name() == "portable");
+    assert_eq!(matrix == row_major, active.name() != "neon");
 }

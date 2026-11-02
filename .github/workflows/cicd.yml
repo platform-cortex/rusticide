@@ -136,7 +136,8 @@ jobs:
   # Interpreting for aarch64-apple-darwin compiles the `neon` module in (it
   # compiles on every aarch64 target, and under Miri detection yields a
   # token), and its `cfg(miri)` scalar bodies stand in for the intrinsics
-  # Miri cannot execute. Dated nightly, like the coverage task.
+  # Miri cannot execute. The x86_64 step does the same for the `Avx2`
+  # token. Dated nightly, like the coverage task.
   miri:
     name: Miri (rusticide-simd)
     needs: [version]
@@ -158,6 +159,11 @@ jobs:
         env:
           MIRIFLAGS: "-Zmiri-strict-provenance"
         run: cargo miri test -p rusticide-simd --target aarch64-apple-darwin
+
+      - name: cargo miri test (x86_64)
+        env:
+          MIRIFLAGS: "-Zmiri-strict-provenance"
+        run: cargo miri test -p rusticide-simd --target x86_64-unknown-linux-gnu
 
   # Informational: tokens/s needs model files, so CI measures kernels only and
   # publishes the table. It fails only if the tool crashes.

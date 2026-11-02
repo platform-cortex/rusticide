@@ -64,6 +64,11 @@ Under `cfg(miri)` `Dotprod::detect()` returns `Some`, since the scalar
 bodies need no hardware. The Miri gate therefore checks the scalar bodies
 and the casts, not the intrinsic path; the soundness of each intrinsic
 call rests on the detection argument above.
+On `x86_64` the `Avx2` token is made the same way, by `Avx2::detect()`
+from `is_x86_feature_detected!("avx2")`, and a second Miri step
+interprets the tests for `x86_64-unknown-linux-gnu`. No AVX2 kernel
+exists yet; each will take an `Avx2` by value, as the NEON ones take a
+`Dotprod`.
 The `arm` CI job runs the full gate on Linux arm64 with no extra target
 features: the module compiles in on every `aarch64` target, the kernel
 adapter is selected at run time from `Dotprod::detect()`, and the job

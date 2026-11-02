@@ -5,9 +5,13 @@
 use std::io::Write;
 use std::sync::OnceLock;
 
+#[cfg(target_arch = "x86_64")]
+use rusticide_simd::Avx2;
 #[cfg(target_arch = "aarch64")]
 use rusticide_simd::Dotprod;
 
+#[cfg(target_arch = "x86_64")]
+use crate::avx2;
 #[cfg(target_arch = "aarch64")]
 use crate::neon;
 use crate::portable;
@@ -94,7 +98,12 @@ fn detected() -> [Option<&'static Adapter>; 1] {
     [Dotprod::detect().map(neon::armed)]
 }
 
-#[cfg(not(target_arch = "aarch64"))]
+#[cfg(target_arch = "x86_64")]
+fn detected() -> [Option<&'static Adapter>; 1] {
+    [Avx2::detect().map(avx2::armed)]
+}
+
+#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
 const fn detected() -> [Option<&'static Adapter>; 0] {
     []
 }
