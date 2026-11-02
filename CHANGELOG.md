@@ -2,6 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-11-02
+
+### Features
+
+- **simd:** add the NEON kernel crate
+- **kernels:** select a neon adapter at build
+- **kernels:** add the row-group layout port
+- **simd:** run Q4_K on NEON
+- **simd:** run Q6_K on NEON
+- **simd:** run Q5_0 and Q8_0 on NEON
+
+### Bug Fixes
+
+- **kernels:** guard zero-byte rows in dot_matrix
+
+### Refactor
+
+- **kernels:** make a row-group layout whole
+- **simd:** share the NEON group helpers
+- **simd:** share the group kernel checks
+- **simd:** generalize the group activation view
+
+### Documentation
+
+- draft the NEON adapter design
+- plan the NEON adapter milestone
+- record the NEON adapter results
+- correct the llama.cpp comparison
+
+### Performance
+
+- **kernels:** quantize batch tokens in parallel
+- **llama:** run per-token batch work on the pool
+- **llama:** rotate batch tokens in parallel
+- **bench:** re-record the M1 baseline
+- **sampling:** filter only the top-k survivors
+- **model:** sample logits without a copy
+- **bench:** re-record the M1 baseline
+- **bench:** re-record the M1 baseline
+
+### Testing
+
+- **llama:** rename the tiny tensor salt to offset
+- **sampling:** prove survivor bit-identity
+
+### Miscellaneous Tasks
+
+- raise the MSRV to 1.98
+- gate Miri and arm64
+- apply final review findings
+- fix the arm64 and portable coverage gates
+
 ## [0.7.1] - 2026-11-02
 
 ### Bug Fixes
@@ -50,6 +102,7 @@ All notable changes to this project will be documented in this file.
 - close the kernel facade milestone
 - correct the facade results
 - record the SHA-pinned actions policy
+
 ## [0.6.0] - 2026-11-01
 
 ### Features
@@ -77,6 +130,7 @@ All notable changes to this project will be documented in this file.
 
 - **quantize:** vary every quant bit in the kernel checks
 - **model:** cover raw block access on every source
+
 ## [0.5.0] - 2026-10-31
 
 ### Features
@@ -115,11 +169,13 @@ All notable changes to this project will be documented in this file.
 ### Miscellaneous Tasks
 
 - **coverage:** raise tarpaulin's test timeout
+
 ## [0.4.1] - 2026-10-31
 
 ### Bug Fixes
 
 - **deny:** check all features, trim licenses
+
 ## [0.4.0] - 2026-10-31
 
 ### Features
@@ -172,6 +228,7 @@ All notable changes to this project will be documented in this file.
 - raise the MSRV to 1.96
 - **hooks:** use the hk 2.10.0 config schema
 - **release:** refresh the v0.4.0 changelog
+
 ## [0.3.0] - 2026-10-23
 
 ### Features
@@ -202,6 +259,7 @@ All notable changes to this project will be documented in this file.
 
 - **llama:** pin greedy parity with llama.cpp on TinyLlama
 - **llama:** pin the embedding overflow checks
+
 ## [0.2.0] - 2026-10-23
 
 ### Features
@@ -266,6 +324,7 @@ All notable changes to this project will be documented in this file.
 
 - **dispatch:** prove slot indexing and entry reuse
 - **core:** pin matmul and broadcast index order
+
 ## [0.1.0] - 2026-10-22
 
 ### Features
