@@ -19,8 +19,10 @@ pub type GroupKernel<Token, const UNIT: usize, Input> =
 /// Whether any quant is `-128`. The views refuse such an activation so a
 /// kernel may negate any quant it reads (the AVX2 sign trick) without
 /// overflowing `i8`.
+///
+/// A min reduction vectorizes; `contains` scans a word at a time.
 fn has_minus_128(quants: &[i8]) -> bool {
-    quants.contains(&i8::MIN)
+    quants.iter().fold(i8::MAX, |low, &quant| low.min(quant)) == i8::MIN
 }
 
 /// One token's `Q8_K` activation as whole 256-element super-blocks: each

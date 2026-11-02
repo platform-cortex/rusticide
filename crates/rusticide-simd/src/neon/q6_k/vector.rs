@@ -170,8 +170,10 @@ fn chunk<const N: usize>(
 #[target_feature(enable = "neon,dotprod")]
 pub(super) fn group(units: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
     // One input, as in decoding, gets a body whose sums all stay in registers.
-    if inputs.len() == 1 {
-        return chunk::<1>(units, inputs, out);
+    // It reads a copy of the view: through the caller's slice, the loop
+    // would reload the view's slices on every unit.
+    if let [input] = inputs {
+        return chunk::<1>(units, &[*input], out);
     }
     for (inputs, out) in inputs.chunks(TOKENS).zip(out.chunks_mut(TOKENS)) {
         chunk::<TOKENS>(units, inputs, out);

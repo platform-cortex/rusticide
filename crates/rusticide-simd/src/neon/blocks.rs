@@ -67,8 +67,10 @@ pub(crate) fn group<const UNIT: usize>(
     unpack: impl Fn(&[u8; UNIT]) -> Unpacked + Copy,
 ) {
     // One input, as in decoding, gets a body whose sums all stay in registers.
-    if inputs.len() == 1 {
-        return chunk::<UNIT, 1>(units, inputs, out, unpack);
+    // It reads a copy of the view: through the caller's slice, the loop
+    // would reload the view's slices on every unit.
+    if let [input] = inputs {
+        return chunk::<UNIT, 1>(units, &[*input], out, unpack);
     }
     for (inputs, out) in inputs.chunks(TOKENS).zip(out.chunks_mut(TOKENS)) {
         chunk::<UNIT, TOKENS>(units, inputs, out, unpack);

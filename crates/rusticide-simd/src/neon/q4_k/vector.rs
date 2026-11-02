@@ -107,16 +107,22 @@ fn unpack(raw: &[[u8; 16]; 16], high: bool) -> [int8x16_t; 16] {
     weights
 }
 
-/// [`group`] for at most [`TOKENS`] inputs.
+/// [`group`] for at most `N` inputs. Out of line: inlined into [`group`],
+/// the batched body measured about 2% slower on an M1.
+#[inline(never)]
 #[target_feature(enable = "neon,dotprod")]
-fn chunk(units: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
-    let mut acc = [[vdupq_n_f32(-0.0); 2]; TOKENS];
+fn chunk<const N: usize>(
+    units: &[[u8; UNIT]],
+    inputs: &[Q8Superblocks<'_>],
+    out: &mut [[f32; ROWS]],
+) {
+    let mut acc = [[vdupq_n_f32(-0.0); 2]; N];
     for (block, unit) in units.iter().enumerate() {
         let lanes = lanes(unit);
         let header = header(lanes);
         let [_, _, _, _, _, _, _, _, quants @ ..] = lanes;
         let pairs: &[[[u8; 16]; 16]; 4] = bytemuck::cast_ref(quants);
-        let mut sums = [[vdupq_n_s32(0); 2]; TOKENS];
+        let mut sums = [[vdupq_n_s32(0); 2]; N];
         for (pair, raw) in pairs.iter().enumerate() {
             for half in [false, true] {
                 let weights = unpack(raw, half);
@@ -145,7 +151,13 @@ fn chunk(units: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; RO
 
 #[target_feature(enable = "neon,dotprod")]
 pub(super) fn group(units: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
+    // One input, as in decoding, gets a body whose sums all stay in registers.
+    // It reads a copy of the view: through the caller's slice, the loop
+    // would reload the view's slices on every unit.
+    if let [input] = inputs {
+        return chunk::<1>(units, &[*input], out);
+    }
     for (inputs, out) in inputs.chunks(TOKENS).zip(out.chunks_mut(TOKENS)) {
-        chunk(units, inputs, out);
+        chunk::<TOKENS>(units, inputs, out);
     }
 }

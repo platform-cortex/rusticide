@@ -110,6 +110,9 @@ impl QuantKernel {
     /// `Adapter::prepare_matrix` left it. Nothing is written when
     /// `row_bytes` is zero.
     pub fn dot_matrix(&self, data: &[u8], row_bytes: usize, inputs: &[Q8Input], out: &mut [f32]) {
+        if self.layout.is_none() {
+            return self.compute_rows(data, row_bytes, 0, inputs, &GroupViews::default(), out);
+        }
         visit_views(inputs, self.activation, |views| {
             self.compute_rows(data, row_bytes, 0, inputs, views, out);
         });

@@ -10,75 +10,65 @@
 
 use rusticide_simd::group::{GroupKernel, ROWS, TOKENS};
 
+use crate::group_views::SchemeViews;
 use crate::q8_input::Q8Input;
 use crate::quant_kernel::QuantKernel;
 
 /// One group against every input, into `out[row * inputs.len() + token]`.
-/// `views[token]` is that input's view; `format` supplies the row reader
-/// and the dot for a token whose view is `None`, or for every token when
-/// `proof` (the instruction set's detected token) is `None`.
+/// `views` are those inputs' views; `format` supplies the row reader and
+/// the dot for a refused token, or for every token when `proof` (the
+/// instruction set's detected token) is `None`.
 pub(super) fn dot_group<Proof: Copy, const UNIT: usize, View: Copy + Default>(
     format: &QuantKernel,
     proof: Option<Proof>,
     kernel: GroupKernel<Proof, UNIT, View>,
-    views: &[Option<View>],
+    views: &SchemeViews<'_, View>,
     group: &[u8],
     inputs: &[Q8Input],
     out: &mut [f32],
 ) {
     let Some(proof) = proof else {
-        let mut row = Vec::new();
-        for (token, input) in inputs.iter().enumerate() {
-            portable_token(format, group, input, token, &mut row, out);
-        }
+        portable_tokens(format, group, inputs, 0..inputs.len(), out);
         return;
     };
     let (units, _) = group.as_chunks::<UNIT>();
     let tokens = inputs.len();
-    let mut row = Vec::new();
-    let chunks = inputs.chunks(TOKENS).zip(views.chunks(TOKENS));
-    for (first, (chunk, found)) in (0..).step_by(TOKENS).zip(chunks) {
-        let mut present = [View::default(); TOKENS];
-        for (slot, view) in present.iter_mut().zip(found) {
-            *slot = view.unwrap_or_default();
-        }
+    for (first, chunk) in (0..).step_by(TOKENS).zip(views.views().chunks(TOKENS)) {
         let mut products = [[0.0; ROWS]; TOKENS];
-        let count = chunk.len().min(found.len()).min(TOKENS);
-        kernel(proof, units, &present[..count], &mut products[..count]);
+        let count = chunk.len().min(TOKENS);
+        kernel(proof, units, chunk, &mut products[..count]);
         for (row, slots) in (0..ROWS).zip(out.chunks_mut(tokens)) {
             for (slot, values) in slots.iter_mut().skip(first).zip(&products[..count]) {
                 *slot = values[row];
             }
         }
-        for (token, (input, _)) in (first..)
-            .zip(chunk.iter().zip(found))
-            .filter(|(_, (_, view))| view.is_none())
-        {
-            portable_token(format, group, input, token, &mut row, out);
-        }
+    }
+    if !views.refused().is_empty() {
+        portable_tokens(format, group, inputs, views.refused().iter().copied(), out);
     }
 }
 
-/// Token `token` of every row of the group by the format's portable dot,
-/// for an activation the views refuse. `row` is the caller's scratch.
+/// Tokens `tokens` of every row of the group by the format's portable dot,
+/// for activations the views refuse or a missing proof.
 #[cold]
 #[inline(never)]
-fn portable_token(
+fn portable_tokens(
     format: &QuantKernel,
     group: &[u8],
-    input: &Q8Input,
-    token: usize,
-    row: &mut Vec<u8>,
+    inputs: &[Q8Input],
+    tokens: impl Iterator<Item = usize>,
     out: &mut [f32],
 ) {
     let row_bytes = group.len() / ROWS;
-    let tokens = out.len() / ROWS;
-    row.resize(row_bytes, 0);
-    for (index, slots) in out.chunks_mut(tokens).enumerate() {
-        // A group the adapter prepared always reads: its length is whole
-        // rows and `index < ROWS`.
-        let read = format.read_row(group, row_bytes, index, row);
-        debug_assert!(read, "row {index} of a prepared group must read");
-        slots[token] = format.dot_row(row, input);
+    let stride = inputs.len();
+    let mut row = vec![0; row_bytes];
+    for (token, input) in tokens.filter_map(|token| Some((token, inputs.get(token)?))) {
+        for (index, slots) in out.chunks_mut(stride).enumerate() {
+            // A group the adapter prepared always reads: its length is whole
+            // rows and `index < ROWS`.
+            let read = format.read_row(group, row_bytes, index, &mut row);
+            debug_assert!(read, "row {index} of a prepared group must read");
+            slots[token] = format.dot_row(&row, input);
+        }
     }
 }
