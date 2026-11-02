@@ -16,10 +16,14 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-bytemuck = { workspace = true, features = ["aarch64_simd"] }
+bytemuck = { workspace = true, features = [
+  "aarch64_simd",
+  "min_const_generics",
+] }
 
 [dev-dependencies]
 fastrand.workspace = true
+half.workspace = true
 
 [lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }

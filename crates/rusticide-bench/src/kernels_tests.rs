@@ -67,3 +67,13 @@ fn synthetic_data_too_large_for_memory_is_an_error() {
         "synthetic Q4_0 blocks do not fit in memory"
     );
 }
+
+#[test]
+fn the_matrix_is_prepared_for_the_active_adapter() {
+    let format = block_format(12).unwrap();
+    let (matrix, _, kernel) = layout(format, 256).unwrap();
+    let active = rusticide_kernels::active();
+    assert!(std::ptr::eq(kernel, active.quant_kernel(12).unwrap()));
+    let row_major = synthetic(format, matrix.len() / format.block_bytes()).unwrap();
+    assert_eq!(matrix == row_major, active.name() == "portable");
+}

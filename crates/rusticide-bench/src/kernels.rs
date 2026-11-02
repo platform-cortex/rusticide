@@ -72,8 +72,8 @@ fn synthetic(format: &BlockFormat, blocks: usize) -> Result<Vec<u8>, BenchError>
         })
 }
 
-/// A synthetic `ROWS` x `columns` matrix of `format`, its row length in
-/// bytes, and the kernels that read it.
+/// A synthetic `ROWS` x `columns` matrix of `format`, prepared for the
+/// active adapter, its row length in bytes, and the kernels that read it.
 fn layout(
     format: &BlockFormat,
     columns: u32,
@@ -85,19 +85,19 @@ fn layout(
             format: format.name(),
             columns,
         })?;
-    let kernel = require_kernel(format, active().quant_kernel(format.type_id()))?;
-    let matrix = synthetic(format, count(ROWS) * columns / format.block_size())?;
-    Ok((matrix, row_bytes, kernel))
+    let mut matrix = synthetic(format, count(ROWS) * columns / format.block_size())?;
+    let kernel = active().prepare_matrix(format.type_id(), &mut matrix, row_bytes);
+    Ok((matrix, row_bytes, require_kernel(format, kernel)?))
 }
 
 fn row_metric(format: &BlockFormat, plan: &Plan) -> Result<Sample, BenchError> {
     let (matrix, row_bytes, kernel) = layout(format, COLUMNS)?;
-    let input = quantized(kernel.activation(), 2);
+    let input = [quantized(kernel.activation(), 2)];
+    let mut out = [0.0_f32; count(ROWS)];
     plan.sample(|| {
         sustained(plan.budget, row_work(), || {
-            for row in matrix.chunks_exact(row_bytes) {
-                black_box(kernel.dot_row(black_box(row), black_box(&input)));
-            }
+            kernel.dot_matrix(black_box(&matrix), row_bytes, black_box(&input), &mut out);
+            black_box(&out);
         })
     })
 }
@@ -107,13 +107,11 @@ fn rows8_metric(format: &BlockFormat, plan: &Plan) -> Result<Sample, BenchError>
     let inputs: Vec<Q8Input> = (3..3 + BATCH)
         .map(|seed| quantized(kernel.activation(), seed))
         .collect();
-    let mut out = [0.0_f32; count(BATCH)];
+    let mut out = [0.0_f32; count(ROWS * BATCH)];
     plan.sample(|| {
         sustained(plan.budget, row_work() * f64::from(BATCH), || {
-            for row in matrix.chunks_exact(row_bytes) {
-                kernel.dot_rows(black_box(row), black_box(&inputs), &mut out);
-                black_box(&out);
-            }
+            kernel.dot_matrix(black_box(&matrix), row_bytes, black_box(&inputs), &mut out);
+            black_box(&out);
         })
     })
 }

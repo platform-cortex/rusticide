@@ -188,3 +188,32 @@ fn visit_row_hands_over_the_original_row_of_either_layout() {
         assert!(!kernel.visit_row(&data, 2, 2, |_| panic!("visited a missing row")));
     }
 }
+
+#[test]
+fn dot_matrix_multiplies_every_row_of_either_layout() {
+    let format = rusticide_quantize::block_format(8).unwrap();
+    let original = format.synthetic_blocks(4, 9).unwrap();
+    let row_bytes = original.len() / 4;
+    let mut prepared = original.clone();
+    assert!((PAIRED_Q8_0.layout.unwrap().prepare)(
+        &mut prepared,
+        row_bytes
+    ));
+    let inputs = [
+        quantized(32, 1, Q8Kind::Block),
+        quantized(32, 2, Q8Kind::Block),
+    ];
+    let expected: Vec<f32> = original
+        .chunks_exact(row_bytes)
+        .flat_map(|row| {
+            inputs
+                .iter()
+                .map(|input| row_major_q8_0().dot_row(row, input))
+        })
+        .collect();
+    for (kernel, data) in [(row_major_q8_0(), &original), (&PAIRED_Q8_0, &prepared)] {
+        let mut out = [f32::NAN; 8];
+        kernel.dot_matrix(data, row_bytes, &inputs, &mut out);
+        assert_eq!(out.to_vec(), expected);
+    }
+}

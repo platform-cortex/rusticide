@@ -5,13 +5,14 @@
 use half::f16;
 
 use super::{Activations, Weights, matmul_batch, matvec_batch};
-use crate::{Q8Input, Q8Kind, QuantKernel, active, dot};
+use crate::{Q8Input, Q8Kind, QuantKernel, dot};
 
 const Q8_0: u32 = 8;
 const Q4_K: u32 = 12;
 
+/// The row-major kernel: these matrices are not prepared for an adapter.
 fn kernel(type_id: u32) -> &'static QuantKernel {
-    active().quant_kernel(type_id).unwrap()
+    crate::portable::ADAPTER.quant_kernel(type_id).unwrap()
 }
 
 /// A dense 3 x 32 matrix.

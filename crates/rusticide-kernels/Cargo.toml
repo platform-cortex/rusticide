@@ -25,5 +25,8 @@ rayon.workspace = true
 rusticide-quantize.workspace = true
 rusticide-simd.workspace = true
 
+[dev-dependencies]
+fastrand.workspace = true
+
 [lints]
 workspace = true

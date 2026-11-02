@@ -368,6 +368,7 @@ dependencies = [
 name = "rusticide-kernels"
 version = "0.7.1"
 dependencies = [
+ "fastrand",
  "half",
  "rayon",
  "rusticide-quantize",
@@ -433,6 +434,7 @@ version = "0.7.1"
 dependencies = [
  "bytemuck",
  "fastrand",
+ "half",
 ]
 
 [[package]]

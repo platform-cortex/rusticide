@@ -2,11 +2,25 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+mod q4_k;
+mod q4_k_dot;
+
 use crate::adapter::Adapter;
 use crate::portable;
+use crate::quant_kernel::QuantKernel;
 
-/// Starts as the portable kernels; NEON kernels replace them one by one.
+/// The portable kernels in the same order, `Q4_K` replaced by the NEON one.
+static QUANTIZED: [QuantKernel; 5] = [
+    portable::Q4_0,
+    portable::Q5_0,
+    q4_k_dot::KERNEL,
+    portable::Q6_K,
+    portable::Q8_0,
+];
+
+/// The portable kernels, with NEON kernels in place of some of them.
 pub(crate) static ADAPTER: Adapter = Adapter {
     name: "neon",
+    quantized: &QUANTIZED,
     ..portable::ADAPTER
 };

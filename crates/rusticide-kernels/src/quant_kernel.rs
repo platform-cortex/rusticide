@@ -98,6 +98,12 @@ impl QuantKernel {
         found
     }
 
+    /// The products of every row of `data`, in this kernel's layout, with
+    /// each input, on the calling thread: `out[row * inputs.len() + token]`.
+    pub fn dot_matrix(&self, data: &[u8], row_bytes: usize, inputs: &[Q8Input], out: &mut [f32]) {
+        self.compute_rows(data, row_bytes, 0, inputs, out);
+    }
+
     /// Rows a scheduler task must keep together.
     pub(crate) fn group_rows(&self) -> usize {
         self.layout.map_or(1, |layout| layout.group_rows)

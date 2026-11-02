@@ -21,43 +21,47 @@ const fn lossy(count: usize) -> f32 {
     count as f32
 }
 
-static QUANTIZED: [QuantKernel; 5] = [
-    QuantKernel {
-        type_id: 2,
-        activation: Q8Kind::Block,
-        dot: int_dot::q4_0,
-        dot_rows: None,
-        layout: None,
-    },
-    QuantKernel {
-        type_id: 6,
-        activation: Q8Kind::Block,
-        dot: int_dot::q5_0,
-        dot_rows: Some(int_dot::q5_0_rows),
-        layout: None,
-    },
-    QuantKernel {
-        type_id: 12,
-        activation: Q8Kind::SuperBlock,
-        dot: int_dot::q4_k,
-        dot_rows: Some(int_dot::q4_k_rows),
-        layout: None,
-    },
-    QuantKernel {
-        type_id: 14,
-        activation: Q8Kind::SuperBlock,
-        dot: int_dot::q6_k,
-        dot_rows: Some(int_dot::q6_k_rows),
-        layout: None,
-    },
-    QuantKernel {
-        type_id: 8,
-        activation: Q8Kind::Block,
-        dot: int_dot::q8_0,
-        dot_rows: None,
-        layout: None,
-    },
-];
+pub(crate) const Q4_0: QuantKernel = QuantKernel {
+    type_id: 2,
+    activation: Q8Kind::Block,
+    dot: int_dot::q4_0,
+    dot_rows: None,
+    layout: None,
+};
+
+pub(crate) const Q5_0: QuantKernel = QuantKernel {
+    type_id: 6,
+    activation: Q8Kind::Block,
+    dot: int_dot::q5_0,
+    dot_rows: Some(int_dot::q5_0_rows),
+    layout: None,
+};
+
+const Q4_K: QuantKernel = QuantKernel {
+    type_id: 12,
+    activation: Q8Kind::SuperBlock,
+    dot: int_dot::q4_k,
+    dot_rows: Some(int_dot::q4_k_rows),
+    layout: None,
+};
+
+pub(crate) const Q6_K: QuantKernel = QuantKernel {
+    type_id: 14,
+    activation: Q8Kind::SuperBlock,
+    dot: int_dot::q6_k,
+    dot_rows: Some(int_dot::q6_k_rows),
+    layout: None,
+};
+
+pub(crate) const Q8_0: QuantKernel = QuantKernel {
+    type_id: 8,
+    activation: Q8Kind::Block,
+    dot: int_dot::q8_0,
+    dot_rows: None,
+    layout: None,
+};
+
+static QUANTIZED: [QuantKernel; 5] = [Q4_0, Q5_0, Q4_K, Q6_K, Q8_0];
 
 pub(crate) static ADAPTER: Adapter = Adapter {
     name: "portable",
