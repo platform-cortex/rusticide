@@ -77,6 +77,7 @@ redundant_pub_crate = "allow"
 [workspace.dependencies]
 ### Crates Dependencies
 anyhow = ">=1,<2.0.0"
+bytemuck = { version = ">=1,<2.0.0" }
 byteorder = "1"
 clap = { version = ">=4,<5.0.0", features = ["derive"] }
 dirs = { version = ">=7,<8.0.0" }
@@ -100,6 +101,7 @@ rusticide-model = { path = "crates/rusticide-model", version = "0.7.1" }
 rusticide-quantize = { path = "crates/rusticide-quantize", version = "0.7.1" }
 rusticide-sampling = { path = "crates/rusticide-sampling", version = "0.7.1" }
 rusticide-schema = { path = "crates/rusticide-schema", version = "0.7.1" }
+rusticide-simd = { path = "crates/rusticide-simd", version = "0.7.1" }
 rusticide-tokenizer = { path = "crates/rusticide-tokenizer", version = "0.7.1" }
 serde = { version = ">=1,<2.0.0", features = ["derive"] }
 serde_json = { version = ">=1,<2.0.0" }

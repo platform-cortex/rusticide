@@ -55,8 +55,9 @@ facade's `io` feature also exposes it without the CLI.
 From the bottom up:
 
 1. **Capability.** `rusticide-alloc` converts an unsafe capability (aligned,
-   uninitialized buffers) into a safe API. It is the only crate that opts out
-   of `unsafe_code = "deny"`; see [UNSAFE.md](UNSAFE.md).
+   uninitialized buffers) into a safe API, and `rusticide-simd` does the same
+   for NEON kernels. They are the only crates that opt out of
+   `unsafe_code = "deny"`; see [UNSAFE.md](UNSAFE.md).
 2. **Framework core.** `rusticide-core` holds `DType`, `Device`, `Shape`,
    `Strides`, `Storage`, `Tensor`, the version counter and the dispatch key
    algebra. `Tensor` lives here, not in its own crate, because the dispatcher

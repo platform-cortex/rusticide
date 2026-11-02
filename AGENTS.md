@@ -125,9 +125,9 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 
 - **Strict TDD**: failing test -> see it red -> minimal code -> green ->
   refactor. Never write production code before its test.
-- **`unsafe_code = "deny"`** workspace-wide. Only `rusticide-alloc` opts out,
-  under `docs/UNSAFE.md`: `// SAFETY:` on every block
-  (`undocumented_unsafe_blocks = "deny"`), safe public API, Miri in CI.
+- **`unsafe_code = "deny"`** workspace-wide. Only `rusticide-alloc` and
+  `rusticide-simd` opt out, under `docs/UNSAFE.md`: `// SAFETY:` on every
+  block (`undocumented_unsafe_blocks = "deny"`), safe public API, Miri in CI.
 - **No `unwrap()`/`expect()` in production code** (a panic is a DoS); allowed
   in `#[cfg(test)]` only.
 - Warnings are errors (`-D warnings` in `.cargo/config.toml` and

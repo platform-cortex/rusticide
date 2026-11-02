@@ -47,7 +47,7 @@ together.
 Everything lives under `crates/`:
 
 - `rusticide` -- the facade: re-exports the public API and embeds the CLI.
-- `rusticide-alloc` -- aligned buffer allocation; the only crate with `unsafe`.
+- `rusticide-alloc` -- aligned buffer allocation; permitted `unsafe`.
 - `rusticide-core` -- tensor value types and the dispatch key algebra.
 - `rusticide-dispatch` -- the operator dispatcher and boxed calling convention.
 - `rusticide-schema` -- port of torchgen's operator schema data model.
@@ -57,6 +57,8 @@ Everything lives under `crates/`:
 - `rusticide-sampling` -- token sampling (greedy, top-k, top-p, temperature).
 - `rusticide-tokenizer` -- BPE and SentencePiece tokenizer from GGUF metadata.
 - `rusticide-kernels` -- shared f32 kernels (matrix products, norms, softmax).
+- `rusticide-simd` -- NEON kernels behind safe entry points; permitted
+  `unsafe`.
 - `rusticide-model` -- the `Model` contract, architecture registry, KV cache
   and streaming generation loop.
 - `rusticide-llama` -- the llama model family: configuration, weights and the
@@ -155,8 +157,8 @@ mise run ci             # the full pipeline, adds header and security checks
 
 ## Design decisions
 
-- **`unsafe_code = "deny"`** workspace-wide. Only `rusticide-alloc` opts out,
-  under the policy in [docs/UNSAFE.md](docs/UNSAFE.md).
+- **`unsafe_code = "deny"`** workspace-wide. Only `rusticide-alloc` and
+  `rusticide-simd` opt out, under the policy in [docs/UNSAFE.md](docs/UNSAFE.md).
 - **Strict TDD** with a 100% coverage gate that includes doctests.
 - **Schema first.** Operators are described by torchgen-style schemas and
   routed through a dispatch table, not hard-coded.

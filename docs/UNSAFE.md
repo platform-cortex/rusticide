@@ -12,11 +12,11 @@ the policy in `docs/plan/2026-08-21-rusticide-framework-design.md`:
 isolation, a safe public API, a `// SAFETY:` comment per block, a README
 justification, an entry in this file, and Miri in CI.
 
-Miri in CI is a prerequisite for landing an `unsafe` block here, not
-infrastructure that already exists: it is unavailable on the toolchain
-this workspace currently pins, and no CI task runs it yet. Wiring it up
-is part of the work of the change that introduces the first `unsafe`
-block, not a follow-up.
+Miri in CI is a prerequisite for landing an `unsafe` block here. It is
+unavailable on the stable toolchain this workspace pins, so `cicd.yml`'s
+`miri` job runs it on a dated nightly (`nightly-2026-08-03`, as the
+coverage task does) and gates every change. It was wired up with the
+first `unsafe` block, in `rusticide-simd`.
 
 If this list stops being short, the policy has failed.
 
@@ -36,3 +36,31 @@ exist so the boundary is in place before the uninitialized path lands.
 **How it could be deleted:** if a future Rust release offers safe
 uninitialized byte buffers with an allocation-failure result, this crate
 folds back into `rusticide-core`.
+
+## `rusticide-simd`
+
+**Capability:** NEON kernels (`neon,dotprod`) behind safe entry points.
+
+**Why safe Rust is not enough:** the kernels are safe Rust compiled with
+`#[target_feature(enable = "neon,dotprod")]`, but calling such a function
+from code without that attribute needs an `unsafe` block, even when the
+build enables the features globally. Each kernel has exactly one: the
+call from its safe wrapper. The vector wrappers alone would not do, as
+they do not inline across that boundary, so the kernels live here whole.
+
+**Soundness argument:** the `neon` module compiles only under
+`cfg(all(target_arch = "aarch64", target_feature = "dotprod"))`, so the
+build target guarantees every CPU running the binary has the features.
+No run-time detection is involved; `rusticide_simd::AVAILABLE` reports
+whether the module is compiled in.
+
+**Miri:** Miri cannot execute the intrinsics, so under `cfg(miri)` each
+wrapper calls a scalar body with the same integer result, and the
+`miri` CI job interprets the crate's tests for `aarch64-apple-darwin`.
+The `arm` CI job compiles the module in on Linux arm64 with
+`-C target-feature=+dotprod` and runs the full gate there.
+
+**How it could be deleted:** if a future Rust release lets safe code
+call a `#[target_feature]` function when the build target already
+enables those features, the wrappers become safe and the kernels can
+move into `rusticide-kernels`.
