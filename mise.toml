@@ -1513,14 +1513,19 @@ export RUSTUP_TOOLCHAIN="$COVERAGE_TOOLCHAIN"
 # Reference tests run real models and live outside coverage (`test:reference`).
 unset RUSTICIDE_MODELS
 
-# The `neon` modules compile only where `dotprod` is enabled, yet tarpaulin
-# counts every source file it finds, compiled or not. Where rustc (with this
-# job's RUSTFLAGS) lacks dotprod they are dead source, not untested code: the
-# arm64 job and Apple silicon compile and measure them at the same gate.
-# RUSTFLAGS is split on purpose, the way cargo splits it.
+# The `neon` modules compile only on aarch64 and the `avx2` ones only on
+# x86_64, yet tarpaulin counts every source file it finds, compiled or not.
+# Off their architecture (as rustc with this job's RUSTFLAGS reports it) they
+# are dead source, not untested code: a runner of that architecture compiles
+# and measures them at the same gate. RUSTFLAGS is split on purpose, the way
+# cargo splits it.
 # shellcheck disable=SC2086
-if ! rustc --print cfg ${RUSTFLAGS:-} | grep -qx 'target_feature="dotprod"'; then
+target_cfg="$(rustc --print cfg ${RUSTFLAGS:-})"
+if ! grep -qx 'target_arch="aarch64"' <<<"$target_cfg"; then
   args+=(--exclude-files 'crates/*/src/neon/*')
+fi
+if ! grep -qx 'target_arch="x86_64"' <<<"$target_cfg"; then
+  args+=(--exclude-files 'crates/*/src/avx2/*')
 fi
 
 cargo tarpaulin --workspace --engine llvm \

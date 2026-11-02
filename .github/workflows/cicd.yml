@@ -126,9 +126,10 @@ jobs:
         run: mise run ci:quick
 
   # docs/UNSAFE.md: every crate permitted `unsafe` runs under Miri in CI.
-  # Interpreting for aarch64-apple-darwin compiles the `neon` module in (that
-  # target enables dotprod), and its `cfg(miri)` scalar bodies stand in for
-  # the intrinsics Miri cannot execute. Dated nightly, like the coverage task.
+  # Interpreting for aarch64-apple-darwin compiles the `neon` module in (it
+  # compiles on every aarch64 target, and under Miri detection yields a
+  # token), and its `cfg(miri)` scalar bodies stand in for the intrinsics
+  # Miri cannot execute. Dated nightly, like the coverage task.
   miri:
     name: Miri (rusticide-simd)
     needs: [version]

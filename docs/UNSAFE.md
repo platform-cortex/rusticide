@@ -48,22 +48,26 @@ build enables the features globally. Each kernel has exactly one: the
 call from its safe wrapper. The vector wrappers alone would not do, as
 they do not inline across that boundary, so the kernels live here whole.
 
-**Soundness argument:** the `neon` module compiles only under
-`cfg(all(target_arch = "aarch64", target_feature = "dotprod"))`, so the
-build target guarantees every CPU running the binary has the features.
-No run-time detection is involved; `rusticide_simd::AVAILABLE` reports
-whether the module is compiled in.
+**Soundness argument:** a token exists only after detection proved the
+feature; every entry point takes one. The `neon` module compiles on
+every `aarch64` target, and each public kernel takes a
+`rusticide_simd::Dotprod` by value as its first argument. `Dotprod` is a
+zero-sized type with a private field, so the only way to obtain one is
+`Dotprod::detect()`, which returns `Some` exactly when std's
+`is_aarch64_feature_detected!("dotprod")` reports the feature (NEON is
+baseline on `aarch64`). Each `// SAFETY:` comment cites the token.
 
 **Miri:** Miri cannot execute the intrinsics, so under `cfg(miri)` each
 wrapper calls a scalar body with the same integer result, and the
 `miri` CI job interprets the crate's tests for `aarch64-apple-darwin`.
-The Miri gate therefore checks the scalar bodies and the casts, not the
-intrinsic path; the soundness of each intrinsic call rests on the
-build-time `cfg` argument above.
+Under `cfg(miri)` `Dotprod::detect()` returns `Some`, since the scalar
+bodies need no hardware. The Miri gate therefore checks the scalar bodies
+and the casts, not the intrinsic path; the soundness of each intrinsic
+call rests on the detection argument above.
 The `arm` CI job compiles the module in on Linux arm64 with
 `-C target-feature=+dotprod` and runs the full gate there.
 
 **How it could be deleted:** if a future Rust release lets safe code
-call a `#[target_feature]` function when the build target already
-enables those features, the wrappers become safe and the kernels can
-move into `rusticide-kernels`.
+call a `#[target_feature]` function once a run-time check has proved the
+features (a token-style proof in the language or std), the wrappers
+become safe and the kernels can move into `rusticide-kernels`.

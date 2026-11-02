@@ -5,7 +5,13 @@
 //! What the group kernels' tests share, and the checks every group kernel
 //! must pass against its scalar body.
 
+use crate::Dotprod;
 use crate::group::{Q8Blocks, Q8Superblocks, ROWS};
+
+/// The token every NEON test runs under: the test hosts have `dotprod`.
+pub(crate) fn token() -> Dotprod {
+    Dotprod::detect().expect("the test host has dotprod")
+}
 
 /// A random test activation and the view of it a kernel reads.
 pub(crate) trait Input: Sized {

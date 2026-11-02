@@ -4,7 +4,7 @@
 
 use super::{D, QS, UNIT, q8_0_group, scalar};
 use crate::group::{Q8Blocks, ROWS};
-use crate::neon::test_support::{Blocks, Format, set_f16};
+use crate::neon::test_support::{Blocks, Format, set_f16, token};
 
 /// Random units whose `d` are finite f16 values in `[0, 2)`.
 fn random_units(rng: &mut fastrand::Rng, blocks: usize) -> Vec<[u8; UNIT]> {
@@ -26,8 +26,13 @@ fn set_specials(unit: &mut [u8; UNIT], specials: &[u16; ROWS]) {
     }
 }
 
+/// The NEON kernel under the test host's token.
+fn neon(group: &[[u8; UNIT]], inputs: &[Q8Blocks<'_>], out: &mut [[f32; ROWS]]) {
+    q8_0_group(token(), group, inputs, out);
+}
+
 const Q8_0: Format<UNIT, Blocks> = Format {
-    kernels: [q8_0_group, scalar::group],
+    kernels: [neon, scalar::group],
     random_units,
     set_specials,
 };

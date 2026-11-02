@@ -4,6 +4,7 @@
 
 //! The NEON `Q6_K` kernel.
 
+use rusticide_simd::Dotprod;
 use rusticide_simd::group::ROWS;
 use rusticide_simd::neon::q6_k::q6_k_group;
 
@@ -28,7 +29,16 @@ pub(crate) const KERNEL: QuantKernel = QuantKernel {
 };
 
 fn dot_group(group: &[u8], inputs: &[Q8Input], views: &GroupViews<'_>, out: &mut [f32]) {
-    group_dot::dot_group(&KERNEL, q6_k_group, views.superblocks(), group, inputs, out);
+    let token = Dotprod::detect();
+    group_dot::dot_group(
+        &KERNEL,
+        token,
+        q6_k_group,
+        views.superblocks(),
+        group,
+        inputs,
+        out,
+    );
 }
 
 #[cfg(test)]

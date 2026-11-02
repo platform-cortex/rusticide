@@ -14,12 +14,20 @@ use crate::q8_input::{Q8Input, Q8Kind};
 
 /// One view per token of each activation scheme; `None` marks a token the
 /// view refused.
+#[cfg_attr(
+    not(all(target_arch = "aarch64", target_feature = "dotprod")),
+    allow(dead_code, reason = "only the SIMD adapters read the views")
+)]
 #[derive(Debug, Default)]
 pub(crate) struct GroupViews<'a> {
     blocks: Cow<'a, [Option<Q8Blocks<'a>>]>,
     superblocks: Cow<'a, [Option<Q8Superblocks<'a>>]>,
 }
 
+#[cfg_attr(
+    not(all(target_arch = "aarch64", target_feature = "dotprod")),
+    allow(dead_code, reason = "only the SIMD adapters read the views")
+)]
 impl<'a> GroupViews<'a> {
     /// The views of `block` (`Q8_0`) and `super_block` (`Q8_K`) inputs.
     pub(crate) fn new(block: &'a [Q8Input], super_block: &'a [Q8Input]) -> Self {

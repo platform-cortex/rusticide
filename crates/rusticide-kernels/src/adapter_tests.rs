@@ -16,7 +16,7 @@ fn name_of(chosen: (&'static Adapter, Option<String>)) -> (&'static str, Option<
 
 #[test]
 fn active_adapter_is_the_compiled_default() {
-    let expected = if rusticide_simd::AVAILABLE {
+    let expected = if cfg!(all(target_arch = "aarch64", target_feature = "dotprod")) {
         "neon"
     } else {
         "portable"

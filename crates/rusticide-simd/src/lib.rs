@@ -6,15 +6,16 @@
 //!
 //! The second crate in the workspace permitted to use `unsafe`. See
 //! `docs/UNSAFE.md` for the policy and this crate's `README.md` for why.
-//! The `neon` module exists only when the build target guarantees NEON
-//! and `dotprod`; [`AVAILABLE`] says whether it was compiled in.
-
-/// True exactly when the `neon` module is compiled in.
-pub const AVAILABLE: bool = cfg!(all(target_arch = "aarch64", target_feature = "dotprod"));
+//! The `neon` module compiles on every `aarch64` target; each of its
+//! kernels takes a `Dotprod` token, which only run-time detection makes.
 
 pub mod group;
+mod token;
 
-#[cfg(all(target_arch = "aarch64", target_feature = "dotprod"))]
+#[cfg(target_arch = "aarch64")]
+pub use token::Dotprod;
+
+#[cfg(target_arch = "aarch64")]
 pub mod neon {
     #[cfg(not(miri))]
     mod blocks;
@@ -29,17 +30,4 @@ pub mod neon {
     mod test_support;
     #[cfg(not(miri))]
     mod vector;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::AVAILABLE;
-
-    #[test]
-    fn available_matches_the_build_target() {
-        assert_eq!(
-            AVAILABLE,
-            cfg!(all(target_arch = "aarch64", target_feature = "dotprod"))
-        );
-    }
 }

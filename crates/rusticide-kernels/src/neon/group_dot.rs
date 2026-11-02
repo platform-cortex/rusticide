@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! The NEON group kernels' common entry: [`Q8Input`]s viewed as the
-//! kernel reads them (views built once per product, see `GroupViews`) and handed to a `rusticide_simd` kernel a chunk of
-//! tokens at a time. A token whose view is refused (it holds a `-128`) is
-//! computed by the format's portable dot instead.
+//! kernel reads them (views built once per product, see `GroupViews`) and
+//! handed to a `rusticide_simd` kernel a chunk of tokens at a time. A token
+//! whose view is refused (it holds a `-128`) is computed by the format's
+//! portable dot instead, and so is every token when no proof token is held.
 
 use rusticide_simd::group::{GroupKernel, ROWS, TOKENS};
 
@@ -14,15 +15,24 @@ use crate::quant_kernel::QuantKernel;
 
 /// One group against every input, into `out[row * inputs.len() + token]`.
 /// `views[token]` is that input's view; `format` supplies the row reader
-/// and the dot for a token whose view is `None`.
-pub(super) fn dot_group<const UNIT: usize, View: Copy + Default>(
+/// and the dot for a token whose view is `None`, or for every token when
+/// `proof` (the instruction set's detected token) is `None`.
+pub(super) fn dot_group<Proof: Copy, const UNIT: usize, View: Copy + Default>(
     format: &QuantKernel,
-    kernel: GroupKernel<UNIT, View>,
+    proof: Option<Proof>,
+    kernel: GroupKernel<Proof, UNIT, View>,
     views: &[Option<View>],
     group: &[u8],
     inputs: &[Q8Input],
     out: &mut [f32],
 ) {
+    let Some(proof) = proof else {
+        let mut row = Vec::new();
+        for (token, input) in inputs.iter().enumerate() {
+            portable_token(format, group, input, token, &mut row, out);
+        }
+        return;
+    };
     let (units, _) = group.as_chunks::<UNIT>();
     let tokens = inputs.len();
     let mut row = Vec::new();
@@ -34,7 +44,7 @@ pub(super) fn dot_group<const UNIT: usize, View: Copy + Default>(
         }
         let mut products = [[0.0; ROWS]; TOKENS];
         let count = chunk.len().min(found.len()).min(TOKENS);
-        kernel(units, &present[..count], &mut products[..count]);
+        kernel(proof, units, &present[..count], &mut products[..count]);
         for (row, slots) in (0..ROWS).zip(out.chunks_mut(tokens)) {
             for (slot, values) in slots.iter_mut().skip(first).zip(&products[..count]) {
                 *slot = values[row];

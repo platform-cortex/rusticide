@@ -4,14 +4,16 @@
 
 //! Signed 8-bit dot products.
 
+use crate::Dotprod;
+
 /// The dot product of two 32-lane `i8` blocks, summed exactly in `i32`.
 #[inline]
 #[must_use]
 #[cfg_attr(miri, allow(unused_unsafe))]
-pub fn dot_i8x32(lhs: &[i8; 32], rhs: &[i8; 32]) -> i32 {
-    // SAFETY: this module compiles only under `cfg(all(target_arch =
-    // "aarch64", target_feature = "dotprod"))`, so the build target
-    // guarantees that every CPU running this binary has NEON and dotprod.
+pub fn dot_i8x32(_token: Dotprod, lhs: &[i8; 32], rhs: &[i8; 32]) -> i32 {
+    // SAFETY: a `Dotprod` exists only after `Dotprod::detect` found
+    // dotprod on this CPU (NEON is baseline on aarch64), so the CPU running
+    // this call has every feature the body enables.
     unsafe { dot(lhs, rhs) }
 }
 
@@ -39,6 +41,7 @@ fn dot(lhs: &[i8; 32], rhs: &[i8; 32]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::dot_i8x32;
+    use crate::neon::test_support::token;
 
     fn scalar(lhs: &[i8; 32], rhs: &[i8; 32]) -> i32 {
         lhs.iter()
@@ -48,7 +51,11 @@ mod tests {
     }
 
     fn assert_matches(lhs: &[i8; 32], rhs: &[i8; 32]) {
-        assert_eq!(dot_i8x32(lhs, rhs), scalar(lhs, rhs), "{lhs:?} . {rhs:?}");
+        assert_eq!(
+            dot_i8x32(token(), lhs, rhs),
+            scalar(lhs, rhs),
+            "{lhs:?} . {rhs:?}"
+        );
     }
 
     // Miri interprets the scalar body roughly 10^4 times slower; the

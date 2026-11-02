@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::{D, DMIN, UNIT, q4_k_group, scalar};
-use crate::group::ROWS;
-use crate::neon::test_support::{Format, set_f16};
+use crate::group::{Q8Superblocks, ROWS};
+use crate::neon::test_support::{Format, set_f16, token};
 
 /// Random units whose `d` and `dmin` are finite f16 values in `[0, 2)`.
 fn random_units(rng: &mut fastrand::Rng, blocks: usize) -> Vec<[u8; UNIT]> {
@@ -28,8 +28,13 @@ fn set_specials(unit: &mut [u8; UNIT], specials: &[u16; ROWS]) {
     }
 }
 
+/// The NEON kernel under the test host's token.
+fn neon(group: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
+    q4_k_group(token(), group, inputs, out);
+}
+
 const Q4_K: Format<UNIT> = Format {
-    kernels: [q4_k_group, scalar::group],
+    kernels: [neon, scalar::group],
     random_units,
     set_specials,
 };

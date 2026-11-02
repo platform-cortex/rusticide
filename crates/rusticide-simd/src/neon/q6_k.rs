@@ -20,6 +20,7 @@ mod scalar;
 #[cfg(not(miri))]
 mod vector;
 
+use crate::Dotprod;
 use crate::group::{Q8Superblocks, ROWS};
 
 #[cfg(miri)]
@@ -48,10 +49,15 @@ pub const LANE: usize = 4;
 /// the order and roundings of the portable `Q6_K` kernels.
 #[inline]
 #[cfg_attr(miri, allow(unused_unsafe))]
-pub fn q6_k_group(group: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
-    // SAFETY: this module compiles only under `cfg(all(target_arch =
-    // "aarch64", target_feature = "dotprod"))`, so the build target
-    // guarantees that every CPU running this binary has NEON and dotprod.
+pub fn q6_k_group(
+    _token: Dotprod,
+    group: &[[u8; UNIT]],
+    inputs: &[Q8Superblocks<'_>],
+    out: &mut [[f32; ROWS]],
+) {
+    // SAFETY: a `Dotprod` exists only after `Dotprod::detect` found
+    // dotprod on this CPU (NEON is baseline on aarch64), so the CPU running
+    // this call has every feature the body enables.
     unsafe { body::group(group, inputs, out) }
 }
 

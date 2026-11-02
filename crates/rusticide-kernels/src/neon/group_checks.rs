@@ -7,6 +7,7 @@
 use rusticide_quantize::block_format;
 use rusticide_simd::group::TOKENS;
 
+use crate::group_views::{GroupViews, visit_views};
 use crate::neon::ADAPTER;
 use crate::portable;
 use crate::q8_input::Q8Input;
@@ -15,6 +16,9 @@ use crate::test_support::pseudo_random_values;
 
 const ROWS: usize = 16;
 const COLS: usize = 1024;
+
+/// A format's group kernel wrapper with its token withheld.
+pub(super) type Untokened = fn(&[u8], &[Q8Input], &GroupViews<'_>, &mut [f32]);
 
 fn kernel(type_id: u32) -> &'static QuantKernel {
     ADAPTER.quant_kernel(type_id).unwrap()
@@ -210,13 +214,43 @@ pub(super) fn a_minus_128_activation_matches_portable(type_id: u32) {
         input.sums[element / 32] += i32::from(i8::MIN) - old;
     }
     let got = neon_products(type_id, &original, row_bytes, &inputs);
+    assert_portable(type_id, &original, row_bytes, &inputs, &got);
+}
+
+/// `got` holds, row by row, each of `original`'s rows against every input
+/// exactly as the portable kernel computes it.
+fn assert_portable(
+    type_id: u32,
+    original: &[u8],
+    row_bytes: usize,
+    inputs: &[Q8Input],
+    got: &[f32],
+) {
     let portable = portable::ADAPTER.quant_kernel(type_id).unwrap();
     for (row, values) in original
         .chunks_exact(row_bytes)
         .zip(got.chunks_exact(inputs.len()))
     {
-        for (value, input) in values.iter().zip(&inputs) {
+        for (value, input) in values.iter().zip(inputs) {
             assert_eq!(value.to_bits(), portable.dot_row(row, input).to_bits());
         }
     }
+}
+
+/// A group kernel wrapper handed no token computes every value with the
+/// portable kernel instead, never the SIMD one.
+pub(super) fn without_a_token_matches_portable(type_id: u32, untokened: Untokened) {
+    let (original, row_bytes) = weights(type_id, 26);
+    let mut data = original.clone();
+    assert!((layout(type_id).prepare)(&mut data, row_bytes));
+    let inputs = inputs(type_id, TOKENS + 3, 70);
+    let mut got = vec![f32::NAN; ROWS * inputs.len()];
+    let group_rows = layout(type_id).group_rows;
+    visit_views(&inputs, kernel(type_id).activation, |views| {
+        let groups = data.chunks_exact(group_rows * row_bytes);
+        for (group, out) in groups.zip(got.chunks_exact_mut(group_rows * inputs.len())) {
+            untokened(group, &inputs, views, out);
+        }
+    });
+    assert_portable(type_id, &original, row_bytes, &inputs, &got);
 }

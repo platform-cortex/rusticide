@@ -11,9 +11,10 @@ pub const ROWS: usize = 8;
 pub const TOKENS: usize = 16;
 
 /// A group kernel: one group's units against each input, the eight rows
-/// side by side in the input's slot of the output.
-pub type GroupKernel<const UNIT: usize, Input> =
-    fn(group: &[[u8; UNIT]], inputs: &[Input], out: &mut [[f32; ROWS]]);
+/// side by side in the input's slot of the output, behind the proof token
+/// `Token` of the instruction set it runs on.
+pub type GroupKernel<Token, const UNIT: usize, Input> =
+    fn(token: Token, group: &[[u8; UNIT]], inputs: &[Input], out: &mut [[f32; ROWS]]);
 
 /// Whether any quant is `-128`. The views refuse such an activation so a
 /// kernel may negate any quant it reads (the AVX2 sign trick) without
@@ -25,6 +26,10 @@ fn has_minus_128(quants: &[i8]) -> bool {
 /// One token's `Q8_K` activation as whole 256-element super-blocks: each
 /// super-block's scale (stored once per 32 elements, all equal), its
 /// quants, and the sums of its eight 32-element runs.
+#[cfg_attr(
+    not(target_arch = "aarch64"),
+    allow(dead_code, reason = "only the SIMD kernels read a view")
+)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Q8Superblocks<'a> {
     pub(crate) scales: &'a [[f32; 8]],
@@ -57,6 +62,10 @@ impl<'a> Q8Superblocks<'a> {
 
 /// One token's `Q8_0` activation as whole 32-element blocks: each block's
 /// scale and its quants.
+#[cfg_attr(
+    not(target_arch = "aarch64"),
+    allow(dead_code, reason = "only the SIMD kernels read a view")
+)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Q8Blocks<'a> {
     pub(crate) scales: &'a [f32],
