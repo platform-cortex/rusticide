@@ -211,3 +211,20 @@ runners compile the adapter out and cover `portable`.
   as long as Qwen2.5 meets goal 1.
 - How part 1 splits the serial work across the pool (per token, fused
   norm and quantization, or folded into the next parallel region).
+
+## Results
+
+Part 1, Apple M1 Pro (8 cores), tokens/s, `PARALLEL_MIN_TOKENS` = 2
+(unchanged). Before is the previous baseline; after is the re-recorded
+baseline (median of three sessions).
+
+- Qwen2.5 prefill: 348.48 before, 426.03 after (+22%).
+- Qwen2.5 decode: 131.01 before, 132.60 after (within tolerance).
+- TinyLlama prefill: 148.00 before, 166.82 after (+13%).
+- TinyLlama decode: 96.85 before, 96.36 after (within tolerance).
+- Thread count, `RAYON_NUM_THREADS=6` (best): Qwen2.5 prefill 405.53,
+  decode 117.98; TinyLlama prefill 154.23, decode 80.04.
+- Thread count, `RAYON_NUM_THREADS=8` (best): Qwen2.5 prefill 422.72,
+  decode 117.10; TinyLlama prefill 159.25, decode 89.63.
+- Decision: keep the default (8 threads); 8 is at least as fast as 6 on
+  prefill and the decode difference is within run-to-run noise.

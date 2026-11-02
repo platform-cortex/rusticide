@@ -226,3 +226,20 @@ x86_64 compilam sem o adaptador e cobrem o `portable`.
   mais simples, desde que o Qwen2.5 cumpra o objetivo 1.
 - Como a parte 1 divide o trabalho serial no pool (por token, norma e
   quantizacao fundidas, ou dobrado na proxima regiao paralela).
+
+## Resultados
+
+Parte 1, Apple M1 Pro (8 nucleos), tokens/s, `PARALLEL_MIN_TOKENS` = 2
+(inalterado). Antes e a baseline anterior; depois e a baseline regravada
+(mediana de tres sessoes).
+
+- Prefill do Qwen2.5: 348,48 antes, 426,03 depois (+22%).
+- Decode do Qwen2.5: 131,01 antes, 132,60 depois (dentro da tolerancia).
+- Prefill do TinyLlama: 148,00 antes, 166,82 depois (+13%).
+- Decode do TinyLlama: 96,85 antes, 96,36 depois (dentro da tolerancia).
+- Contagem de threads, `RAYON_NUM_THREADS=6` (melhor): prefill do Qwen2.5
+  405,53, decode 117,98; prefill do TinyLlama 154,23, decode 80,04.
+- Contagem de threads, `RAYON_NUM_THREADS=8` (melhor): prefill do Qwen2.5
+  422,72, decode 117,10; prefill do TinyLlama 159,25, decode 89,63.
+- Decisao: manter o padrao (8 threads); 8 e ao menos tao rapido quanto 6
+  no prefill e a diferenca no decode esta dentro do ruido entre execucoes.
