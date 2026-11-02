@@ -216,6 +216,20 @@ fn load_of_a_missing_file_is_io() {
 }
 
 #[test]
+fn load_refuses_a_device() {
+    assert!(matches!(
+        GgufFile::load("/dev/zero"),
+        Err(GgufError::NotAFile)
+    ));
+}
+
+#[test]
+fn load_refuses_a_directory() {
+    let dir = std::env::temp_dir();
+    assert!(matches!(GgufFile::load(dir), Err(GgufError::NotAFile)));
+}
+
+#[test]
 fn a_data_section_starting_past_eof_is_rejected() {
     let mut bytes = GgufBuilder::new().build();
     bytes.truncate(bytes.len() - 8);

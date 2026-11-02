@@ -16,6 +16,10 @@ pub enum GgufError {
     /// The file could not be read from disk.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+    /// The path names something other than a regular file, such as a
+    /// directory, a device or a pipe.
+    #[error("not a regular file")]
+    NotAFile,
     /// A tensor uses a GGML type this reader does not support.
     #[error("tensor {name} has unsupported type {type_id}")]
     UnsupportedTensorType {

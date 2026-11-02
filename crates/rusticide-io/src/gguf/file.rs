@@ -4,6 +4,8 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 
 use super::cursor::Cursor;
@@ -61,9 +63,17 @@ impl GgufFile {
     ///
     /// # Errors
     ///
-    /// `Io` when the file cannot be read, otherwise as [`Self::from_bytes`].
+    /// `NotAFile` for a directory, device or pipe, which could be read
+    /// without end; `Io` when the file cannot be read; otherwise as
+    /// [`Self::from_bytes`].
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
-        Self::from_bytes(std::fs::read(path)?)
+        let mut file = File::open(path)?;
+        if !file.metadata()?.is_file() {
+            return Err(GgufError::NotAFile);
+        }
+        let mut data = Vec::new();
+        file.read_to_end(&mut data)?;
+        Self::from_bytes(data)
     }
 
     /// The key-value metadata.
