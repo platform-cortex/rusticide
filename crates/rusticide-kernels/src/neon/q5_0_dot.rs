@@ -9,6 +9,7 @@ use rusticide_simd::neon::q5_0::q5_0_group;
 
 use super::group_dot;
 use super::q5_0::{prepare, read_row};
+use crate::group_views::GroupViews;
 use crate::portable::int_dot;
 use crate::q8_input::{Q8Input, Q8Kind};
 use crate::quant_kernel::{Layout, QuantKernel};
@@ -26,8 +27,8 @@ pub(crate) const KERNEL: QuantKernel = QuantKernel {
     }),
 };
 
-fn dot_group(group: &[u8], inputs: &[Q8Input], out: &mut [f32]) {
-    group_dot::dot_group(&KERNEL, q5_0_group, group_dot::blocks, group, inputs, out);
+fn dot_group(group: &[u8], inputs: &[Q8Input], views: &GroupViews<'_>, out: &mut [f32]) {
+    group_dot::dot_group(&KERNEL, q5_0_group, views.blocks(), group, inputs, out);
 }
 
 #[cfg(test)]

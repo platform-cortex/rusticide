@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::group_views::{GroupViews, visit_views};
 use crate::q8_input::{Q8Input, Q8Kind};
 
 pub(crate) type DotRow = fn(row: &[u8], input: &Q8Input) -> f32;
@@ -17,8 +18,10 @@ pub(crate) struct Layout {
     pub(crate) prepare: fn(data: &mut [u8], row_bytes: usize) -> bool,
     /// Writes row `index`'s original bytes from the prepared layout.
     pub(crate) read_row: fn(data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> bool,
-    /// One group against every input, into `out[row * inputs.len() + token]`.
-    pub(crate) dot_group: fn(group: &[u8], inputs: &[Q8Input], out: &mut [f32]),
+    /// One group against every input, into `out[row * inputs.len() + token]`;
+    /// `views` are those inputs' views, built once for the whole product.
+    pub(crate) dot_group:
+        fn(group: &[u8], inputs: &[Q8Input], views: &GroupViews<'_>, out: &mut [f32]),
 }
 
 /// The row kernels for one block format, keyed by its GGML type id, the
@@ -107,7 +110,9 @@ impl QuantKernel {
     /// `Adapter::prepare_matrix` left it. Nothing is written when
     /// `row_bytes` is zero.
     pub fn dot_matrix(&self, data: &[u8], row_bytes: usize, inputs: &[Q8Input], out: &mut [f32]) {
-        self.compute_rows(data, row_bytes, 0, inputs, out);
+        visit_views(inputs, self.activation, |views| {
+            self.compute_rows(data, row_bytes, 0, inputs, views, out);
+        });
     }
 
     /// Rows a scheduler task must keep together.
@@ -123,6 +128,7 @@ impl QuantKernel {
         row_bytes: usize,
         first_row: usize,
         inputs: &[Q8Input],
+        views: &GroupViews<'_>,
         out: &mut [f32],
     ) {
         if row_bytes == 0 {
@@ -141,7 +147,7 @@ impl QuantKernel {
                 .chunks_exact_mut(group.saturating_mul(tokens))
                 .zip(groups)
             {
-                (layout.dot_group)(rows, inputs, slots);
+                (layout.dot_group)(rows, inputs, views, slots);
             }
         } else {
             let rows = data.chunks_exact(row_bytes).skip(first_row);

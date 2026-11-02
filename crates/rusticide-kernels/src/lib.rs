@@ -11,6 +11,7 @@
 
 mod adapter;
 mod facade;
+mod group_views;
 mod matmul;
 #[cfg(all(target_arch = "aarch64", target_feature = "dotprod"))]
 mod neon;

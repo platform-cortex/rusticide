@@ -5,6 +5,7 @@
 //! Checks every NEON group kernel must pass, by GGML type id.
 
 use rusticide_quantize::block_format;
+use rusticide_simd::group::TOKENS;
 
 use crate::neon::ADAPTER;
 use crate::portable;
@@ -60,7 +61,7 @@ fn neon_products(type_id: u32, original: &[u8], row_bytes: usize, inputs: &[Q8In
     assert!(std::ptr::eq(prepared, kernel(type_id)));
     assert!(prepared.layout.is_some());
     let mut out = vec![f32::NAN; ROWS * inputs.len()];
-    prepared.compute_rows(&data, row_bytes, 0, inputs, &mut out);
+    prepared.dot_matrix(&data, row_bytes, inputs, &mut out);
     out
 }
 
@@ -172,7 +173,7 @@ pub(super) fn no_inputs_leave_the_output_untouched(type_id: u32) {
     let (mut data, row_bytes) = weights(type_id, 23);
     assert!((layout(type_id).prepare)(&mut data, row_bytes));
     let mut out = [1.5; ROWS];
-    kernel(type_id).compute_rows(&data, row_bytes, 0, &[], &mut out);
+    kernel(type_id).dot_matrix(&data, row_bytes, &[], &mut out);
     assert_eq!(out, [1.5; ROWS]);
 }
 
@@ -196,12 +197,13 @@ pub(super) fn runs_in_groups_of_eight(type_id: u32) {
     assert!(std::ptr::eq(prepared, fallback));
 }
 
-/// Tokens 3 and 5 of a chunk carry a `-128`, which the group views refuse:
-/// every value still equals the portable kernel's.
+/// Tokens in the first, second and last (partial) chunk carry a `-128`,
+/// which the group views refuse: every value still equals the portable
+/// kernel's.
 pub(super) fn a_minus_128_activation_matches_portable(type_id: u32) {
     let (original, row_bytes) = weights(type_id, 25);
-    let mut inputs = inputs(type_id, 6, 60);
-    for (token, element) in [(3, 5), (5, 700)] {
+    let mut inputs = inputs(type_id, 2 * TOKENS + 3, 60);
+    for (token, element) in [(3, 5), (TOKENS + 4, 700), (2 * TOKENS + 2, 9)] {
         let input = &mut inputs[token];
         let old = i32::from(input.quants[element]);
         input.quants[element] = i8::MIN;

@@ -9,6 +9,7 @@
 use rayon::prelude::*;
 
 use crate::facade::dot;
+use crate::group_views::GroupViews;
 use crate::q8_input::{Q8Input, Q8Kind};
 use crate::quant_kernel::QuantKernel;
 
@@ -66,9 +67,23 @@ impl Weights<'_> {
         }
     }
 
+    /// The scheme whose group views this matrix's kernel reads, if any.
+    const fn grouped_activation(&self) -> Option<Q8Kind> {
+        match self {
+            Self::Blocks { kernel, .. } if kernel.layout.is_some() => Some(kernel.activation()),
+            _ => None,
+        }
+    }
+
     /// Writes the products of rows `first_row..` with every token of the
     /// input into `out`, the tokens of one row side by side.
-    fn compute_rows(&self, first_row: usize, out: &mut [f32], input: &Activations<'_>) {
+    fn compute_rows(
+        &self,
+        first_row: usize,
+        out: &mut [f32],
+        input: &Activations<'_>,
+        views: &GroupViews<'_>,
+    ) {
         let tokens = input.tokens().max(1);
         match self {
             Self::Dense { data, cols } => {
@@ -85,7 +100,7 @@ impl Weights<'_> {
                 row_bytes,
             } => {
                 let quantized = input.quantized(kernel.activation());
-                kernel.compute_rows(data, *row_bytes, first_row, quantized, out);
+                kernel.compute_rows(data, *row_bytes, first_row, quantized, views, out);
             }
         }
     }
@@ -150,9 +165,27 @@ impl<'a> Activations<'a> {
         }
     }
 
+    /// The group views of the schemes some matrix of `jobs` reads grouped,
+    /// scanned once for the whole batch.
+    fn views(&self, jobs: &[(Weights<'_>, &mut [f32])]) -> GroupViews<'_> {
+        let wanted = |kind| {
+            jobs.iter()
+                .any(|(weights, _)| weights.grouped_activation() == Some(kind))
+        };
+        GroupViews::new(
+            only(wanted(Q8Kind::Block), &self.block),
+            only(wanted(Q8Kind::SuperBlock), &self.super_block),
+        )
+    }
+
     const fn tokens(&self) -> usize {
         self.dense.len()
     }
+}
+
+/// `inputs` when `wanted`, else none.
+const fn only(wanted: bool, inputs: &[Q8Input]) -> &[Q8Input] {
+    if wanted { inputs } else { &[] }
 }
 
 /// Writes `weights x input` into each job's output, all jobs in one parallel
@@ -173,6 +206,7 @@ pub fn matmul_batch(inputs: &[f32], tokens: usize, jobs: &mut [(Weights<'_>, &mu
         return;
     }
     let activations = Activations::new(inputs, tokens, jobs.iter().map(|(weights, _)| weights));
+    let views = activations.views(jobs);
     let total: usize = jobs.iter().map(|(weights, _)| weights.rows()).sum();
     let tasks = rayon::current_num_threads() * TASKS_PER_THREAD;
     let rows_per_task = total.div_ceil(tasks).max(1);
@@ -183,8 +217,9 @@ pub fn matmul_batch(inputs: &[f32], tokens: usize, jobs: &mut [(Weights<'_>, &mu
             runs.push((*weights, index * rows, run));
         }
     }
-    runs.into_par_iter()
-        .for_each(|(weights, first_row, run)| weights.compute_rows(first_row, run, &activations));
+    runs.into_par_iter().for_each(|(weights, first_row, run)| {
+        weights.compute_rows(first_row, run, &activations, &views);
+    });
 }
 
 #[cfg(test)]

@@ -15,9 +15,9 @@ pub const TOKENS: usize = 16;
 pub type GroupKernel<const UNIT: usize, Input> =
     fn(group: &[[u8; UNIT]], inputs: &[Input], out: &mut [[f32; ROWS]]);
 
-/// Whether any quant is `-128`: negating it overflows `i8`, so a kernel
-/// that moves the activation's sign onto the weights (AVX2 `vpmaddubsw`)
-/// would misread it. Views refuse such activations on every target.
+/// Whether any quant is `-128`. The views refuse such an activation so a
+/// kernel may negate any quant it reads (the AVX2 sign trick) without
+/// overflowing `i8`.
 fn has_minus_128(quants: &[i8]) -> bool {
     quants.contains(&i8::MIN)
 }

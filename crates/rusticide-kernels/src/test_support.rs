@@ -6,6 +6,7 @@
 //! feature, for the tests of crates that load weights through an adapter.
 
 use crate::adapter::Adapter;
+use crate::group_views::GroupViews;
 use crate::portable::{self, int_dot};
 use crate::q8_input::{Q8Input, Q8Kind};
 use crate::quant_kernel::{Layout, QuantKernel, read_row_major};
@@ -48,7 +49,7 @@ fn read_swapped(data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> 
     read_row_major(data, row_bytes, index ^ 1, out)
 }
 
-fn dot_swapped(group: &[u8], inputs: &[Q8Input], out: &mut [f32]) {
+fn dot_swapped(group: &[u8], inputs: &[Q8Input], _views: &GroupViews<'_>, out: &mut [f32]) {
     let (second, first) = group.split_at(group.len() / 2);
     for (slots, row) in out.chunks_mut(inputs.len().max(1)).zip([first, second]) {
         for (slot, input) in slots.iter_mut().zip(inputs) {
