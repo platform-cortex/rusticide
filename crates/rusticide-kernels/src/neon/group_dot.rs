@@ -6,14 +6,9 @@
 //! super-blocks and handed to a `rusticide_simd` kernel a chunk of tokens
 //! at a time.
 
-use rusticide_simd::neon::group::{Q8Superblocks, ROWS, TOKENS};
+use rusticide_simd::neon::group::{GroupKernel, Q8Superblocks, ROWS, TOKENS};
 
 use crate::q8_input::Q8Input;
-
-/// A `rusticide_simd` kernel: one group's units against each input, the
-/// eight rows side by side in the input's slot of the output.
-pub(super) type GroupKernel<const UNIT: usize> =
-    fn(group: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]);
 
 fn superblocks(input: &Q8Input) -> Q8Superblocks<'_> {
     Q8Superblocks::new(

@@ -17,8 +17,11 @@ pub mod neon {
     pub mod dot;
     pub mod group;
     pub mod q4_k;
+    pub mod q6_k;
     #[cfg(any(miri, test))]
     mod scalar;
+    #[cfg(test)]
+    mod test_support;
     #[cfg(not(miri))]
     mod vector;
 }

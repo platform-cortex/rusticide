@@ -10,6 +10,11 @@ pub const ROWS: usize = 8;
 /// Inputs a kernel keeps partial sums for at once.
 pub const TOKENS: usize = 16;
 
+/// A group kernel: one group's units against each input, the eight rows
+/// side by side in the input's slot of the output.
+pub type GroupKernel<const UNIT: usize> =
+    fn(group: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]);
+
 /// One token's `Q8_K` activation as whole 256-element super-blocks: each
 /// super-block's scale (stored once per 32 elements, all equal), its
 /// quants, and the sums of its eight 32-element runs.

@@ -45,7 +45,7 @@ const Q4_K: QuantKernel = QuantKernel {
     layout: None,
 };
 
-pub(crate) const Q6_K: QuantKernel = QuantKernel {
+const Q6_K: QuantKernel = QuantKernel {
     type_id: 14,
     activation: Q8Kind::SuperBlock,
     dot: int_dot::q6_k,
