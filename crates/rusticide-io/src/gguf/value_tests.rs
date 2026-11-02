@@ -2,16 +2,18 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::{GGUFValue, GGUFValueType, MAX_ARRAY_DEPTH, parse_typed_value, parse_value};
+use super::{
+    ElementBudget, GGUFValue, GGUFValueType, MAX_ARRAY_DEPTH, parse_typed_value, parse_value,
+};
 use crate::error::GgufError;
 use crate::gguf::cursor::Cursor;
 
 fn parse(ty: GGUFValueType, bytes: &[u8]) -> GGUFValue {
-    parse_value(&mut Cursor::new(bytes), ty).unwrap()
+    parse_value(&mut Cursor::new(bytes), ty, &mut ElementBudget::default()).unwrap()
 }
 
 fn parse_error(ty: GGUFValueType, bytes: &[u8]) -> GgufError {
-    parse_value(&mut Cursor::new(bytes), ty).unwrap_err()
+    parse_value(&mut Cursor::new(bytes), ty, &mut ElementBudget::default()).unwrap_err()
 }
 
 fn array_header(item_tag: u32, len: u64) -> Vec<u8> {
@@ -80,7 +82,7 @@ fn typed_value_reads_the_tag_first() {
     bytes.extend_from_slice(&7_u32.to_le_bytes());
     let mut cursor = Cursor::new(&bytes);
     assert_eq!(
-        parse_typed_value(&mut cursor).unwrap(),
+        parse_typed_value(&mut cursor, &mut ElementBudget::default()).unwrap(),
         GGUFValue::Uint32(7)
     );
 }
@@ -89,7 +91,7 @@ fn typed_value_reads_the_tag_first() {
 fn invalid_value_type_tag() {
     let bytes = 13_u32.to_le_bytes();
     assert!(matches!(
-        parse_typed_value(&mut Cursor::new(&bytes)),
+        parse_typed_value(&mut Cursor::new(&bytes), &mut ElementBudget::default()),
         Err(GgufError::InvalidValueType(13))
     ));
 }
@@ -220,4 +222,45 @@ fn every_wire_tag_maps_to_its_type() {
     }
     assert_eq!(GGUFValueType::from_u32(13), None);
     assert_eq!(GGUFValueType::from_u32(u32::MAX), None);
+}
+
+fn parse_with_limit(bytes: &[u8], limit: usize) -> crate::error::Result<GGUFValue> {
+    let mut budget = ElementBudget::with_limit(limit);
+    parse_value(&mut Cursor::new(bytes), GGUFValueType::Array, &mut budget)
+}
+
+#[test]
+fn an_array_within_the_element_budget_parses() {
+    let mut bytes = array_header(0, 2);
+    bytes.extend([1, 2]);
+    assert!(parse_with_limit(&bytes, 2).is_ok());
+}
+
+#[test]
+fn an_array_past_the_element_budget_is_rejected() {
+    let mut bytes = array_header(0, 3);
+    bytes.extend([1, 2, 3]);
+    assert!(matches!(
+        parse_with_limit(&bytes, 2),
+        Err(GgufError::MetadataTooLarge { limit: 2 })
+    ));
+}
+
+#[test]
+fn nested_arrays_spend_one_budget() {
+    let mut bytes = array_header(9, 2);
+    for _ in 0..2 {
+        bytes.extend(array_header(0, 1));
+        bytes.push(7);
+    }
+    assert!(parse_with_limit(&bytes, 4).is_ok());
+    assert!(matches!(
+        parse_with_limit(&bytes, 3),
+        Err(GgufError::MetadataTooLarge { limit: 3 })
+    ));
+}
+
+#[test]
+fn the_default_budget_is_the_file_wide_limit() {
+    assert_eq!(ElementBudget::default().left, super::MAX_METADATA_ELEMENTS);
 }

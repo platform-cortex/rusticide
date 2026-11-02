@@ -4,10 +4,13 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::{GgufFile, align_up};
+use super::{GgufFile, align_up, parse_metadata};
 use crate::error::GgufError;
 use crate::gguf::GGUFValue;
+use crate::gguf::cursor::Cursor;
+use crate::gguf::header::Header;
 use crate::gguf::test_support::{GgufBuilder, header_bytes, tensor_info_bytes};
+use crate::gguf::value::ElementBudget;
 
 fn parse(bytes: Vec<u8>) -> crate::error::Result<GgufFile> {
     GgufFile::from_bytes(bytes)
@@ -244,4 +247,20 @@ fn a_tensor_offset_aligned_to_a_custom_alignment_is_accepted() {
         .tensor("b", &[1], 0, &[0; 4])
         .build();
     assert_eq!(parse(bytes).unwrap().tensor_info("b").unwrap().offset, 64);
+}
+
+#[test]
+fn every_metadata_key_spends_one_element_budget() {
+    let array = [&0_u32.to_le_bytes()[..], &2_u64.to_le_bytes(), &[1, 2]].concat();
+    let bytes = GgufBuilder::new()
+        .raw_kv("a", 9, &array)
+        .raw_kv("b", 9, &array)
+        .build();
+    let mut cursor = Cursor::new(&bytes);
+    Header::parse(&mut cursor).unwrap();
+    let result = parse_metadata(&mut cursor, 2, &mut ElementBudget::with_limit(3));
+    assert!(matches!(
+        result,
+        Err(GgufError::MetadataTooLarge { limit: 3 })
+    ));
 }

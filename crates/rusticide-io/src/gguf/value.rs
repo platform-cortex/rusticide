@@ -7,6 +7,39 @@ use crate::error::{GgufError, Result};
 
 const MAX_ARRAY_DEPTH: usize = 8;
 
+/// Array elements one file may hold across all of its metadata. Each costs
+/// a `GGUFValue` in memory whatever its size on disk, about 33 times a
+/// one-byte element; real vocabularies (tokens, scores, types, merges) stay
+/// near a million.
+const MAX_METADATA_ELEMENTS: usize = 1 << 22;
+
+/// The array elements a file has left to spend on its metadata.
+#[derive(Debug)]
+pub(crate) struct ElementBudget {
+    left: usize,
+    limit: usize,
+}
+
+impl Default for ElementBudget {
+    fn default() -> Self {
+        Self::with_limit(MAX_METADATA_ELEMENTS)
+    }
+}
+
+impl ElementBudget {
+    pub(crate) const fn with_limit(limit: usize) -> Self {
+        Self { left: limit, limit }
+    }
+
+    fn spend(&mut self) -> Result<()> {
+        self.left = self
+            .left
+            .checked_sub(1)
+            .ok_or(GgufError::MetadataTooLarge { limit: self.limit })?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum GGUFValueType {
     Uint8,
@@ -84,19 +117,27 @@ pub enum GGUFValue {
     Float64(f64),
 }
 
-pub(crate) fn parse_typed_value(cursor: &mut Cursor<'_>) -> Result<GGUFValue> {
+pub(crate) fn parse_typed_value(
+    cursor: &mut Cursor<'_>,
+    budget: &mut ElementBudget,
+) -> Result<GGUFValue> {
     let ty = GGUFValueType::read(cursor)?;
-    parse_value(cursor, ty)
+    parse_value(cursor, ty, budget)
 }
 
-pub(crate) fn parse_value(cursor: &mut Cursor<'_>, ty: GGUFValueType) -> Result<GGUFValue> {
-    parse_value_at_depth(cursor, ty, 0)
+pub(crate) fn parse_value(
+    cursor: &mut Cursor<'_>,
+    ty: GGUFValueType,
+    budget: &mut ElementBudget,
+) -> Result<GGUFValue> {
+    parse_value_at_depth(cursor, ty, 0, budget)
 }
 
 fn parse_value_at_depth(
     cursor: &mut Cursor<'_>,
     ty: GGUFValueType,
     depth: usize,
+    budget: &mut ElementBudget,
 ) -> Result<GGUFValue> {
     Ok(match ty {
         GGUFValueType::Uint8 => GGUFValue::Uint8(u8::from_le_bytes(cursor.array()?)),
@@ -108,7 +149,7 @@ fn parse_value_at_depth(
         GGUFValueType::Float32 => GGUFValue::Float32(f32::from_le_bytes(cursor.array()?)),
         GGUFValueType::Bool => GGUFValue::Bool(u8::from_le_bytes(cursor.array()?) != 0),
         GGUFValueType::String => GGUFValue::String(cursor.string()?),
-        GGUFValueType::Array => parse_array(cursor, depth + 1)?,
+        GGUFValueType::Array => parse_array(cursor, depth + 1, budget)?,
         GGUFValueType::Uint64 => GGUFValue::Uint64(cursor.u64()?),
         GGUFValueType::Int64 => GGUFValue::Int64(i64::from_le_bytes(cursor.array()?)),
         GGUFValueType::Float64 => GGUFValue::Float64(f64::from_le_bytes(cursor.array()?)),
@@ -118,7 +159,11 @@ fn parse_value_at_depth(
 /// `depth` is the nesting level of the array being parsed (outermost is 1).
 /// Untrusted input nests arrays at about 12 bytes per level, so unbounded
 /// recursion would overflow the stack.
-fn parse_array(cursor: &mut Cursor<'_>, depth: usize) -> Result<GGUFValue> {
+fn parse_array(
+    cursor: &mut Cursor<'_>,
+    depth: usize,
+    budget: &mut ElementBudget,
+) -> Result<GGUFValue> {
     if depth > MAX_ARRAY_DEPTH {
         return Err(GgufError::NestingTooDeep {
             limit: MAX_ARRAY_DEPTH,
@@ -134,7 +179,8 @@ fn parse_array(cursor: &mut Cursor<'_>, depth: usize) -> Result<GGUFValue> {
     // short read ends the loop with UnexpectedEof.
     let mut items = Vec::new();
     for _ in 0..array_len {
-        items.push(parse_value_at_depth(cursor, item_type, depth)?);
+        budget.spend()?;
+        items.push(parse_value_at_depth(cursor, item_type, depth, budget)?);
     }
     Ok(GGUFValue::Array(items))
 }

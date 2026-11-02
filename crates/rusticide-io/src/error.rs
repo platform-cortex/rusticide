@@ -89,6 +89,12 @@ pub enum GgufError {
     /// A value type tag outside the GGUF specification.
     #[error("invalid value type: {0}")]
     InvalidValueType(u32),
+    /// The metadata arrays hold more elements than the parser allows.
+    #[error("GGUF metadata arrays hold more than {limit} elements")]
+    MetadataTooLarge {
+        /// The maximum permitted element count.
+        limit: usize,
+    },
     /// Arrays were nested deeper than the parser allows.
     #[error("GGUF arrays nested deeper than {limit}")]
     NestingTooDeep {

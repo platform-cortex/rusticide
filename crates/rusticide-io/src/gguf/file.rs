@@ -11,15 +11,14 @@ use super::extent::ensure_disjoint;
 use super::header::Header;
 use super::metadata::Metadata;
 use super::tensor_info::{TensorInfo, parse_tensor_info};
-use super::value::parse_typed_value;
+use super::value::{ElementBudget, parse_typed_value};
 use crate::error::{GgufError, Result};
 
 /// A parsed GGUF v3 file: metadata, tensor infos and the raw bytes.
 ///
 /// Memory: metadata arrays are expanded into `GGUFValue`s, costing roughly
-/// 24-32 bytes per element in memory regardless of the element's size on
-/// disk. A hostile file can therefore amplify its size; a memory ceiling is
-/// deferred to SP2.
+/// 32 bytes per element whatever its size on disk, so their total element
+/// count is capped.
 #[derive(Debug)]
 pub struct GgufFile {
     metadata: Metadata,
@@ -38,7 +37,7 @@ impl GgufFile {
     pub fn from_bytes(data: Vec<u8>) -> Result<Self> {
         let mut cursor = Cursor::new(&data);
         let header = Header::parse(&mut cursor)?;
-        let metadata = parse_metadata(&mut cursor, header.kv_count)?;
+        let metadata = parse_metadata(&mut cursor, header.kv_count, &mut ElementBudget::default())?;
         let tensors = parse_tensor_table(&mut cursor, header.tensor_count)?;
         let alignment = metadata.alignment()?;
         ensure_aligned_offsets(&tensors, alignment)?;
@@ -92,11 +91,15 @@ impl GgufFile {
     }
 }
 
-fn parse_metadata(cursor: &mut Cursor<'_>, kv_count: u64) -> Result<Metadata> {
+fn parse_metadata(
+    cursor: &mut Cursor<'_>,
+    kv_count: u64,
+    budget: &mut ElementBudget,
+) -> Result<Metadata> {
     let mut entries = HashMap::new();
     for _ in 0..kv_count {
         let key = cursor.string()?;
-        let value = parse_typed_value(cursor)?;
+        let value = parse_typed_value(cursor, budget)?;
         match entries.entry(key) {
             Entry::Occupied(taken) => {
                 return Err(GgufError::DuplicateKey {
