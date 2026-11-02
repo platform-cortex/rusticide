@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::{D, DMIN, Q8Superblocks, ROWS, TOKENS, UNIT, q4_k_group, scalar};
+use super::{D, DMIN, UNIT, q4_k_group, scalar};
+use crate::neon::group::{Q8Superblocks, ROWS, TOKENS};
 
 struct Activation {
     scales: Vec<[f32; 8]>,
@@ -145,20 +146,6 @@ fn special_scales_match_the_scalar_body() {
         assert!(
             left.to_bits() == right.to_bits() || (left.is_nan() && right.is_nan()),
             "{left} vs {right}"
-        );
-    }
-}
-
-// `half` converts with inline assembly on this target, which Miri cannot run.
-#[test]
-#[cfg_attr(miri, ignore)]
-fn f16_widening_matches_half_for_every_value() {
-    for bits in 0..=u16::MAX {
-        let expected = half::f16::from_bits(bits).to_f32();
-        let got = scalar::f16_to_f32(bits);
-        assert!(
-            got.to_bits() == expected.to_bits() || (got.is_nan() && expected.is_nan()),
-            "{bits:#06x}"
         );
     }
 }

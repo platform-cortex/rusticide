@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+mod group_dot;
+mod group_layout;
 mod q4_k;
 mod q4_k_dot;
 

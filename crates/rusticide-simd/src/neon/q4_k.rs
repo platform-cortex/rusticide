@@ -19,14 +19,14 @@ mod scalar;
 #[cfg(not(miri))]
 mod vector;
 
+use super::group::{Q8Superblocks, ROWS};
+
 #[cfg(miri)]
 use scalar as body;
 #[cfg(not(miri))]
 use vector as body;
 
-/// Rows per unit.
-pub const ROWS: usize = 8;
-/// Bytes per unit: one 144-byte block of each of [`ROWS`] rows.
+/// Bytes per unit: one 144-byte block of each of eight rows.
 pub const UNIT: usize = 1152;
 /// Offset of the rows' `d` values in a unit.
 pub const D: usize = 0;
@@ -38,31 +38,6 @@ pub const SCALES: usize = 32;
 pub const QS: usize = 128;
 /// Quant bytes of one row side by side in a unit.
 pub const LANE: usize = 4;
-/// Inputs the kernel keeps partial sums for at once.
-pub const TOKENS: usize = 16;
-
-/// One token's `Q8_K` activation as whole 256-element super-blocks: each
-/// super-block's scale (stored once per 32 elements, all equal), its
-/// quants, and the sums of its eight 32-element runs.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct Q8Superblocks<'a> {
-    scales: &'a [[f32; 8]],
-    quants: &'a [[i8; 256]],
-    sums: &'a [[i32; 8]],
-}
-
-impl<'a> Q8Superblocks<'a> {
-    /// A view of the super-blocks all three slices cover.
-    #[must_use]
-    pub fn new(scales: &'a [[f32; 8]], quants: &'a [[i8; 256]], sums: &'a [[i32; 8]]) -> Self {
-        let len = scales.len().min(quants.len()).min(sums.len());
-        Self {
-            scales: scales.get(..len).unwrap_or_default(),
-            quants: quants.get(..len).unwrap_or_default(),
-            sums: sums.get(..len).unwrap_or_default(),
-        }
-    }
-}
 
 /// The products of the eight rows in `group` (one unit per block) with
 /// each input, the rows side by side in the input's slot of `out`.

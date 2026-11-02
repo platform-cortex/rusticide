@@ -2,24 +2,21 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! The kernel on NEON. Rows `0..4` and `4..8` of a unit each fill one
-//! four-lane vector, so a row's sums never need a horizontal reduction.
-//! Per unit, each 32-element run's 256 weight bytes are unpacked once
-//! into sixteen registers and multiplied with every input of the chunk.
+//! The kernel on NEON. Per unit, each 32-element run's 256 weight bytes
+//! are unpacked once into sixteen registers and multiplied with every
+//! input of the chunk.
 
 use core::arch::aarch64::{
-    float32x4_t, int8x16_t, int32x4_t, uint8x8_t, uint8x16_t, uint16x8_t, uint32x4_t, vaddq_f32,
-    vaddq_s32, vand_u8, vandq_u8, vandq_u32, vbslq_u32, vcgeq_u32, vcvtq_f32_s32, vdotq_laneq_s32,
-    vdup_n_u8, vdupq_n_f32, vdupq_n_s8, vdupq_n_s32, vdupq_n_u8, vdupq_n_u32, vfmaq_f32,
-    vget_low_u16, vmlaq_n_s32, vmlaq_s32, vmovl_high_u16, vmovl_u8, vmovl_u16, vmulq_f32,
-    vmulq_n_f32, vnegq_f32, vorr_u8, vorrq_u32, vreinterpretq_f32_u32, vreinterpretq_s8_u8,
-    vreinterpretq_s32_u32, vreinterpretq_u32_f32, vshl_n_u8, vshlq_n_u32, vshr_n_u8, vshrq_n_u8,
+    float32x4_t, int8x16_t, int32x4_t, uint8x8_t, uint8x16_t, vaddq_f32, vaddq_s32, vand_u8,
+    vandq_u8, vcvtq_f32_s32, vdup_n_u8, vdupq_n_f32, vdupq_n_s8, vdupq_n_s32, vdupq_n_u8,
+    vfmaq_f32, vget_low_u16, vmlaq_n_s32, vmlaq_s32, vmovl_high_u16, vmovl_u8, vmovl_u16,
+    vmulq_f32, vmulq_n_f32, vnegq_f32, vorr_u8, vreinterpretq_s8_u8, vreinterpretq_s32_u32,
+    vshl_n_u8, vshr_n_u8, vshrq_n_u8,
 };
 
-use super::{Q8Superblocks, ROWS, TOKENS, UNIT};
-
-/// A value per row: rows `0..4`, then rows `4..8`.
-type Rows<T> = [T; 2];
+use super::UNIT;
+use crate::neon::group::{Q8Superblocks, ROWS, TOKENS};
+use crate::neon::vector::{Rows, four, halves};
 
 /// What every input shares for one unit: the rows' float scales and their
 /// 6-bit run scales and mins, a vector pair per run.
@@ -34,35 +31,6 @@ struct Header {
 /// quants as four pairs of runs of sixteen lanes each.
 fn lanes(unit: &[u8; UNIT]) -> &[[u8; 16]; 72] {
     bytemuck::cast_ref(unit)
-}
-
-#[inline]
-#[target_feature(enable = "neon,dotprod")]
-fn widen_f16(bits: uint32x4_t) -> float32x4_t {
-    let magnitude = vandq_u32(bits, vdupq_n_u32(0x7fff));
-    let shifted = vshlq_n_u32::<13>(magnitude);
-    let rebiased = vmulq_f32(
-        vreinterpretq_f32_u32(shifted),
-        vdupq_n_f32(f32::from_bits(0x7780_0000)),
-    );
-    let special = vcgeq_u32(magnitude, vdupq_n_u32(0x7c00));
-    let widened = vbslq_u32(
-        special,
-        vorrq_u32(shifted, vdupq_n_u32(0x7f80_0000)),
-        vreinterpretq_u32_f32(rebiased),
-    );
-    let sign = vshlq_n_u32::<16>(vandq_u32(bits, vdupq_n_u32(0x8000)));
-    vreinterpretq_f32_u32(vorrq_u32(widened, sign))
-}
-
-#[inline]
-#[target_feature(enable = "neon,dotprod")]
-fn halves(bytes: [u8; 16]) -> Rows<float32x4_t> {
-    let bits: uint16x8_t = bytemuck::cast(bytes);
-    [
-        widen_f16(vmovl_u16(vget_low_u16(bits))),
-        widen_f16(vmovl_high_u16(bits)),
-    ]
 }
 
 #[inline]
@@ -97,16 +65,6 @@ fn header(lanes: &[[u8; 16]; 72]) -> Header {
         scales,
         mins,
     }
-}
-
-/// Four `sdot`s into `sum`, weight vector `i` against lane `i` of `quants`.
-#[inline]
-#[target_feature(enable = "neon,dotprod")]
-fn four(sum: int32x4_t, weights: [int8x16_t; 4], quants: int8x16_t) -> int32x4_t {
-    let sum = vdotq_laneq_s32::<0>(sum, weights[0], quants);
-    let sum = vdotq_laneq_s32::<1>(sum, weights[1], quants);
-    let sum = vdotq_laneq_s32::<2>(sum, weights[2], quants);
-    vdotq_laneq_s32::<3>(sum, weights[3], quants)
 }
 
 /// Adds `scale` times one run's dot products to `sum`; weight vector

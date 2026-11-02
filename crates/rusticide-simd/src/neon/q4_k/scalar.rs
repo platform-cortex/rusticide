@@ -6,32 +6,9 @@
 //! the reference the NEON body is tested against. Integer arithmetic wraps
 //! as NEON's does, so no input can make the two differ or this one panic.
 
-use super::{D, DMIN, LANE, Q8Superblocks, QS, ROWS, SCALES, UNIT};
-
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "a block sum past 2^24 loses low bits, as the NEON conversion does"
-)]
-const fn lossy(value: i32) -> f32 {
-    value as f32
-}
-
-/// An IEEE half-precision value widened exactly; NaN stays NaN.
-pub(super) fn f16_to_f32(bits: u16) -> f32 {
-    let magnitude = u32::from(bits & 0x7fff);
-    let shifted = magnitude << 13;
-    let widened = if magnitude >= 0x7c00 {
-        shifted | 0x7f80_0000
-    } else {
-        // Rebiasing the exponent by 2^112 also normalizes a subnormal half.
-        (f32::from_bits(shifted) * f32::from_bits(0x7780_0000)).to_bits()
-    };
-    f32::from_bits(widened | (u32::from(bits & 0x8000) << 16))
-}
-
-fn f16_at(unit: &[u8; UNIT], offset: usize) -> f32 {
-    f16_to_f32(u16::from_le_bytes([unit[offset], unit[offset + 1]]))
-}
+use super::{D, DMIN, LANE, QS, SCALES, UNIT};
+use crate::neon::group::{Q8Superblocks, ROWS};
+use crate::neon::scalar::{f16_at, lossy};
 
 /// Row `row`'s eight 6-bit scales and mins, unpacked as ggml does.
 fn scales_and_mins(unit: &[u8; UNIT], row: usize) -> ([i32; 8], [i32; 8]) {

@@ -46,7 +46,7 @@ fn neon_products(original: &[u8], row_bytes: usize, inputs: &[Q8Input]) -> Vec<f
 #[test]
 fn neon_q4_k_matches_portable() {
     let (original, row_bytes) = weights(21);
-    for tokens in [1, 2, 7, 64] {
+    for tokens in [1, 2, 7, 19, 64] {
         let inputs = inputs(tokens, 40);
         let got = neon_products(&original, row_bytes, &inputs);
         for (row, values) in original

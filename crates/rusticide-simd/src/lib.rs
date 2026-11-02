@@ -15,7 +15,12 @@ pub const AVAILABLE: bool = cfg!(all(target_arch = "aarch64", target_feature = "
 #[cfg(all(target_arch = "aarch64", target_feature = "dotprod"))]
 pub mod neon {
     pub mod dot;
+    pub mod group;
     pub mod q4_k;
+    #[cfg(any(miri, test))]
+    mod scalar;
+    #[cfg(not(miri))]
+    mod vector;
 }
 
 #[cfg(test)]
