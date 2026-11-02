@@ -66,6 +66,14 @@ pub enum GgufError {
         /// The file's tensor-data alignment.
         alignment: u64,
     },
+    /// Two tensors claim some of the same bytes of the data section.
+    #[error("tensors {first:?} and {second:?} share bytes")]
+    OverlappingTensors {
+        /// The tensor that starts first.
+        first: String,
+        /// The tensor that starts inside it.
+        second: String,
+    },
     /// The input ended before a read could complete.
     #[error("unexpected end of file")]
     UnexpectedEof,

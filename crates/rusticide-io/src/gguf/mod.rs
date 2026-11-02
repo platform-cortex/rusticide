@@ -5,6 +5,7 @@
 //! The GGUF format layer.
 
 mod cursor;
+mod extent;
 mod file;
 mod header;
 mod load;

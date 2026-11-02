@@ -7,6 +7,7 @@ use std::collections::hash_map::Entry;
 use std::path::Path;
 
 use super::cursor::Cursor;
+use super::extent::ensure_disjoint;
 use super::header::Header;
 use super::metadata::Metadata;
 use super::tensor_info::{TensorInfo, parse_tensor_info};
@@ -41,6 +42,7 @@ impl GgufFile {
         let tensors = parse_tensor_table(&mut cursor, header.tensor_count)?;
         let alignment = metadata.alignment()?;
         ensure_aligned_offsets(&tensors, alignment)?;
+        ensure_disjoint(&tensors)?;
         let data_start = align_up(cursor.position(), alignment)?;
         if data_start > data.len() {
             return Err(GgufError::UnexpectedEof);

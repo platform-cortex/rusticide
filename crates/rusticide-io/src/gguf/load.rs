@@ -3,15 +3,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use half::f16;
-use rusticide_core::{Element, Shape, Tensor, try_vec_with_capacity};
-use rusticide_quantize::{BlockFormat, block_format};
+use rusticide_core::{Element, Tensor, try_vec_with_capacity};
+use rusticide_quantize::BlockFormat;
 
+use super::extent::{F32_TYPE_ID, byte_len};
 use super::file::GgufFile;
 use super::tensor_info::TensorInfo;
 use crate::error::{GgufError, Result};
-
-const F32_TYPE_ID: u32 = 0;
-const F16_TYPE_ID: u32 = 1;
 
 impl GgufFile {
     /// Materializes a tensor by name.
@@ -56,16 +54,7 @@ impl GgufFile {
     }
 
     fn layout(&self, info: &TensorInfo) -> Result<(Option<&'static BlockFormat>, &[u8])> {
-        let numel = Shape::new(&info.shape).numel();
-        let (format, len) = match info.type_id {
-            F32_TYPE_ID => (None, numel.checked_mul(size_of::<f32>())),
-            F16_TYPE_ID => (None, numel.checked_mul(size_of::<f16>())),
-            type_id => {
-                let format = block_format(type_id).ok_or_else(|| unsupported(info))?;
-                (Some(format), format.byte_len(numel))
-            }
-        };
-        let len = len.ok_or(GgufError::CastOverflow("tensor byte length"))?;
+        let (format, len) = byte_len(info)?;
         Ok((format, self.tensor_bytes(info, len)?))
     }
 
@@ -86,13 +75,6 @@ impl GgufFile {
             .ok_or(GgufError::UnexpectedEof)?;
         let end = start.checked_add(len).ok_or(GgufError::UnexpectedEof)?;
         self.data.get(start..end).ok_or(GgufError::UnexpectedEof)
-    }
-}
-
-fn unsupported(info: &TensorInfo) -> GgufError {
-    GgufError::UnsupportedTensorType {
-        name: info.name.clone(),
-        type_id: info.type_id,
     }
 }
 
