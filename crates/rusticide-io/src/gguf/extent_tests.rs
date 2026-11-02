@@ -21,8 +21,10 @@ fn two_tensors(first: (&[u64], u32, u64), second: (&[u64], u32, u64)) -> Vec<u8>
 fn overlap(bytes: Vec<u8>) -> Option<(String, String)> {
     match GgufFile::from_bytes(bytes) {
         Err(GgufError::OverlappingTensors { first, second }) => Some((first, second)),
-        Err(other) => panic!("unexpected error {other:?}"),
-        Ok(_) => None,
+        other => {
+            assert!(other.is_ok(), "{other:?}");
+            None
+        }
     }
 }
 
