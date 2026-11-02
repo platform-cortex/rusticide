@@ -27,12 +27,12 @@ const TOKENS: [u32; 8] = [1, 5, 6, 4, 3, 6, 2, 5];
 fn two_blocks(source: TinySource, architecture: &str, biases: bool) -> InMemorySource {
     let count = GGUFValue::Uint32(2);
     let mut source = source.with_metadata(&format!("{architecture}.block_count"), count);
-    for (salt, (part, shape)) in PARTS.into_iter().enumerate() {
-        let weight = tiny_tensor(part, &shape, salt + 3).unwrap();
+    for (offset, (part, shape)) in PARTS.into_iter().enumerate() {
+        let weight = tiny_tensor(part, &shape, offset + 3).unwrap();
         source = source.with_tensor(&format!("blk.1.{part}"), weight);
     }
-    for (salt, (part, len)) in BIASES.into_iter().enumerate().filter(|_| biases) {
-        let bias = tiny_tensor(part, &[len], salt + 1).unwrap();
+    for (offset, (part, len)) in BIASES.into_iter().enumerate().filter(|_| biases) {
+        let bias = tiny_tensor(part, &[len], offset + 1).unwrap();
         source = source.with_tensor(&format!("blk.1.{part}"), bias);
     }
     let norm = tensor(&[4], &[1.5, 0.5, 1.0, 2.0]);

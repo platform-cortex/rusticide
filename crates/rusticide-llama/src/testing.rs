@@ -7,8 +7,8 @@
 //! [`tiny_source`] is the stock model; [`TinySource`] is a fluent builder that
 //! overrides or drops individual metadata keys and tensors before building.
 //!
-//! Weights are deterministic: a matrix entry is `0.05 * (1 + (i + salt) % 5)`
-//! where `i` is the flat index and `salt` the tensor's position in the layout;
+//! Weights are deterministic: a matrix entry is `0.05 * (1 + (i + offset) % 5)`
+//! where `i` is the flat index and `offset` the tensor's position in the layout;
 //! norm weights are `1.0`.
 
 use rusticide_core::Tensor;
@@ -87,15 +87,16 @@ fn layout() -> Vec<(&'static str, Vec<usize>)> {
     ]
 }
 
-/// The stock tensor named `name` with the given shape; `salt` varies the data.
+/// The stock tensor named `name` with the given shape; `offset` shifts the
+/// repeating data pattern so tensors differ.
 #[must_use]
-pub fn tiny_tensor(name: &str, shape: &[usize], salt: usize) -> Option<Tensor> {
+pub fn tiny_tensor(name: &str, shape: &[usize], offset: usize) -> Option<Tensor> {
     let len: usize = shape.iter().product();
     let data: Vec<f32> = if name.ends_with("_norm.weight") {
         vec![1.0; len]
     } else {
         (0..len)
-            .map(|index| 0.05 * f32::from(1 + u8::try_from((index + salt) % 5).unwrap_or(0)))
+            .map(|index| 0.05 * f32::from(1 + u8::try_from((index + offset) % 5).unwrap_or(0)))
             .collect()
     };
     Tensor::from_slice(&data, shape).ok()
@@ -156,7 +157,7 @@ impl TinySource {
         let mut tensors: Vec<(String, Option<Tensor>)> = layout()
             .into_iter()
             .enumerate()
-            .map(|(salt, (name, shape))| (name.to_owned(), tiny_tensor(name, &shape, salt)))
+            .map(|(offset, (name, shape))| (name.to_owned(), tiny_tensor(name, &shape, offset)))
             .collect();
         tensors.extend(self.tensors);
         let mut finished: Vec<(String, Option<Tensor>)> = Vec::new();

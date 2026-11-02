@@ -82,8 +82,8 @@ impl TinySource {
                 source = source.with_tensor(name, tensor);
             }
         }
-        for (salt, (name, len)) in BIASES.into_iter().enumerate() {
-            if let Some(tensor) = tiny_tensor(name, &[len], salt) {
+        for (offset, (name, len)) in BIASES.into_iter().enumerate() {
+            if let Some(tensor) = tiny_tensor(name, &[len], offset) {
                 source = source.with_tensor(name, tensor);
             }
         }
