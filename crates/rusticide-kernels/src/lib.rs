@@ -12,6 +12,8 @@
 mod adapter;
 mod facade;
 mod matmul;
+#[cfg(all(target_arch = "aarch64", target_feature = "dotprod"))]
+mod neon;
 mod portable;
 mod q8_input;
 mod quant_kernel;

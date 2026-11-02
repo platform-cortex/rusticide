@@ -19,6 +19,7 @@ version.workspace = true
 half.workspace = true
 rayon.workspace = true
 rusticide-quantize.workspace = true
+rusticide-simd.workspace = true
 
 [lints]
 workspace = true

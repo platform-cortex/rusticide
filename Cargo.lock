@@ -371,6 +371,7 @@ dependencies = [
  "half",
  "rayon",
  "rusticide-quantize",
+ "rusticide-simd",
 ]
 
 [[package]]
