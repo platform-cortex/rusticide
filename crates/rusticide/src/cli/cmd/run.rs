@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Context;
 use rusticide_io::GgufFile;
-use rusticide_model::{GenerateOptions, ModelError, ModelSource, generate};
+use rusticide_model::{GenerateOptions, Model, ModelError, ModelSource, generate};
 use rusticide_sampling::{Sampler, SamplingParams};
 use rusticide_tokenizer::Tokenizer;
 
@@ -30,20 +30,53 @@ pub(crate) fn run(
     out: &mut impl Write,
     err: &mut impl Write,
 ) -> anyhow::Result<()> {
-    let loaded = GgufFile::load(&args.model)
-        .with_context(|| format!("cannot load {}", args.model.display()));
-    loaded.and_then(|source| run_source(&source, args, out, err))
+    run_loaded(|| GgufFile::load(&args.model), args, out, err)
+}
+
+/// As [`run`], with the source produced by `load`.
+fn run_loaded<S, E>(
+    load: impl FnOnce() -> Result<S, E>,
+    args: &RunArgs,
+    out: &mut impl Write,
+    err: &mut impl Write,
+) -> anyhow::Result<()>
+where
+    S: ModelSource,
+    E: std::error::Error + Send + Sync + 'static,
+{
+    let source = load().with_context(|| format!("cannot load {}", args.model.display()))?;
+    let (tokenizer, model) = build(&source)?;
+    // The model copied every tensor it uses: freeing the file before
+    // generating hands its buffer back to the allocator.
+    drop(source);
+    generate_from(&tokenizer, model, args, out, err)
 }
 
 /// Generate from an already loaded source; the stats line goes to `err`.
+#[cfg(test)]
 pub(crate) fn run_source(
     source: &dyn ModelSource,
     args: &RunArgs,
     out: &mut impl Write,
     err: &mut impl Write,
 ) -> anyhow::Result<()> {
+    let (tokenizer, model) = build(source)?;
+    generate_from(&tokenizer, model, args, out, err)
+}
+
+fn build(source: &dyn ModelSource) -> anyhow::Result<(Tokenizer, Box<dyn Model>)> {
     let tokenizer = Tokenizer::from_gguf(source.metadata())?;
-    let mut model = rusticide_llama::registry().load(source)?;
+    let model = rusticide_llama::registry().load(source)?;
+    Ok((tokenizer, model))
+}
+
+fn generate_from(
+    tokenizer: &Tokenizer,
+    mut model: Box<dyn Model>,
+    args: &RunArgs,
+    out: &mut impl Write,
+    err: &mut impl Write,
+) -> anyhow::Result<()> {
     let seed = args.seed.unwrap_or_else(clock_seed);
     let options = GenerateOptions {
         max_tokens: args.max_tokens,
@@ -68,7 +101,7 @@ pub(crate) fn run_source(
     };
     let generated = generate(
         model.as_mut(),
-        &tokenizer,
+        tokenizer,
         &args.prompt,
         &options,
         &mut sampler,

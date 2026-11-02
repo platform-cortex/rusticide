@@ -10,7 +10,7 @@ use std::time::Duration;
 use rusticide_io::GGUFValue;
 use rusticide_llama::testing::{TinySource, tiny_qwen2_source, tiny_source};
 
-use super::{RunArgs, run, run_source, tokens_per_second};
+use super::{RunArgs, run, run_loaded, run_source, tokens_per_second};
 
 fn args(seed: Option<u64>) -> RunArgs {
     RunArgs {
@@ -110,6 +110,22 @@ fn reports_a_failing_error_stream() {
     )
     .unwrap_err();
     assert_eq!(format!("{error:#}"), "closed");
+}
+
+#[test]
+fn a_loaded_source_generates_like_a_borrowed_one() {
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let loaded = run_loaded(
+        || Ok::<_, io::Error>(tiny_source()),
+        &args(Some(1)),
+        &mut out,
+        &mut err,
+    );
+    loaded.unwrap();
+    assert_eq!(
+        String::from_utf8(out).unwrap(),
+        generate_with(&args(Some(1))).0
+    );
 }
 
 #[test]
