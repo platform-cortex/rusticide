@@ -4,8 +4,8 @@
 
 use half::f16;
 
-use super::{Weights, matmul_batch, matvec_batch};
-use crate::{Q8Input, QuantKernel, active, dot};
+use super::{Activations, Weights, matmul_batch, matvec_batch};
+use crate::{Q8Input, Q8Kind, QuantKernel, active, dot};
 
 const Q8_0: u32 = 8;
 const Q4_K: u32 = 12;
@@ -258,6 +258,29 @@ fn tasks_spanning_several_rows_match_a_per_row_reference() {
             let expected = reference(&weights, input);
             let got: Vec<f32> = batch.iter().skip(token).step_by(tokens).copied().collect();
             assert_eq!(bits(&got), bits(&expected));
+        }
+    }
+}
+
+#[test]
+fn batched_quantization_matches_per_token_quantization() {
+    const WIDTH: usize = 256;
+    for tokens in [1_usize, 2, 7, 64] {
+        let inputs: Vec<f32> = (0..tokens * WIDTH)
+            .map(|v| f32::from(u8::try_from(v * 7 % 23).unwrap()) / 5.0 - 2.0)
+            .collect();
+        for (type_id, kind) in [(Q8_0, Q8Kind::Block), (Q4_K, Q8Kind::SuperBlock)] {
+            let weights = blocks(type_id, &[], 1);
+            let activations = Activations::new(&inputs, tokens, [&weights].into_iter());
+            let batched = activations.quantized(kind);
+            assert_eq!(batched.len(), tokens);
+            for (got, row) in batched.iter().zip(inputs.as_chunks::<WIDTH>().0) {
+                let mut expected = Q8Input::default();
+                expected.quantize(row, kind);
+                assert_eq!(bits(&got.scales), bits(&expected.scales));
+                assert_eq!(got.quants, expected.quants);
+                assert_eq!(got.sums, expected.sums);
+            }
         }
     }
 }

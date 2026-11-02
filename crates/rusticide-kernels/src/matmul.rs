@@ -114,12 +114,16 @@ impl<'a> Activations<'a> {
         };
         for kind in weights.filter_map(Weights::activation) {
             if activations.quantized(kind).is_empty() {
-                let quantized = activations.dense.iter().map(|row| {
+                let quantize = |row: &&[f32]| {
                     let mut input = Q8Input::default();
                     input.quantize(row, kind);
                     input
-                });
-                *activations.slot(kind) = quantized.collect();
+                };
+                *activations.slot(kind) = if tokens > 1 {
+                    activations.dense.par_iter().map(quantize).collect()
+                } else {
+                    activations.dense.iter().map(quantize).collect()
+                };
             }
         }
         activations
