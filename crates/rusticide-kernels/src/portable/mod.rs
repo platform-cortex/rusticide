@@ -4,7 +4,7 @@
 
 mod dot;
 mod elementwise;
-mod int_dot;
+pub(crate) mod int_dot;
 mod norm;
 mod q8;
 mod rope;
@@ -27,30 +27,50 @@ static QUANTIZED: [QuantKernel; 5] = [
         activation: Q8Kind::Block,
         dot: int_dot::q4_0,
         dot_rows: None,
+        group_rows: 1,
+        prepare: None,
+        read_row: None,
+        dot_group: None,
     },
     QuantKernel {
         type_id: 6,
         activation: Q8Kind::Block,
         dot: int_dot::q5_0,
         dot_rows: Some(int_dot::q5_0_rows),
+        group_rows: 1,
+        prepare: None,
+        read_row: None,
+        dot_group: None,
     },
     QuantKernel {
         type_id: 12,
         activation: Q8Kind::SuperBlock,
         dot: int_dot::q4_k,
         dot_rows: Some(int_dot::q4_k_rows),
+        group_rows: 1,
+        prepare: None,
+        read_row: None,
+        dot_group: None,
     },
     QuantKernel {
         type_id: 14,
         activation: Q8Kind::SuperBlock,
         dot: int_dot::q6_k,
         dot_rows: Some(int_dot::q6_k_rows),
+        group_rows: 1,
+        prepare: None,
+        read_row: None,
+        dot_group: None,
     },
     QuantKernel {
         type_id: 8,
         activation: Q8Kind::Block,
         dot: int_dot::q8_0,
         dot_rows: None,
+        group_rows: 1,
+        prepare: None,
+        read_row: None,
+        dot_group: None,
     },
 ];
 

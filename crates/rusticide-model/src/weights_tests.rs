@@ -5,9 +5,10 @@
 use half::f16;
 use rusticide_core::{DType, Device, Tensor};
 use rusticide_io::Metadata;
+use rusticide_kernels::test_support::{PAIRED, PAIRED_Q8_0};
 use rusticide_quantize::block_format;
 
-use super::{Matrix, load_vector, require_kernel};
+use super::{Matrix, Storage, load_vector, require_kernel};
 use crate::error::ModelError;
 use crate::source::InMemorySource;
 
@@ -163,4 +164,26 @@ fn a_format_without_a_kernel_fails_to_load() {
         ModelError::MissingKernel { format: "Q4_K" }
     ));
     assert_eq!(error.to_string(), "no kernel for format Q4_K");
+}
+
+#[test]
+fn copy_row_reads_a_prepared_matrix() {
+    let matrix = Matrix::load_on(&q8_0_source(2, 32), "q", 2, 32, &PAIRED).unwrap();
+    let Storage::Blocks { kernel, data, .. } = &matrix.storage else {
+        panic!("not quantized");
+    };
+    assert!(std::ptr::eq(*kernel, std::ptr::from_ref(&PAIRED_Q8_0)));
+    assert_eq!(data[2..34], [0xFF; 32]);
+    let mut row = [0.0; 32];
+    assert!(matrix.copy_row(0, &mut row));
+    assert_eq!(
+        row,
+        std::array::from_fn(|value| f32::from(u8::try_from(value).unwrap()) / 2.0)
+    );
+    assert!(matrix.copy_row(1, &mut row));
+    assert_eq!(row, [-1.0; 32]);
+    assert!(!matrix.copy_row(2, &mut row));
+    let mut output = [0.0; 2];
+    matrix.matvec(&[127.0; 32], &mut output);
+    assert_eq!(output, [248.0 * 127.0, -32.0 * 127.0]);
 }

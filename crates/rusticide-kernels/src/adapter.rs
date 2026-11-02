@@ -51,6 +51,25 @@ impl Adapter {
             .iter()
             .find(|kernel| kernel.type_id == type_id)
     }
+
+    /// Repacks a row-major matrix in place for this adapter's kernel for
+    /// `type_id` and returns that kernel; when it has none or its layout
+    /// does not fit the matrix, the data stays row-major and the `portable`
+    /// kernel reads it. `None` when neither has a kernel for the format.
+    pub fn prepare_matrix(
+        &self,
+        type_id: u32,
+        data: &mut [u8],
+        row_bytes: usize,
+    ) -> Option<&'static QuantKernel> {
+        let own = self.quant_kernel(type_id);
+        own.filter(|kernel| {
+            kernel
+                .prepare
+                .is_none_or(|prepare| prepare(data, row_bytes))
+        })
+        .or_else(|| portable::ADAPTER.quant_kernel(type_id))
+    }
 }
 
 static ACTIVE: OnceLock<&'static Adapter> = OnceLock::new();

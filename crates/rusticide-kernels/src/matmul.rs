@@ -50,6 +50,14 @@ impl Weights<'_> {
         }
     }
 
+    /// Rows a task must keep together: every run starts on a group.
+    const fn group_rows(&self) -> usize {
+        match self {
+            Self::Dense { .. } => 1,
+            Self::Blocks { kernel, .. } => kernel.group_rows,
+        }
+    }
+
     const fn activation(&self) -> Option<Q8Kind> {
         match self {
             Self::Dense { .. } => None,
@@ -76,10 +84,7 @@ impl Weights<'_> {
                 row_bytes,
             } => {
                 let quantized = input.quantized(kernel.activation());
-                let rows = data.chunks_exact(*row_bytes).skip(first_row);
-                for (slots, row) in out.chunks_mut(tokens).zip(rows) {
-                    kernel.dot_rows(row, quantized, slots);
-                }
+                kernel.compute_rows(data, *row_bytes, first_row, quantized, out);
             }
         }
     }
@@ -172,11 +177,9 @@ pub fn matmul_batch(inputs: &[f32], tokens: usize, jobs: &mut [(Weights<'_>, &mu
     let rows_per_task = total.div_ceil(tasks).max(1);
     let mut runs = Vec::with_capacity(tasks + jobs.len());
     for (weights, output) in jobs.iter_mut().filter(|(weights, _)| weights.rows() > 0) {
-        for (index, run) in output
-            .chunks_mut(rows_per_task.saturating_mul(tokens))
-            .enumerate()
-        {
-            runs.push((*weights, index * rows_per_task, run));
+        let rows = rows_per_task.next_multiple_of(weights.group_rows().max(1));
+        for (index, run) in output.chunks_mut(rows.saturating_mul(tokens)).enumerate() {
+            runs.push((*weights, index * rows, run));
         }
     }
     runs.into_par_iter()
@@ -186,3 +189,7 @@ pub fn matmul_batch(inputs: &[f32], tokens: usize, jobs: &mut [(Weights<'_>, &mu
 #[cfg(test)]
 #[path = "matmul_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "matmul_group_tests.rs"]
+mod group_tests;

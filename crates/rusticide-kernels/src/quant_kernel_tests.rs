@@ -5,7 +5,7 @@
 use rusticide_quantize::{BlockFormat, formats};
 
 use super::QuantKernel;
-use crate::test_support::pseudo_random_values;
+use crate::test_support::{PAIRED_Q8_0, pseudo_random_values};
 use crate::{Q8_BLOCK, Q8Input, Q8Kind, active};
 
 fn kernel(format: &BlockFormat) -> &'static QuantKernel {
@@ -114,4 +114,60 @@ fn batched_kernels_cover_q5_0_and_the_k_formats() {
         .map(QuantKernel::type_id)
         .collect();
     assert_eq!(batched, [6, 12, 14]);
+}
+
+#[test]
+fn portable_kernels_read_rows_one_at_a_time() {
+    for kernel in crate::portable::ADAPTER.quantized {
+        assert_eq!(kernel.group_rows, 1);
+        assert!(kernel.prepare.is_none() && kernel.read_row.is_none());
+        assert!(kernel.dot_group.is_none());
+    }
+}
+
+#[test]
+fn read_row_restores_every_original_row() {
+    let format = rusticide_quantize::block_format(8).unwrap();
+    let original = format.synthetic_blocks(6, 7).unwrap();
+    let row_bytes = original.len() / 6;
+    let mut prepared = original.clone();
+    assert!(PAIRED_Q8_0.prepare.unwrap()(&mut prepared, row_bytes));
+    assert_ne!(prepared, original);
+    for kernel in [kernel(format), &PAIRED_Q8_0] {
+        let data = if kernel.group_rows == 1 {
+            &original
+        } else {
+            &prepared
+        };
+        for (index, expected) in original.chunks_exact(row_bytes).enumerate() {
+            let mut row = vec![0; row_bytes];
+            assert!(kernel.read_row(data, row_bytes, index, &mut row));
+            assert_eq!(row, expected);
+        }
+    }
+}
+
+#[test]
+fn read_row_rejects_a_missing_row_or_a_wrong_buffer() {
+    let data = [1_u8, 2, 3, 4];
+    let identity = kernel(rusticide_quantize::block_format(8).unwrap());
+    let mut row = [0_u8; 2];
+    assert!(identity.read_row(&data, 2, 1, &mut row));
+    assert_eq!(row, [3, 4]);
+    assert!(!identity.read_row(&data, 2, 2, &mut row));
+    assert!(!identity.read_row(&data, 2, usize::MAX, &mut row));
+    assert!(!identity.read_row(&data, 1, 0, &mut row));
+    assert!(!identity.read_row(&data, 0, 0, &mut []));
+    assert_eq!(row, [3, 4]);
+}
+
+#[test]
+fn the_paired_kernel_prepares_only_whole_pairs() {
+    let prepare = PAIRED_Q8_0.prepare.unwrap();
+    let mut data = [1_u8, 2, 3, 4, 5, 6];
+    assert!(!prepare(&mut data, 2));
+    assert!(!prepare(&mut data, 0));
+    assert_eq!(data, [1, 2, 3, 4, 5, 6]);
+    assert!(prepare(&mut data, 3));
+    assert_eq!(data, [4, 5, 6, 1, 2, 3]);
 }

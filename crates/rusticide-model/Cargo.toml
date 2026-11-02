@@ -25,5 +25,8 @@ rusticide-sampling.workspace = true
 rusticide-tokenizer.workspace = true
 thiserror.workspace = true
 
+[dev-dependencies]
+rusticide-kernels = { workspace = true, features = ["test-kernels"] }
+
 [lints]
 workspace = true

@@ -15,6 +15,10 @@ repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
+[features]
+# Exposes the test-only kernels in `test_support` to dependent crates' tests.
+test-kernels = []
+
 [dependencies]
 half.workspace = true
 rayon.workspace = true

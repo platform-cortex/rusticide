@@ -17,8 +17,9 @@ mod neon;
 mod portable;
 mod q8_input;
 mod quant_kernel;
-#[cfg(test)]
-mod test_support;
+#[cfg(any(test, feature = "test-kernels"))]
+#[doc(hidden)]
+pub mod test_support;
 
 pub use adapter::{Adapter, active};
 pub use facade::{

@@ -2,7 +2,61 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Test vehicles for this crate's tests and, behind the `test-kernels`
+//! feature, for the tests of crates that load weights through an adapter.
+
+use crate::adapter::Adapter;
+use crate::portable::{self, int_dot};
+use crate::q8_input::{Q8Input, Q8Kind};
+use crate::quant_kernel::{QuantKernel, read_row_major};
+
+/// A `Q8_0` kernel whose layout groups rows in pairs, each pair stored
+/// swapped: the smallest layout a row-major reader gets wrong.
+pub static PAIRED_Q8_0: QuantKernel = QuantKernel {
+    type_id: 8,
+    activation: Q8Kind::Block,
+    dot: int_dot::q8_0,
+    dot_rows: None,
+    group_rows: 2,
+    prepare: Some(swap_pairs),
+    read_row: Some(read_swapped),
+    dot_group: Some(dot_swapped),
+};
+
+/// The portable adapter with [`PAIRED_Q8_0`] as its only quantized kernel.
+pub static PAIRED: Adapter = Adapter {
+    name: "paired",
+    quantized: std::slice::from_ref(&PAIRED_Q8_0),
+    ..portable::ADAPTER
+};
+
+fn swap_pairs(data: &mut [u8], row_bytes: usize) -> bool {
+    let pair = row_bytes.saturating_mul(2);
+    if pair == 0 || !data.len().is_multiple_of(pair) {
+        return false;
+    }
+    for rows in data.chunks_exact_mut(pair) {
+        let (first, second) = rows.split_at_mut(row_bytes);
+        first.swap_with_slice(second);
+    }
+    true
+}
+
+fn read_swapped(data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> bool {
+    read_row_major(data, row_bytes, index ^ 1, out)
+}
+
+fn dot_swapped(group: &[u8], inputs: &[Q8Input], out: &mut [f32]) {
+    let (second, first) = group.split_at(group.len() / 2);
+    for (slots, row) in out.chunks_mut(inputs.len().max(1)).zip([first, second]) {
+        for (slot, input) in slots.iter_mut().zip(inputs) {
+            *slot = int_dot::q8_0(row, input);
+        }
+    }
+}
+
 /// Asserts two slices match element-wise within a small tolerance.
+#[cfg(test)]
 pub(crate) fn assert_close(actual: &[f32], expected: &[f32]) {
     assert_eq!(actual.len(), expected.len());
     for (a, e) in actual.iter().zip(expected) {
@@ -11,6 +65,7 @@ pub(crate) fn assert_close(actual: &[f32], expected: &[f32]) {
 }
 
 /// Deterministic values in `[-1, 1)`, one per pseudo-random byte.
+#[cfg(test)]
 pub(crate) fn pseudo_random_values(len: usize, seed: u32) -> Vec<f32> {
     let mut state = seed;
     (0..len)

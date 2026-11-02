@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::*;
+use crate::test_support::{PAIRED, PAIRED_Q8_0};
 
 static NEON_NAMED: Adapter = Adapter {
     name: "neon",
@@ -96,4 +97,48 @@ fn select_is_silent_without_a_warning() {
     let mut sink = Vec::new();
     select(None, &NEON_NAMED, &mut sink);
     assert_eq!(sink, Vec::<u8>::new());
+}
+
+fn q8_0_rows(rows: usize) -> (Vec<u8>, usize) {
+    let format = rusticide_quantize::block_format(8).unwrap();
+    let data = format.synthetic_blocks(rows * 2, 3).unwrap();
+    let row_bytes = format.row_bytes(64).unwrap();
+    (data, row_bytes)
+}
+
+#[test]
+fn prepare_matrix_falls_back_on_an_odd_row_count() {
+    let (original, row_bytes) = q8_0_rows(3);
+    let mut data = original.clone();
+    let kernel = PAIRED.prepare_matrix(8, &mut data, row_bytes).unwrap();
+    assert!(std::ptr::eq(
+        kernel,
+        portable::ADAPTER.quant_kernel(8).unwrap()
+    ));
+    assert_eq!(data, original);
+}
+
+#[test]
+fn prepare_matrix_repacks_whole_groups_in_place() {
+    let (original, row_bytes) = q8_0_rows(4);
+    let mut data = original.clone();
+    let kernel = PAIRED.prepare_matrix(8, &mut data, row_bytes).unwrap();
+    assert!(std::ptr::eq(kernel, std::ptr::from_ref(&PAIRED_Q8_0)));
+    assert_eq!(data[..row_bytes], original[row_bytes..2 * row_bytes]);
+}
+
+#[test]
+fn prepare_matrix_without_a_kernel_uses_portable_or_none() {
+    let (original, row_bytes) = q8_0_rows(4);
+    let mut data = original.clone();
+    let portable_q4_k = portable::ADAPTER.quant_kernel(12).unwrap();
+    let kernel = PAIRED.prepare_matrix(12, &mut data, row_bytes).unwrap();
+    assert!(std::ptr::eq(kernel, portable_q4_k));
+    assert!(PAIRED.prepare_matrix(99, &mut data, row_bytes).is_none());
+    let identity = portable::ADAPTER.prepare_matrix(8, &mut data, row_bytes);
+    assert!(std::ptr::eq(
+        identity.unwrap(),
+        portable::ADAPTER.quant_kernel(8).unwrap()
+    ));
+    assert_eq!(data, original);
 }

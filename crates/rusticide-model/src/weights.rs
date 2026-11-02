@@ -4,14 +4,15 @@
 
 use half::f16;
 use rusticide_core::{DType, Tensor};
-use rusticide_kernels::{QuantKernel, Weights, active, matvec_batch};
+use rusticide_kernels::{Adapter, QuantKernel, Weights, active, matvec_batch};
 use rusticide_quantize::BlockFormat;
 
 use crate::error::{ModelError, Result};
 use crate::source::ModelSource;
 
-/// A row-major weight matrix of `rows` x `cols`. Block-quantized weights stay
-/// quantized and are decoded a block at a time inside the dot product.
+/// A weight matrix of `rows` x `cols`. Block-quantized weights stay
+/// quantized, in the layout of the kernel that reads them, and are decoded a
+/// block at a time inside the dot product.
 #[derive(Debug)]
 pub struct Matrix {
     storage: Storage,
@@ -38,6 +39,17 @@ impl Matrix {
     /// `MissingKernel` when no kernel reads its block format, and a tensor
     /// error for unsupported dtypes.
     pub fn load(source: &dyn ModelSource, name: &str, rows: usize, cols: usize) -> Result<Self> {
+        Self::load_on(source, name, rows, cols, active())
+    }
+
+    /// [`Self::load`], with quantized weights prepared for `adapter`.
+    fn load_on(
+        source: &dyn ModelSource,
+        name: &str,
+        rows: usize,
+        cols: usize,
+        adapter: &Adapter,
+    ) -> Result<Self> {
         check_shape(source, name, &[rows, cols])?;
         if cols == 0 {
             return Err(ModelError::InvalidConfig {
@@ -48,12 +60,16 @@ impl Matrix {
             .quantized_tensor(name)?
             .and_then(|(format, data)| Some((format, data, format.row_bytes(cols)?)));
         let storage = match blocks {
-            Some((format, data, row_bytes)) => Storage::Blocks {
-                format,
-                kernel: require_kernel(format, active().quant_kernel(format.type_id()))?,
-                data: data.to_vec(),
-                row_bytes,
-            },
+            Some((format, data, row_bytes)) => {
+                let mut data = data.to_vec();
+                let kernel = adapter.prepare_matrix(format.type_id(), &mut data, row_bytes);
+                Storage::Blocks {
+                    format,
+                    kernel: require_kernel(format, kernel)?,
+                    data,
+                    row_bytes,
+                }
+            }
             None => Storage::Dense(widen(&source.tensor(name)?)?),
         };
         Ok(Self {
@@ -81,22 +97,25 @@ impl Matrix {
 
     /// Decodes row `index` into `out`; `false` when the row does not exist.
     pub fn copy_row(&self, index: usize, out: &mut [f32]) -> bool {
-        let row = match &self.storage {
+        match &self.storage {
             Storage::Dense(data) => {
                 let row = data.chunks_exact(self.cols).nth(index);
-                row.map(|row| out.copy_from_slice(row))
+                row.map(|row| out.copy_from_slice(row)).is_some()
             }
             Storage::Blocks {
                 format,
+                kernel,
                 data,
                 row_bytes,
-                ..
             } => {
-                let row = data.chunks_exact(*row_bytes).nth(index);
-                row.map(|row| format.dequantize_row(row, out))
+                let mut row = vec![0; *row_bytes];
+                let found = kernel.read_row(data, *row_bytes, index, &mut row);
+                if found {
+                    format.dequantize_row(&row, out);
+                }
+                found
             }
-        };
-        row.is_some()
+        }
     }
 
     pub fn matvec(&self, input: &[f32], output: &mut [f32]) {
