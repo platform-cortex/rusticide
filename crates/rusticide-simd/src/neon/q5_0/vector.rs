@@ -13,8 +13,8 @@ use core::arch::aarch64::{
 };
 
 use super::{D, QH, QS, UNIT};
+use crate::group::{Q8Blocks, ROWS};
 use crate::neon::blocks::{self, Unpacked};
-use crate::neon::group::{Q8Blocks, ROWS};
 
 // `unpack` hard-codes these offsets in its pattern.
 const _: () = assert!(D == 0 && QH == 16 && QS == 48 && UNIT == QS + 8 * 16);

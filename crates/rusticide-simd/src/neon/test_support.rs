@@ -5,7 +5,7 @@
 //! What the group kernels' tests share, and the checks every group kernel
 //! must pass against its scalar body.
 
-use super::group::{Q8Blocks, Q8Superblocks, ROWS};
+use crate::group::{Q8Blocks, Q8Superblocks, ROWS};
 
 /// A random test activation and the view of it a kernel reads.
 pub(crate) trait Input: Sized {
@@ -34,17 +34,17 @@ impl Input for Activation {
 
     fn random(rng: &mut fastrand::Rng, blocks: usize) -> Self {
         let quants: Vec<[i8; 256]> = (0..blocks)
-            .map(|_| core::array::from_fn(|_| rng.i8(..)))
+            .map(|_| core::array::from_fn(|_| rng.i8(-127..)))
             .collect();
         Self::from_quants(quants, (0..blocks).map(|_| rng.f32() * 0.01).collect())
     }
 
     fn view(&self) -> Q8Superblocks<'_> {
-        Q8Superblocks::new(&self.scales, &self.quants, &self.sums)
+        Q8Superblocks::new(&self.scales, &self.quants, &self.sums).unwrap()
     }
 
     fn first(&self, blocks: usize) -> Q8Superblocks<'_> {
-        Q8Superblocks::new(&self.scales[..blocks], &self.quants, &self.sums)
+        Q8Superblocks::new(&self.scales[..blocks], &self.quants, &self.sums).unwrap()
     }
 }
 
@@ -82,17 +82,17 @@ impl Input for Blocks {
         Self {
             scales: (0..blocks).map(|_| rng.f32() * 0.01).collect(),
             quants: (0..blocks)
-                .map(|_| core::array::from_fn(|_| rng.i8(..)))
+                .map(|_| core::array::from_fn(|_| rng.i8(-127..)))
                 .collect(),
         }
     }
 
     fn view(&self) -> Q8Blocks<'_> {
-        Q8Blocks::new(&self.scales, &self.quants)
+        Q8Blocks::new(&self.scales, &self.quants).unwrap()
     }
 
     fn first(&self, blocks: usize) -> Q8Blocks<'_> {
-        Q8Blocks::new(&self.scales[..blocks], &self.quants)
+        Q8Blocks::new(&self.scales[..blocks], &self.quants).unwrap()
     }
 }
 
@@ -114,8 +114,8 @@ pub(crate) const TOKEN_COUNTS: &[usize] = if cfg!(miri) {
         1,
         2,
         7,
-        super::group::TOKENS + 1,
-        3 * super::group::TOKENS,
+        crate::group::TOKENS + 1,
+        3 * crate::group::TOKENS,
     ]
 };
 pub(crate) const BLOCKS: usize = if cfg!(miri) { 1 } else { 3 };

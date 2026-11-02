@@ -11,8 +11,8 @@ use core::arch::aarch64::{
     vmulq_n_f32,
 };
 
-use super::group::{Q8Blocks, ROWS, TOKENS};
 use super::vector::{Rows, dot, halves};
+use crate::group::{Q8Blocks, ROWS, TOKENS};
 
 /// A unit's `d` bytes, one half per row, and its weights as `dot` reads
 /// them.

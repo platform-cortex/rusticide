@@ -12,12 +12,13 @@
 /// True exactly when the `neon` module is compiled in.
 pub const AVAILABLE: bool = cfg!(all(target_arch = "aarch64", target_feature = "dotprod"));
 
+pub mod group;
+
 #[cfg(all(target_arch = "aarch64", target_feature = "dotprod"))]
 pub mod neon {
     #[cfg(not(miri))]
     mod blocks;
     pub mod dot;
-    pub mod group;
     pub mod q4_k;
     pub mod q5_0;
     pub mod q6_k;

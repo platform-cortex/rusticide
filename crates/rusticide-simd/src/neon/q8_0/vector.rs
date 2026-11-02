@@ -6,8 +6,8 @@
 //! weight vectors.
 
 use super::{D, QS, UNIT};
+use crate::group::{Q8Blocks, ROWS};
 use crate::neon::blocks::{self, Unpacked};
-use crate::neon::group::{Q8Blocks, ROWS};
 
 // `unpack` hard-codes these offsets in its pattern.
 const _: () = assert!(D == 0 && QS == 16 && UNIT == QS + 16 * 16);

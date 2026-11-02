@@ -5,7 +5,7 @@
 //! Helpers for the scalar kernel bodies: Miri's stand-ins for the NEON
 //! bodies, and the references the NEON bodies are tested against.
 
-use super::group::{Q8Blocks, ROWS};
+use crate::group::{Q8Blocks, ROWS};
 
 #[expect(
     clippy::cast_precision_loss,

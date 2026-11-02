@@ -7,7 +7,7 @@
 //! block's is below `16 * 128 * 16 * 32 * 128 = 2^27` in magnitude.
 
 use super::{D, LANE, QH, QL, SCALES, UNIT};
-use crate::neon::group::{Q8Superblocks, ROWS};
+use crate::group::{Q8Superblocks, ROWS};
 use crate::neon::scalar::{f16_at, lossy};
 
 /// Byte `byte` of row `row`'s bits starting at `base`.

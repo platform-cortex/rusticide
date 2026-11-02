@@ -7,7 +7,7 @@
 //! as NEON's does, so no input can make the two differ or this one panic.
 
 use super::{D, DMIN, LANE, QS, SCALES, UNIT};
-use crate::neon::group::{Q8Superblocks, ROWS};
+use crate::group::{Q8Superblocks, ROWS};
 use crate::neon::scalar::{f16_at, lossy};
 
 /// Row `row`'s eight 6-bit scales and mins, unpacked as ggml does.

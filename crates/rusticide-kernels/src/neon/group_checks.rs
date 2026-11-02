@@ -195,3 +195,26 @@ pub(super) fn runs_in_groups_of_eight(type_id: u32) {
     let fallback = portable::ADAPTER.quant_kernel(type_id).unwrap();
     assert!(std::ptr::eq(prepared, fallback));
 }
+
+/// Tokens 3 and 5 of a chunk carry a `-128`, which the group views refuse:
+/// every value still equals the portable kernel's.
+pub(super) fn a_minus_128_activation_matches_portable(type_id: u32) {
+    let (original, row_bytes) = weights(type_id, 25);
+    let mut inputs = inputs(type_id, 6, 60);
+    for (token, element) in [(3, 5), (5, 700)] {
+        let input = &mut inputs[token];
+        let old = i32::from(input.quants[element]);
+        input.quants[element] = i8::MIN;
+        input.sums[element / 32] += i32::from(i8::MIN) - old;
+    }
+    let got = neon_products(type_id, &original, row_bytes, &inputs);
+    let portable = portable::ADAPTER.quant_kernel(type_id).unwrap();
+    for (row, values) in original
+        .chunks_exact(row_bytes)
+        .zip(got.chunks_exact(inputs.len()))
+    {
+        for (value, input) in values.iter().zip(&inputs) {
+            assert_eq!(value.to_bits(), portable.dot_row(row, input).to_bits());
+        }
+    }
+}

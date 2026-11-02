@@ -20,7 +20,7 @@ mod scalar;
 #[cfg(not(miri))]
 mod vector;
 
-use super::group::{Q8Blocks, ROWS};
+use crate::group::{Q8Blocks, ROWS};
 
 #[cfg(miri)]
 use scalar as body;

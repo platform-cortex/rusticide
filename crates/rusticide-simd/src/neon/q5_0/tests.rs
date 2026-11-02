@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::{D, QH, UNIT, q5_0_group, scalar};
-use crate::neon::group::{Q8Blocks, ROWS};
+use crate::group::{Q8Blocks, ROWS};
 use crate::neon::test_support::{Blocks, Format, set_f16};
 
 /// Random units whose `d` are finite f16 values in `[0, 2)`.
@@ -63,13 +63,13 @@ fn the_largest_sums_are_exact() {
     for row in 0..ROWS {
         set_f16(&mut unit, D + 2 * row, 0x3c00);
     }
-    let lowest = [[i8::MIN; 32]];
-    let view = [Q8Blocks::new(&[1.0], &lowest)];
+    let lowest = [[-127; 32]];
+    let view = [Q8Blocks::new(&[1.0], &lowest).unwrap()];
     let [native, reference] = Q5_0.both(&[unit], &view);
-    assert_eq!(native, [[65_536.0_f32.to_bits(); ROWS]]);
+    assert_eq!(native, [[65_024.0_f32.to_bits(); ROWS]]);
     assert_eq!(native, reference);
     unit[QH..].fill(0xff);
     let [native, reference] = Q5_0.both(&[unit], &view);
-    assert_eq!(native, [[(-61_440.0_f32).to_bits(); ROWS]]);
+    assert_eq!(native, [[(-60_960.0_f32).to_bits(); ROWS]]);
     assert_eq!(native, reference);
 }

@@ -24,3 +24,8 @@ fn no_inputs_leave_the_output_untouched() {
 fn the_adapter_runs_q4_k_on_neon_in_groups_of_eight() {
     group_checks::runs_in_groups_of_eight(12);
 }
+
+#[test]
+fn a_minus_128_activation_matches_portable() {
+    group_checks::a_minus_128_activation_matches_portable(12);
+}

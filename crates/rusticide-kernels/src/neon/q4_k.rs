@@ -6,7 +6,7 @@
 //! block of eight rows in the byte order `rusticide_simd::neon::q4_k`
 //! documents.
 
-use rusticide_simd::neon::group::ROWS;
+use rusticide_simd::group::ROWS;
 use rusticide_simd::neon::q4_k::{D, DMIN, LANE, QS, SCALES, UNIT};
 
 use super::group_layout;

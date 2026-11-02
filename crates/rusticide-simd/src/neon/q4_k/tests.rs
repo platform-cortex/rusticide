@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::{D, DMIN, UNIT, q4_k_group, scalar};
-use crate::neon::group::ROWS;
+use crate::group::ROWS;
 use crate::neon::test_support::{Format, set_f16};
 
 /// Random units whose `d` and `dmin` are finite f16 values in `[0, 2)`.

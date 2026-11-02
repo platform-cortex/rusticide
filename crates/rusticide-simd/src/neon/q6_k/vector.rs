@@ -20,7 +20,7 @@ use core::arch::aarch64::{
 };
 
 use super::{D, QH, SCALES, UNIT};
-use crate::neon::group::{Q8Superblocks, ROWS, TOKENS};
+use crate::group::{Q8Superblocks, ROWS, TOKENS};
 use crate::neon::vector::{Rows, halves, run};
 
 /// Sixteen 16-byte lanes: the same four bytes of 32 per row, for eight rows.

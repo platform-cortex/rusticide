@@ -4,7 +4,7 @@
 
 //! The NEON `Q8_0` kernel.
 
-use rusticide_simd::neon::group::ROWS;
+use rusticide_simd::group::ROWS;
 use rusticide_simd::neon::q8_0::q8_0_group;
 
 use super::group_dot;
@@ -27,7 +27,7 @@ pub(crate) const KERNEL: QuantKernel = QuantKernel {
 };
 
 fn dot_group(group: &[u8], inputs: &[Q8Input], out: &mut [f32]) {
-    group_dot::dot_group(q8_0_group, group_dot::blocks, group, inputs, out);
+    group_dot::dot_group(&KERNEL, q8_0_group, group_dot::blocks, group, inputs, out);
 }
 
 #[cfg(test)]

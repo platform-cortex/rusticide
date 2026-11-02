@@ -6,7 +6,7 @@
 //! the reference the NEON body is tested against.
 
 use super::{D, LANE, QH, QS, UNIT};
-use crate::neon::group::{Q8Blocks, ROWS};
+use crate::group::{Q8Blocks, ROWS};
 use crate::neon::scalar::blocks;
 
 /// Weight `element` of row `row`, unpacked as ggml does.

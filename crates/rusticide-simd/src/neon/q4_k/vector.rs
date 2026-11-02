@@ -15,7 +15,7 @@ use core::arch::aarch64::{
 };
 
 use super::UNIT;
-use crate::neon::group::{Q8Superblocks, ROWS, TOKENS};
+use crate::group::{Q8Superblocks, ROWS, TOKENS};
 use crate::neon::vector::{Rows, halves, run};
 
 /// What every input shares for one unit: the rows' float scales and their

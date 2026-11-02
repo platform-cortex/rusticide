@@ -9,7 +9,7 @@
 //! row `row`'s block bytes. Repacking moves bytes and nothing else, so
 //! `read_row` restores every original block exactly.
 
-use rusticide_simd::neon::group::ROWS;
+use rusticide_simd::group::ROWS;
 
 /// The bytes of a group of eight rows; `None` unless the rows are whole
 /// blocks and the group fits in `usize`.
