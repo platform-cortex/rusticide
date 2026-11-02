@@ -140,9 +140,9 @@ pub(super) fn neon_matches_portable(type_id: u32, portable_rows: DotRows) {
             let mut expected = vec![0.0; tokens];
             portable_rows(row, &inputs, &mut expected);
             for (&got, &expected) in values.iter().zip(&expected) {
-                let tolerance = (1e-5 * expected.abs()).max(1e-6);
-                assert!(
-                    (got - expected).abs() <= tolerance,
+                assert_eq!(
+                    got.to_bits(),
+                    expected.to_bits(),
                     "{got} vs {expected}, {tokens} tokens"
                 );
             }

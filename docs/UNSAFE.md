@@ -57,6 +57,9 @@ whether the module is compiled in.
 **Miri:** Miri cannot execute the intrinsics, so under `cfg(miri)` each
 wrapper calls a scalar body with the same integer result, and the
 `miri` CI job interprets the crate's tests for `aarch64-apple-darwin`.
+The Miri gate therefore checks the scalar bodies and the casts, not the
+intrinsic path; the soundness of each intrinsic call rests on the
+build-time `cfg` argument above.
 The `arm` CI job compiles the module in on Linux arm64 with
 `-C target-feature=+dotprod` and runs the full gate there.
 

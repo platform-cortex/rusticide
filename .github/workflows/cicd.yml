@@ -230,6 +230,18 @@ jobs:
           for name in "${names[@]}"; do packages+=(--package "${name}"); done
           cargo check --locked --all-features "${packages[@]}"
 
+      # The NEON module compiles only on aarch64, which the x86_64 runner
+      # never builds natively; this proves it still builds at the floor.
+      - name: Check the NEON adapter at the MSRV
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.msrv.outputs.version }}
+          RUSTFLAGS: "-D warnings"
+        run: |
+          set -euo pipefail
+          rustup target add aarch64-apple-darwin
+          cargo check --locked --target aarch64-apple-darwin \
+            -p rusticide-simd -p rusticide-kernels --all-targets
+
   # Proves the release path on every change: the same `release:build` that
   # publish.yml runs per target, here for the runner's own, including the
   # glibc floor check and the binary's smoke run.

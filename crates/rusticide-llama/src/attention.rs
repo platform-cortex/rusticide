@@ -117,11 +117,12 @@ impl Attention {
         self.project(block, input, tokens);
         let kv_dim = self.heads.kv_dim;
         self.rotate_rows(block, tokens, start);
-        for offset in 0..tokens {
-            let position = start + offset;
-            let key = &self.key[offset * kv_dim..(offset + 1) * kv_dim];
-            let value = &self.value[offset * kv_dim..(offset + 1) * kv_dim];
-            cache.store(layer, position, key, value)?;
+        let rows = self
+            .key
+            .chunks_exact(kv_dim)
+            .zip(self.value.chunks_exact(kv_dim));
+        for (offset, (key, value)) in rows.enumerate() {
+            cache.store(layer, start + offset, key, value)?;
         }
         self.attend(cache.keys(layer), cache.values(layer), start);
         let jobs = &mut [(block.attn_output.weights(), &mut self.query_rows[..])];
