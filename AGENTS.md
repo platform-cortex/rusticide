@@ -40,11 +40,13 @@ file; edit here, never there.
 
 - Stable channel pinned in `rust-toolchain.toml` (read it; do not restate the
   number elsewhere). Edition 2024.
-- MSRV **1.96** (`Cargo.toml` `rust-version`, `.clippy.toml` `msrv`). Do not
-  use APIs newer than 1.96. The MSRV follows the Rust version the rust-skills
-  guide targets (<https://github.com/leonardomso/rust-skills>); when the
-  guide moves, bump all three `rust-version`/`msrv` values, never the
-  toolchain pin.
+- MSRV **1.98** (`Cargo.toml` `rust-version`, `.clippy.toml` `msrv`,
+  `crates/rusticide-fuzz/Cargo.toml`). Do not use APIs newer than 1.98.
+  The MSRV is the higher of the Rust version the rust-skills guide targets
+  (<https://github.com/leonardomso/rust-skills>, 1.96 today) and the
+  lowest version a shipped feature needs (1.98: the NEON `dotprod`
+  intrinsics). When either moves up, bump all three values, never the
+  toolchain pin; never gate a feature on the compiler version instead.
 - Nightly only where a task pins it: fuzz, miri, and the coverage task
   (tarpaulin doctests need `nightly-2026-08-03`).
 

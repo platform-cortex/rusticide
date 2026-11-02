@@ -87,7 +87,7 @@ fn a_wide_node_costs_logarithmic_comparisons_per_byte() {
     for start in 0..input.len() {
         trie.walk(&input, start, &scores, &mut comparisons);
     }
-    let log2_fan_out = (usize::BITS - (fan_out.len() - 1).leading_zeros()) as usize;
+    let log2_fan_out = (fan_out.len() - 1).bit_width() as usize;
     let bound = input.len() * (depth + 1) * (log2_fan_out + 2);
     assert!(comparisons <= bound, "{comparisons} comparisons > {bound}");
 }
