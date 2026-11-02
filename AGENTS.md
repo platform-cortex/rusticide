@@ -15,8 +15,8 @@ file; edit here, never there.
   torchgen-style operator schemas, a dispatch table routing ops to kernels).
   No C, C++, Python, BLAS or bindgen of vendored C.
 - Spec: `docs/plan/2026-08-21-rusticide-framework-design.md`. Current plan:
-  `docs/plan/2026-11-01-rusticide-neon-adapter-plan.md` (design:
-  `docs/plan/2026-11-01-rusticide-neon-adapter-design.md`). Consult the spec
+  `docs/plan/2026-11-02-rusticide-runtime-adapters-plan.md` (design:
+  `docs/plan/2026-11-02-rusticide-runtime-adapters-design.md`). Consult the spec
   for architecture decisions and update it when they change.
 - Plans are executed task-by-task with `superpowers:subagent-driven-development`;
   progress lives in `.superpowers/sdd/<plan>/progress.md`.
