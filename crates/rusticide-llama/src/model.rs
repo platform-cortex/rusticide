@@ -6,6 +6,7 @@ use rusticide_kernels::{add_assign, mul_assign, rms_norm};
 use rusticide_model::{KvCache, Model, ModelError, ModelSource, Result};
 
 use crate::attention::Attention;
+use crate::batch::zip_rows;
 use crate::config::LlamaConfig;
 use crate::feed_forward::FeedForward;
 use crate::variant::Variant;
@@ -82,10 +83,11 @@ impl Llama {
     fn forward_on_pool(&mut self, tokens: &[u32], start: usize) -> Result<Vec<f32>> {
         self.embed(tokens, start)?;
         let (eps, width) = (self.config.rms_norm_eps, self.config.embedding_length);
+        let count = tokens.len();
         self.normed.resize(self.hidden.len(), 0.0);
         self.delta.resize(self.hidden.len(), 0.0);
         for (layer, block) in self.weights.blocks.iter().enumerate() {
-            normalize_rows(&self.hidden, &block.attn_norm, eps, &mut self.normed);
+            normalize_rows(&self.hidden, &block.attn_norm, eps, count, &mut self.normed);
             self.attention.forward(
                 block,
                 &mut self.cache,
@@ -94,11 +96,11 @@ impl Llama {
                 &self.normed,
                 &mut self.delta,
             )?;
-            add_assign(&mut self.hidden, &self.delta);
-            normalize_rows(&self.hidden, &block.ffn_norm, eps, &mut self.normed);
+            zip_rows(&mut self.hidden, &self.delta, width, count, add_assign);
+            normalize_rows(&self.hidden, &block.ffn_norm, eps, count, &mut self.normed);
             self.feed_forward
                 .forward(block, &self.normed, &mut self.delta);
-            add_assign(&mut self.hidden, &self.delta);
+            zip_rows(&mut self.hidden, &self.delta, width, count, add_assign);
         }
         let last = self.hidden.len().saturating_sub(width);
         let (hidden, normed) = (&self.hidden[last..], &mut self.normed[..width]);
@@ -144,14 +146,10 @@ impl Llama {
 }
 
 /// [`normalize`] applied to each `weight`-wide row of `input`.
-fn normalize_rows(input: &[f32], weight: &[f32], eps: f32, output: &mut [f32]) {
-    let width = weight.len();
-    for (row, out) in input
-        .chunks_exact(width)
-        .zip(output.chunks_exact_mut(width))
-    {
+fn normalize_rows(input: &[f32], weight: &[f32], eps: f32, tokens: usize, output: &mut [f32]) {
+    zip_rows(output, input, weight.len(), tokens, |out, row| {
         normalize(row, weight, eps, out);
-    }
+    });
 }
 
 /// The registry [`rusticide_model::Loader`] for the `llama` architecture.

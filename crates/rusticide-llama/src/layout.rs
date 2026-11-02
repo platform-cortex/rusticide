@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::batch::for_each_row;
+
 /// Rewrites a [`rusticide_kernels::matmul_batch`] output, `by_row[row *
 /// tokens + token]`, as one row per token into `by_token`.
 pub(crate) fn to_token_major(by_row: &[f32], tokens: usize, by_token: &mut [f32]) {
@@ -17,11 +19,11 @@ pub(crate) fn to_token_major(by_row: &[f32], tokens: usize, by_token: &mut [f32]
     let Some(rows) = by_row.len().checked_div(tokens).filter(|&rows| rows > 0) else {
         return;
     };
-    for (token, slots) in by_token.chunks_exact_mut(rows).enumerate() {
+    for_each_row(by_token, rows, tokens, |token, slots| {
         for (slot, values) in slots.iter_mut().zip(by_row.chunks_exact(tokens)) {
             *slot = values[token];
         }
-    }
+    });
 }
 
 #[cfg(test)]
@@ -38,6 +40,23 @@ mod tests {
         assert_eq!(by_token, [1.0, 3.0, 5.0, 2.0, 4.0, 6.0]);
         to_token_major(&by_row, 1, &mut by_token);
         assert_eq!(by_token, by_row);
+    }
+
+    #[test]
+    fn large_batches_match_the_serial_gather() {
+        let (tokens, rows) = (64, 96);
+        let by_row: Vec<f32> = (0..tokens * rows)
+            .map(|index| f32::from(u16::try_from(index).unwrap()))
+            .collect();
+        let mut expected = vec![0.0; tokens * rows];
+        for row in 0..rows {
+            for token in 0..tokens {
+                expected[token * rows + row] = by_row[row * tokens + token];
+            }
+        }
+        let mut by_token = vec![0.0; tokens * rows];
+        to_token_major(&by_row, tokens, &mut by_token);
+        assert_eq!(by_token, expected);
     }
 
     #[test]

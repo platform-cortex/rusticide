@@ -5,6 +5,7 @@
 //! Llama-family architecture: configuration, weights and the forward pass.
 
 mod attention;
+mod batch;
 mod config;
 mod feed_forward;
 mod layout;

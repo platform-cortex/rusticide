@@ -4,6 +4,7 @@
 
 use rusticide_kernels::{matmul_batch, mul_assign, silu_assign};
 
+use crate::batch::zip_rows;
 use crate::config::LlamaConfig;
 use crate::layout::to_token_major;
 use crate::weights::BlockWeights;
@@ -48,8 +49,10 @@ impl FeedForward {
                 (block.ffn_up.weights(), &mut self.up),
             ],
         );
-        silu_assign(&mut self.gate);
-        mul_assign(&mut self.gate, &self.up);
+        zip_rows(&mut self.gate, &self.up, self.length, tokens, |gate, up| {
+            silu_assign(gate);
+            mul_assign(gate, up);
+        });
         to_token_major(&self.gate, tokens, &mut self.hidden);
         self.down.resize(input.len(), 0.0);
         matmul_batch(
