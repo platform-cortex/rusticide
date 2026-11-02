@@ -14,14 +14,14 @@
 
 use core::arch::aarch64::{
     float32x4_t, int8x8_t, int8x16_t, int32x4_t, uint8x16_t, vaddq_f32, vandq_u8, vcvtq_f32_s32,
-    vdupq_n_f32, vdupq_n_s8, vdupq_n_s32, vdupq_n_u8, veorq_u8, vget_low_s16, vmlaq_s32,
-    vmovl_high_s16, vmovl_s8, vmovl_s16, vmulq_f32, vmulq_n_f32, vreinterpretq_s8_u8, vshlq_n_u8,
-    vshrq_n_s32, vsriq_n_u8,
+    vdupq_n_f32, vdupq_n_s8, vdupq_n_s32, vdupq_n_u8, veorq_u8, vget_low_s16, vmovl_high_s16,
+    vmovl_s8, vmovl_s16, vmulq_f32, vmulq_n_f32, vreinterpretq_s8_u8, vshlq_n_u8, vshrq_n_s32,
+    vsriq_n_u8,
 };
 
 use super::{D, QH, SCALES, UNIT};
 use crate::neon::group::{Q8Superblocks, ROWS, TOKENS};
-use crate::neon::vector::{Rows, four, halves};
+use crate::neon::vector::{Rows, halves, run};
 
 /// Sixteen 16-byte lanes: the same four bytes of 32 per row, for eight rows.
 type Lanes = [[u8; 16]; 16];
@@ -31,22 +31,28 @@ type Lanes = [[u8; 16]; 16];
 /// halves, the scales of the eight rows (one 8-byte lane per scale), and
 /// `d`.
 struct Unit<'a> {
-    low: &'a [Lanes; 4],
-    high: &'a [Lanes; 2],
-    scales: &'a [[u8; 16]; 8],
+    low: [&'a Lanes; 4],
+    high: [&'a Lanes; 2],
+    scales: &'a [[u8; 8]; 16],
     d: [u8; 16],
 }
 
-fn split(unit: &[u8; UNIT]) -> Option<Unit<'_>> {
-    let (low, rest) = unit.split_first_chunk::<QH>()?;
-    let (high, rest) = rest.split_first_chunk::<{ SCALES - QH }>()?;
-    let (scales, d) = rest.split_first_chunk::<{ D - SCALES }>()?;
-    Some(Unit {
-        low: bytemuck::cast_ref(low),
-        high: bytemuck::cast_ref(high),
+// `split` hard-codes these offsets in its patterns.
+const _: () = assert!(QH == 64 * 16 && SCALES == QH + 32 * 16 && D == SCALES + 8 * 16);
+const _: () = assert!(UNIT == D + 16);
+
+fn split(unit: &[u8; UNIT]) -> Unit<'_> {
+    let lanes: &[[u8; 16]; 105] = bytemuck::cast_ref(unit);
+    let [eights @ .., d] = lanes;
+    let eights: &[[[u8; 16]; 8]; 13] = bytemuck::cast_ref(eights);
+    let [bits @ .., scales] = eights;
+    let [l0, l1, l2, l3, h0, h1]: &[Lanes; 6] = bytemuck::cast_ref(bits);
+    Unit {
+        low: [l0, l1, l2, l3],
+        high: [h0, h1],
         scales: bytemuck::cast_ref(scales),
-        d: *d.first_chunk()?,
-    })
+        d: *d,
+    }
 }
 
 #[inline]
@@ -91,35 +97,6 @@ fn unpack(low: &Lanes, high: &[uint8x16_t; 16], run: usize) -> [int8x16_t; 16] {
     weights
 }
 
-/// Adds one run's dot products, each 16 elements times its scale, to
-/// `sum`; weight vector `2 * chunk + quad` holds elements `4 * chunk..` of
-/// rows `4 * quad..`.
-#[inline]
-#[target_feature(enable = "neon,dotprod")]
-fn run(
-    sum: Rows<int32x4_t>,
-    weights: &[int8x16_t; 16],
-    quants: [i8; 32],
-    scales: [Rows<int32x4_t>; 2],
-) -> Rows<int32x4_t> {
-    let [first, second]: [int8x16_t; 2] = bytemuck::cast(quants);
-    let zero = vdupq_n_s32(0);
-    let chunks = |quad: usize, from: usize| -> [int8x16_t; 4] {
-        core::array::from_fn(|chunk| weights[2 * (from + chunk) + quad])
-    };
-    let mut out = sum;
-    for (quad, slot) in out.iter_mut().enumerate() {
-        let low = four(zero, chunks(quad, 0), first);
-        let high = four(zero, chunks(quad, 4), second);
-        *slot = vmlaq_s32(
-            vmlaq_s32(*slot, low, scales[0][quad]),
-            high,
-            scales[1][quad],
-        );
-    }
-    out
-}
-
 /// `acc + d * d8 * sum` per row, as the portable kernel rounds it, from
 /// four times the integer sum.
 #[inline]
@@ -146,16 +123,15 @@ fn sums<const N: usize>(
     block: usize,
     inputs: &[Q8Superblocks<'_>],
 ) -> [Rows<int32x4_t>; N] {
-    let scales: &[[u8; 8]; 16] = bytemuck::cast_ref(unit.scales);
     let mut sums = [[vdupq_n_s32(0); 2]; N];
     for (half, high) in unit.high.iter().enumerate() {
         let high = flipped(high);
         for quarter in 0..4 {
-            let weights = unpack(&unit.low[2 * half + quarter % 2], &high, quarter);
+            let weights = unpack(unit.low[2 * half + quarter % 2], &high, quarter);
             let index = 4 * half + quarter;
             let pair = [
-                rows_i32(bytemuck::cast(scales[2 * index])),
-                rows_i32(bytemuck::cast(scales[2 * index + 1])),
+                rows_i32(bytemuck::cast(unit.scales[2 * index])),
+                rows_i32(bytemuck::cast(unit.scales[2 * index + 1])),
             ];
             for (sum, input) in sums.iter_mut().zip(inputs) {
                 if let Some(quants) = input.quants.get(block) {
@@ -176,8 +152,8 @@ fn chunk<const N: usize>(
     out: &mut [[f32; ROWS]],
 ) {
     let mut acc = [[vdupq_n_f32(-0.0); 2]; N];
-    let units = units.iter().enumerate();
-    for (block, unit) in units.filter_map(|(block, unit)| Some((block, split(unit)?))) {
+    for (block, unit) in units.iter().enumerate() {
+        let unit = split(unit);
         let d = halves(unit.d);
         let sums = sums::<N>(&unit, block, inputs);
         for ((acc, sum), input) in acc.iter_mut().zip(sums).zip(inputs) {

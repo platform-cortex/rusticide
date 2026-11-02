@@ -7,16 +7,16 @@
 //! input of the chunk.
 
 use core::arch::aarch64::{
-    float32x4_t, int8x16_t, int32x4_t, uint8x8_t, uint8x16_t, vaddq_f32, vaddq_s32, vand_u8,
-    vandq_u8, vcvtq_f32_s32, vdup_n_u8, vdupq_n_f32, vdupq_n_s8, vdupq_n_s32, vdupq_n_u8,
-    vfmaq_f32, vget_low_u16, vmlaq_n_s32, vmlaq_s32, vmovl_high_u16, vmovl_u8, vmovl_u16,
-    vmulq_f32, vmulq_n_f32, vnegq_f32, vorr_u8, vreinterpretq_s8_u8, vreinterpretq_s32_u32,
-    vshl_n_u8, vshr_n_u8, vshrq_n_u8,
+    float32x4_t, int8x16_t, int32x4_t, uint8x8_t, uint8x16_t, vaddq_f32, vand_u8, vandq_u8,
+    vcvtq_f32_s32, vdup_n_u8, vdupq_n_f32, vdupq_n_s8, vdupq_n_s32, vdupq_n_u8, vfmaq_f32,
+    vget_low_u16, vmlaq_n_s32, vmovl_high_u16, vmovl_u8, vmovl_u16, vmulq_f32, vmulq_n_f32,
+    vnegq_f32, vorr_u8, vreinterpretq_s8_u8, vreinterpretq_s32_u32, vshl_n_u8, vshr_n_u8,
+    vshrq_n_u8,
 };
 
 use super::UNIT;
 use crate::neon::group::{Q8Superblocks, ROWS, TOKENS};
-use crate::neon::vector::{Rows, four, halves};
+use crate::neon::vector::{Rows, halves, run};
 
 /// What every input shares for one unit: the rows' float scales and their
 /// 6-bit run scales and mins, a vector pair per run.
@@ -65,30 +65,6 @@ fn header(lanes: &[[u8; 16]; 72]) -> Header {
         scales,
         mins,
     }
-}
-
-/// Adds `scale` times one run's dot products to `sum`; weight vector
-/// `2 * chunk + quad` holds elements `4 * chunk..` of rows `4 * quad..`.
-#[inline]
-#[target_feature(enable = "neon,dotprod")]
-fn run(
-    sum: Rows<int32x4_t>,
-    weights: &[int8x16_t; 16],
-    quants: [i8; 32],
-    scale: Rows<int32x4_t>,
-) -> Rows<int32x4_t> {
-    let [first, second]: [int8x16_t; 2] = bytemuck::cast(quants);
-    let zero = vdupq_n_s32(0);
-    let chunks = |quad: usize, from: usize| -> [int8x16_t; 4] {
-        core::array::from_fn(|chunk| weights[2 * (from + chunk) + quad])
-    };
-    let mut out = sum;
-    for (quad, slot) in out.iter_mut().enumerate() {
-        let low = four(zero, chunks(quad, 0), first);
-        let high = four(zero, chunks(quad, 4), second);
-        *slot = vmlaq_s32(*slot, vaddq_s32(low, high), scale[quad]);
-    }
-    out
 }
 
 /// `acc + d8 * (d * sum - dmin * min_sum)` per row, as the portable kernel
@@ -148,7 +124,8 @@ fn chunk(units: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; RO
                 for (sum, input) in sums.iter_mut().zip(inputs) {
                     if let Some(quants) = input.quants.get(block) {
                         let runs: &[[i8; 32]; 8] = bytemuck::cast_ref(quants);
-                        *sum = run(*sum, &weights, runs[index], header.scales[index]);
+                        let scale = header.scales[index];
+                        *sum = run(*sum, &weights, runs[index], [scale, scale]);
                     }
                 }
             }

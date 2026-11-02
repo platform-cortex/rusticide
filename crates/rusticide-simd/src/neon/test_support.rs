@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! What the group kernels' tests share.
+//! What the group kernels' tests share, and the checks every group kernel
+//! must pass against its scalar body.
 
 use super::group::{GroupKernel, Q8Superblocks, ROWS};
 
@@ -49,19 +50,6 @@ pub(crate) fn set_f16(unit: &mut [u8], offset: usize, bits: u16) {
     unit[offset..offset + 2].copy_from_slice(&bits.to_le_bytes());
 }
 
-/// `views` through a NEON kernel and its scalar body, as bits.
-pub(crate) fn both<const UNIT: usize>(
-    kernels: [GroupKernel<UNIT>; 2],
-    units: &[[u8; UNIT]],
-    views: &[Q8Superblocks<'_>],
-) -> [Vec<[u32; ROWS]>; 2] {
-    kernels.map(|kernel| {
-        let mut out = vec![[f32::NAN; ROWS]; views.len()];
-        kernel(units, views, &mut out);
-        out.into_iter().map(|row| row.map(f32::to_bits)).collect()
-    })
-}
-
 /// Bitwise equal, or both NaN.
 pub(crate) fn same(left: u32, right: u32) -> bool {
     left == right || (f32::from_bits(left).is_nan() && f32::from_bits(right).is_nan())
@@ -81,3 +69,99 @@ pub(crate) const TOKEN_COUNTS: &[usize] = if cfg!(miri) {
     ]
 };
 pub(crate) const BLOCKS: usize = if cfg!(miri) { 1 } else { 3 };
+
+/// A group kernel under test: its NEON and scalar bodies, how to make
+/// random units with finite float scales, and how to give a unit's rows
+/// one special float scale each.
+pub(crate) struct Format<const UNIT: usize> {
+    pub(crate) kernels: [GroupKernel<UNIT>; 2],
+    pub(crate) random_units: fn(&mut fastrand::Rng, usize) -> Vec<[u8; UNIT]>,
+    pub(crate) set_specials: fn(&mut [u8; UNIT], &[u16; ROWS]),
+}
+
+impl<const UNIT: usize> Format<UNIT> {
+    /// `views` through the NEON body and the scalar body, as bits.
+    pub(crate) fn both(
+        &self,
+        units: &[[u8; UNIT]],
+        views: &[Q8Superblocks<'_>],
+    ) -> [Vec<[u32; ROWS]>; 2] {
+        self.kernels.map(|kernel| {
+            let mut out = vec![[f32::NAN; ROWS]; views.len()];
+            kernel(units, views, &mut out);
+            out.into_iter().map(|row| row.map(f32::to_bits)).collect()
+        })
+    }
+
+    /// `tokens` random activations of `blocks` blocks.
+    fn activations(rng: &mut fastrand::Rng, tokens: usize, blocks: usize) -> Vec<Activation> {
+        (0..tokens)
+            .map(|_| Activation::random(rng, blocks))
+            .collect()
+    }
+
+    pub(crate) fn the_neon_body_matches_the_scalar_body(&self, seed: u64) {
+        let mut rng = fastrand::Rng::with_seed(seed);
+        for &tokens in TOKEN_COUNTS {
+            let units = (self.random_units)(&mut rng, BLOCKS);
+            let activations = Self::activations(&mut rng, tokens, BLOCKS);
+            let views: Vec<_> = activations.iter().map(Activation::view).collect();
+            let [native, reference] = self.both(&units, &views);
+            assert_eq!(native, reference, "{tokens} tokens");
+            let finite = |&value: &u32| f32::from_bits(value).is_finite() && value != 0;
+            assert!(native.iter().flatten().all(finite));
+        }
+    }
+
+    pub(crate) fn every_token_is_computed_as_if_alone(&self, seed: u64) {
+        let mut rng = fastrand::Rng::with_seed(seed);
+        let units = (self.random_units)(&mut rng, BLOCKS);
+        let activations = Self::activations(&mut rng, 3, BLOCKS);
+        let views: Vec<_> = activations.iter().map(Activation::view).collect();
+        let [together, _] = self.both(&units, &views);
+        for (token, view) in views.iter().enumerate() {
+            let [alone, _] = self.both(&units, core::slice::from_ref(view));
+            assert_eq!(alone[0], together[token]);
+        }
+        assert_ne!(together[0], together[1]);
+    }
+
+    pub(crate) fn the_shorter_of_group_and_input_bounds_the_blocks(&self, seed: u64) {
+        let mut rng = fastrand::Rng::with_seed(seed);
+        let units = (self.random_units)(&mut rng, 2);
+        let long = Activation::random(&mut rng, 2);
+        let short = Q8Superblocks::new(&long.scales[..1], &long.quants, &long.sums);
+        let [from_short_input, _] = self.both(&units, &[short]);
+        let [from_short_group, _] = self.both(&units[..1], &[long.view()]);
+        assert_eq!(from_short_input, from_short_group);
+        let [nothing, _] = self.both(&[], &[long.view()]);
+        assert_eq!(nothing, [[(-0.0_f32).to_bits(); ROWS]]);
+    }
+
+    /// Infinities, NaN, subnormals, zeros and the largest half.
+    pub(crate) fn special_scales_match_the_scalar_body(&self, seed: u64) {
+        let mut rng = fastrand::Rng::with_seed(seed);
+        let mut units = (self.random_units)(&mut rng, 1);
+        let specials = [
+            0x7c00, 0xfc00, 0x7e01, 0x0001, 0x83ff, 0x0000, 0x8000, 0x7bff,
+        ];
+        (self.set_specials)(&mut units[0], &specials);
+        let activation = Activation::random(&mut rng, 1);
+        let [native, reference] = self.both(&units, &[activation.view()]);
+        for (&left, &right) in native[0].iter().zip(&reference[0]) {
+            assert!(same(left, right), "{left:#x} vs {right:#x}");
+        }
+    }
+
+    /// Weight data at an odd address: the kernel must not assume alignment.
+    pub(crate) fn a_group_at_an_odd_address_gives_the_same_products(&self, seed: u64) {
+        let mut rng = fastrand::Rng::with_seed(seed);
+        let units = (self.random_units)(&mut rng, 1);
+        let mut bytes = vec![0; UNIT + 1];
+        bytes[1..].copy_from_slice(units.as_flattened());
+        let (shifted, _) = bytes[1..].as_chunks::<UNIT>();
+        let activation = Activation::random(&mut rng, 1);
+        let view = [activation.view()];
+        assert_eq!(self.both(shifted, &view), self.both(&units, &view));
+    }
+}
