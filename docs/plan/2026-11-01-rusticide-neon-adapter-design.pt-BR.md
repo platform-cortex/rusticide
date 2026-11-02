@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Adaptador de kernels NEON (Design)
 
-Status: rascunho, 2026-11-01. Segue o
+Status: concluido, 2026-11-02. Segue o
 [kernel facade](2026-11-01-rusticide-kernel-facade-design.pt-BR.md)
 (release 0.7.0) e o patch de endurecimento do GGUF (release 0.7.1).
 Branch `perf/prefill`.
@@ -256,3 +256,29 @@ Parte 2, Apple M1 Pro (8 nucleos), tokens/s. O decode com amostragem e
 - Baseline regravado: prefill do Qwen2.5 426,03 -> 424,68, decode 132,60 ->
   130,38; prefill do TinyLlama 166,82 -> 167,55, decode 96,36 -> 96,25. O
   bench guloso nao exercita a amostragem, entao sao variacoes de ruido.
+
+Parte 3, Apple M1 Pro (8 nucleos), adaptador NEON (dotprod, escolhido em
+tempo de build em aarch64-apple-darwin). Antes e o baseline da parte 2
+(kernels portateis); depois e o baseline regravado. As metricas de kernel
+estao em G/s como impressas pelo gate.
+
+- Kernel Q4_K: row 29,43 -> 35,10, rows8 29,94 -> 90,25.
+- Kernel Q6_K: row 25,94 -> 28,43, rows8 26,81 -> 79,99.
+- Kernel Q5_0: row 20,28 -> 29,24, rows8 24,37 -> 81,48.
+- Kernel Q8_0: row 35,04 -> 59,53, rows8 35,43 -> 97,18.
+- Prefill do Qwen2.5: 424,68 antes, 1016,21 depois (+139%); decode 130,38
+  antes, 146,21 depois (+12%).
+- Prefill do TinyLlama: 167,55 antes, 468,82 depois (+180%); decode 96,25
+  antes, 102,82 depois (+7%).
+- O fallback portatil (`RUSTICIDE_KERNELS=portable`) passa o gate contra o
+  baseline da parte 2: sem regressao.
+- llama.cpp pp128 (`llama-bench -ngl 0`, melhor de `-t 6` e `-t 8`; build
+  8642541b2, backends BLAS+Metal, ruidoso): TinyLlama 286,71, Qwen2.5-0.5B
+  640,46. O prompt de prefill do nosso bench e um paragrafo fixo de cerca
+  de 150 tokens, nao exatamente 128, entao a comparacao e aproximada.
+- Razao com o llama.cpp: TinyLlama 468,82 / 286,71 = 164%, Qwen2.5 1016,21
+  / 640,46 = 159%. O Objetivo 1 (pelo menos 65%) foi atingido.
+- Proximo passo: especializacao de decode com N=1 para o Q4_K.
+- Proximo passo: os builds de release Linux aarch64 ainda rodam portateis
+  (deteccao de dotprod em tempo de execucao fica para uma decisao futura).
+- Proximo passo: tabelas de attention e RoPE sao o proximo marco.

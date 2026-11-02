@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # NEON kernel adapter (Design)
 
-Status: draft, 2026-11-01. Follows the
+Status: done, 2026-11-02. Follows the
 [kernel facade](2026-11-01-rusticide-kernel-facade-design.md) (release
 0.7.0) and the GGUF hardening patch (release 0.7.1). Branch
 `perf/prefill`.
@@ -240,3 +240,29 @@ alternating before (commit 6e56270) and after.
 - Baseline re-recorded: Qwen2.5 prefill 426.03 -> 424.68, decode 132.60 ->
   130.38; TinyLlama prefill 166.82 -> 167.55, decode 96.36 -> 96.25. The
   greedy bench does not exercise sampling, so these are noise-level moves.
+
+Part 3, Apple M1 Pro (8 cores), NEON adapter (dotprod, selected at build
+time on aarch64-apple-darwin). Before is the part-2 baseline (portable
+kernels); after is the re-recorded baseline. Kernel metrics are in G/s as
+printed by the gate.
+
+- Q4_K kernel: row 29.43 -> 35.10, rows8 29.94 -> 90.25.
+- Q6_K kernel: row 25.94 -> 28.43, rows8 26.81 -> 79.99.
+- Q5_0 kernel: row 20.28 -> 29.24, rows8 24.37 -> 81.48.
+- Q8_0 kernel: row 35.04 -> 59.53, rows8 35.43 -> 97.18.
+- Qwen2.5 prefill: 424.68 before, 1016.21 after (+139%); decode 130.38
+  before, 146.21 after (+12%).
+- TinyLlama prefill: 167.55 before, 468.82 after (+180%); decode 96.25
+  before, 102.82 after (+7%).
+- Portable fallback (`RUSTICIDE_KERNELS=portable`) passes the gate against
+  the part-2 baseline: no regression.
+- llama.cpp pp128 (`llama-bench -ngl 0`, best of `-t 6` and `-t 8`; build
+  8642541b2, BLAS+Metal backends, noisy): TinyLlama 286.71, Qwen2.5-0.5B
+  640.46. Our bench prefill prompt is a fixed paragraph of roughly 150
+  tokens, not exactly 128, so the comparison is approximate.
+- Ratio to llama.cpp: TinyLlama 468.82 / 286.71 = 164%, Qwen2.5 1016.21 /
+  640.46 = 159%. Goal 1 (at least 65%) is met.
+- Follow-up: an N=1 decode specialization for Q4_K.
+- Follow-up: Linux aarch64 release builds still run portable (run-time
+  dotprod detection is a later decision).
+- Follow-up: attention and RoPE tables are the next milestone.
