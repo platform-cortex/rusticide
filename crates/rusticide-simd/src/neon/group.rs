@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! What every eight-row group kernel shares: the group shape and the view
-//! of a `Q8_K` activation the kernels read.
+//! What every eight-row group kernel shares: the group shape and the views
+//! of the activations the kernels read.
 
 /// Rows per unit.
 pub const ROWS: usize = 8;
@@ -12,8 +12,8 @@ pub const TOKENS: usize = 16;
 
 /// A group kernel: one group's units against each input, the eight rows
 /// side by side in the input's slot of the output.
-pub type GroupKernel<const UNIT: usize> =
-    fn(group: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]);
+pub type GroupKernel<const UNIT: usize, Input> =
+    fn(group: &[[u8; UNIT]], inputs: &[Input], out: &mut [[f32; ROWS]]);
 
 /// One token's `Q8_K` activation as whole 256-element super-blocks: each
 /// super-block's scale (stored once per 32 elements, all equal), its

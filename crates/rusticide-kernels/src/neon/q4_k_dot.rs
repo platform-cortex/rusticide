@@ -27,7 +27,7 @@ pub(crate) const KERNEL: QuantKernel = QuantKernel {
 };
 
 fn dot_group(group: &[u8], inputs: &[Q8Input], out: &mut [f32]) {
-    group_dot::dot_group(q4_k_group, group, inputs, out);
+    group_dot::dot_group(q4_k_group, group_dot::superblocks, group, inputs, out);
 }
 
 #[cfg(test)]

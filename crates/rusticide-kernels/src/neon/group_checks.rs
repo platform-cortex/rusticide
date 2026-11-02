@@ -8,7 +8,7 @@ use rusticide_quantize::block_format;
 
 use crate::neon::ADAPTER;
 use crate::portable;
-use crate::q8_input::{Q8Input, Q8Kind};
+use crate::q8_input::Q8Input;
 use crate::quant_kernel::{DotRows, Layout, QuantKernel};
 use crate::test_support::pseudo_random_values;
 
@@ -33,16 +33,20 @@ fn random_rows(block: usize, blocks: usize, seed: u64) -> (Vec<u8>, usize) {
 
 fn weights(type_id: u32, seed: u32) -> (Vec<u8>, usize) {
     let format = block_format(type_id).unwrap();
-    let data = format.synthetic_blocks(ROWS * COLS / 256, seed).unwrap();
+    let data = format
+        .synthetic_blocks(ROWS * COLS / format.block_size(), seed)
+        .unwrap();
     (data, format.row_bytes(COLS).unwrap())
 }
 
-fn inputs(tokens: usize, seed: u32) -> Vec<Q8Input> {
+/// `tokens` activations quantized as the kernel for `type_id` pairs them.
+fn inputs(type_id: u32, tokens: usize, seed: u32) -> Vec<Q8Input> {
+    let kind = kernel(type_id).activation;
     (0..tokens)
         .map(|token| {
             let mut input = Q8Input::default();
             let values = pseudo_random_values(COLS, seed + u32::try_from(token).unwrap());
-            input.quantize(&values, Q8Kind::SuperBlock);
+            input.quantize(&values, kind);
             input
         })
         .collect()
@@ -127,7 +131,7 @@ pub(super) fn read_row_rejects_a_missing_row_or_a_wrong_buffer(type_id: u32, blo
 pub(super) fn neon_matches_portable(type_id: u32, portable_rows: DotRows) {
     let (original, row_bytes) = weights(type_id, 21);
     for tokens in [1, 2, 7, 19, 64] {
-        let inputs = inputs(tokens, 40);
+        let inputs = inputs(type_id, tokens, 40);
         let got = neon_products(type_id, &original, row_bytes, &inputs);
         for (row, values) in original
             .chunks_exact(row_bytes)
@@ -149,7 +153,7 @@ pub(super) fn neon_matches_portable(type_id: u32, portable_rows: DotRows) {
 pub(super) fn a_batch_is_bit_identical_to_its_tokens_one_at_a_time(type_id: u32) {
     let (original, row_bytes) = weights(type_id, 22);
     let tokens = 19;
-    let inputs = inputs(tokens, 50);
+    let inputs = inputs(type_id, tokens, 50);
     let batch = neon_products(type_id, &original, row_bytes, &inputs);
     for (token, input) in inputs.iter().enumerate() {
         let alone = neon_products(type_id, &original, row_bytes, std::slice::from_ref(input));

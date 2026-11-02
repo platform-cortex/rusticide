@@ -5,7 +5,22 @@
 //! What the group kernels' tests share, and the checks every group kernel
 //! must pass against its scalar body.
 
-use super::group::{GroupKernel, Q8Superblocks, ROWS};
+use super::group::{Q8Superblocks, ROWS};
+
+/// A random test activation and the view of it a kernel reads.
+pub(crate) trait Input: Sized {
+    type View<'a>: Copy
+    where
+        Self: 'a;
+    fn random(rng: &mut fastrand::Rng, blocks: usize) -> Self;
+    fn view(&self) -> Self::View<'_>;
+    /// The view of only its first `blocks` blocks.
+    fn first(&self, blocks: usize) -> Self::View<'_>;
+}
+
+/// A group kernel taking `I`'s view, for every lifetime of it.
+pub(crate) type Kernel<const UNIT: usize, I> =
+    for<'a> fn(&[[u8; UNIT]], &[<I as Input>::View<'a>], &mut [[f32; ROWS]]);
 
 /// One token's random `Q8_K` activation, with consistent run sums.
 pub(crate) struct Activation {
@@ -14,14 +29,26 @@ pub(crate) struct Activation {
     pub(crate) sums: Vec<[i32; 8]>,
 }
 
-impl Activation {
-    pub(crate) fn random(rng: &mut fastrand::Rng, blocks: usize) -> Self {
+impl Input for Activation {
+    type View<'a> = Q8Superblocks<'a>;
+
+    fn random(rng: &mut fastrand::Rng, blocks: usize) -> Self {
         let quants: Vec<[i8; 256]> = (0..blocks)
             .map(|_| core::array::from_fn(|_| rng.i8(..)))
             .collect();
         Self::from_quants(quants, (0..blocks).map(|_| rng.f32() * 0.01).collect())
     }
 
+    fn view(&self) -> Q8Superblocks<'_> {
+        Q8Superblocks::new(&self.scales, &self.quants, &self.sums)
+    }
+
+    fn first(&self, blocks: usize) -> Q8Superblocks<'_> {
+        Q8Superblocks::new(&self.scales[..blocks], &self.quants, &self.sums)
+    }
+}
+
+impl Activation {
     pub(crate) fn from_quants(quants: Vec<[i8; 256]>, scales: Vec<f32>) -> Self {
         let sums = quants
             .iter()
@@ -39,10 +66,6 @@ impl Activation {
             quants,
             sums,
         }
-    }
-
-    pub(crate) fn view(&self) -> Q8Superblocks<'_> {
-        Q8Superblocks::new(&self.scales, &self.quants, &self.sums)
     }
 }
 
@@ -73,18 +96,18 @@ pub(crate) const BLOCKS: usize = if cfg!(miri) { 1 } else { 3 };
 /// A group kernel under test: its NEON and scalar bodies, how to make
 /// random units with finite float scales, and how to give a unit's rows
 /// one special float scale each.
-pub(crate) struct Format<const UNIT: usize> {
-    pub(crate) kernels: [GroupKernel<UNIT>; 2],
+pub(crate) struct Format<const UNIT: usize, I: Input = Activation> {
+    pub(crate) kernels: [Kernel<UNIT, I>; 2],
     pub(crate) random_units: fn(&mut fastrand::Rng, usize) -> Vec<[u8; UNIT]>,
     pub(crate) set_specials: fn(&mut [u8; UNIT], &[u16; ROWS]),
 }
 
-impl<const UNIT: usize> Format<UNIT> {
+impl<const UNIT: usize, I: Input> Format<UNIT, I> {
     /// `views` through the NEON body and the scalar body, as bits.
     pub(crate) fn both(
         &self,
         units: &[[u8; UNIT]],
-        views: &[Q8Superblocks<'_>],
+        views: &[I::View<'_>],
     ) -> [Vec<[u32; ROWS]>; 2] {
         self.kernels.map(|kernel| {
             let mut out = vec![[f32::NAN; ROWS]; views.len()];
@@ -94,10 +117,8 @@ impl<const UNIT: usize> Format<UNIT> {
     }
 
     /// `tokens` random activations of `blocks` blocks.
-    fn activations(rng: &mut fastrand::Rng, tokens: usize, blocks: usize) -> Vec<Activation> {
-        (0..tokens)
-            .map(|_| Activation::random(rng, blocks))
-            .collect()
+    fn activations(rng: &mut fastrand::Rng, tokens: usize, blocks: usize) -> Vec<I> {
+        (0..tokens).map(|_| I::random(rng, blocks)).collect()
     }
 
     pub(crate) fn the_neon_body_matches_the_scalar_body(&self, seed: u64) {
@@ -105,7 +126,7 @@ impl<const UNIT: usize> Format<UNIT> {
         for &tokens in TOKEN_COUNTS {
             let units = (self.random_units)(&mut rng, BLOCKS);
             let activations = Self::activations(&mut rng, tokens, BLOCKS);
-            let views: Vec<_> = activations.iter().map(Activation::view).collect();
+            let views: Vec<_> = activations.iter().map(I::view).collect();
             let [native, reference] = self.both(&units, &views);
             assert_eq!(native, reference, "{tokens} tokens");
             let finite = |&value: &u32| f32::from_bits(value).is_finite() && value != 0;
@@ -117,7 +138,7 @@ impl<const UNIT: usize> Format<UNIT> {
         let mut rng = fastrand::Rng::with_seed(seed);
         let units = (self.random_units)(&mut rng, BLOCKS);
         let activations = Self::activations(&mut rng, 3, BLOCKS);
-        let views: Vec<_> = activations.iter().map(Activation::view).collect();
+        let views: Vec<_> = activations.iter().map(I::view).collect();
         let [together, _] = self.both(&units, &views);
         for (token, view) in views.iter().enumerate() {
             let [alone, _] = self.both(&units, core::slice::from_ref(view));
@@ -129,8 +150,8 @@ impl<const UNIT: usize> Format<UNIT> {
     pub(crate) fn the_shorter_of_group_and_input_bounds_the_blocks(&self, seed: u64) {
         let mut rng = fastrand::Rng::with_seed(seed);
         let units = (self.random_units)(&mut rng, 2);
-        let long = Activation::random(&mut rng, 2);
-        let short = Q8Superblocks::new(&long.scales[..1], &long.quants, &long.sums);
+        let long = I::random(&mut rng, 2);
+        let short = long.first(1);
         let [from_short_input, _] = self.both(&units, &[short]);
         let [from_short_group, _] = self.both(&units[..1], &[long.view()]);
         assert_eq!(from_short_input, from_short_group);
@@ -146,7 +167,7 @@ impl<const UNIT: usize> Format<UNIT> {
             0x7c00, 0xfc00, 0x7e01, 0x0001, 0x83ff, 0x0000, 0x8000, 0x7bff,
         ];
         (self.set_specials)(&mut units[0], &specials);
-        let activation = Activation::random(&mut rng, 1);
+        let activation = I::random(&mut rng, 1);
         let [native, reference] = self.both(&units, &[activation.view()]);
         for (&left, &right) in native[0].iter().zip(&reference[0]) {
             assert!(same(left, right), "{left:#x} vs {right:#x}");
@@ -160,7 +181,7 @@ impl<const UNIT: usize> Format<UNIT> {
         let mut bytes = vec![0; UNIT + 1];
         bytes[1..].copy_from_slice(units.as_flattened());
         let (shifted, _) = bytes[1..].as_chunks::<UNIT>();
-        let activation = Activation::random(&mut rng, 1);
+        let activation = I::random(&mut rng, 1);
         let view = [activation.view()];
         assert_eq!(self.both(shifted, &view), self.both(&units, &view));
     }

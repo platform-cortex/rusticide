@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! The NEON group kernels' common entry: [`Q8Input`]s viewed as whole
-//! super-blocks and handed to a `rusticide_simd` kernel a chunk of tokens
-//! at a time.
+//! The NEON group kernels' common entry: [`Q8Input`]s viewed as the
+//! kernel reads them and handed to a `rusticide_simd` kernel a chunk of
+//! tokens at a time.
 
 use rusticide_simd::neon::group::{GroupKernel, Q8Superblocks, ROWS, TOKENS};
 
 use crate::q8_input::Q8Input;
 
-fn superblocks(input: &Q8Input) -> Q8Superblocks<'_> {
+pub(super) fn superblocks(input: &Q8Input) -> Q8Superblocks<'_> {
     Q8Superblocks::new(
         input.scales.as_chunks().0,
         input.quants.as_chunks().0,
@@ -19,18 +19,19 @@ fn superblocks(input: &Q8Input) -> Q8Superblocks<'_> {
 }
 
 /// One group against every input, into `out[row * inputs.len() + token]`.
-pub(super) fn dot_group<const UNIT: usize>(
-    kernel: GroupKernel<UNIT>,
+pub(super) fn dot_group<'a, const UNIT: usize, View: Copy + Default>(
+    kernel: GroupKernel<UNIT, View>,
+    view: fn(&'a Q8Input) -> View,
     group: &[u8],
-    inputs: &[Q8Input],
+    inputs: &'a [Q8Input],
     out: &mut [f32],
 ) {
     let (units, _) = group.as_chunks::<UNIT>();
     let tokens = inputs.len();
     for (first, chunk) in (0..).step_by(TOKENS).zip(inputs.chunks(TOKENS)) {
-        let mut views = [Q8Superblocks::default(); TOKENS];
-        for (view, input) in views.iter_mut().zip(chunk) {
-            *view = superblocks(input);
+        let mut views = [View::default(); TOKENS];
+        for (slot, input) in views.iter_mut().zip(chunk) {
+            *slot = view(input);
         }
         let mut products = [[0.0; ROWS]; TOKENS];
         let count = chunk.len().min(TOKENS);

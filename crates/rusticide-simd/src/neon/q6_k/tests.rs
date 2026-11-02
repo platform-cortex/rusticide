@@ -4,7 +4,7 @@
 
 use super::{D, QH, QL, SCALES, UNIT, q6_k_group, scalar};
 use crate::neon::group::ROWS;
-use crate::neon::test_support::{Activation, Format, set_f16};
+use crate::neon::test_support::{Activation, Format, Input, set_f16};
 
 /// Random units whose `d` are finite f16 values in `[0, 2)`.
 fn random_units(rng: &mut fastrand::Rng, blocks: usize) -> Vec<[u8; UNIT]> {
