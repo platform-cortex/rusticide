@@ -245,3 +245,25 @@ fn an_unfinished_character_is_emitted_when_generation_ends() {
     assert_eq!(result.unwrap().generated_tokens, [B, REPLACEMENT]);
     assert_eq!(pieces, ["b", "\u{fffd}"]);
 }
+
+#[test]
+fn pick_is_greedy_at_zero_temperature() {
+    let params = options(1, 0.0).params;
+    let logits = [f32::NAN, 0.5, 2.0, 1.0];
+    let token = super::pick(&mut Sampler::new(7), &logits, &params).unwrap();
+    assert_eq!(token, 2);
+}
+
+#[test]
+fn pick_samples_above_zero_temperature() {
+    let params = SamplingParams {
+        top_k: 0,
+        top_p: 1.0,
+        ..options(1, 0.8).params
+    };
+    let mut sampler = Sampler::new(7);
+    let picks: Vec<u32> = (0..32)
+        .map(|_| super::pick(&mut sampler, &[1.0; 8], &params).unwrap())
+        .collect();
+    assert!(picks.iter().any(|&token| token != picks[0]));
+}

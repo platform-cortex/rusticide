@@ -4,7 +4,6 @@
 
 use std::time::{Duration, Instant};
 
-use rusticide_core::Tensor;
 use rusticide_sampling::{Sampler, SamplingParams};
 use rusticide_tokenizer::Tokenizer;
 
@@ -116,11 +115,10 @@ fn emit_non_empty(emit: &mut dyn FnMut(&str) -> Result<()>, text: &str) -> Resul
 }
 
 fn pick(sampler: &mut Sampler, logits: &[f32], params: &SamplingParams) -> Result<u32> {
-    let tensor = Tensor::from_slice(logits, &[logits.len()])?;
     let token = if params.temperature == 0.0 {
-        sampler.sample_greedy(&tensor)?
+        sampler.greedy_logits(logits)?
     } else {
-        sampler.sample(&tensor, params)?
+        sampler.sample_logits(logits, params)?
     };
     Ok(token)
 }
