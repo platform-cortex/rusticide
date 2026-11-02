@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-11-02
+
+### Bug Fixes
+
+- **io:** reject tensors that share bytes
+- **io:** cap metadata array elements
+- **io:** load only regular files
+- **cli:** free the model file before generating
+
+### Testing
+
+- **io:** drop the unreachable overlap helper arm
+
 ## [0.7.0] - 2026-11-01
 
 ### Features
@@ -37,7 +50,6 @@ All notable changes to this project will be documented in this file.
 - close the kernel facade milestone
 - correct the facade results
 - record the SHA-pinned actions policy
-
 ## [0.6.0] - 2026-11-01
 
 ### Features
