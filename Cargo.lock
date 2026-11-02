@@ -299,6 +299,7 @@ dependencies = [
  "rusticide-core",
  "rusticide-dispatch",
  "rusticide-io",
+ "rusticide-kernels",
  "rusticide-llama",
  "rusticide-model",
  "rusticide-sampling",

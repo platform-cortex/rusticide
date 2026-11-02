@@ -22,6 +22,7 @@ fn baseline(entries: &[(&str, f64)]) -> Baseline {
         .collect::<BTreeMap<_, _>>();
     Baseline {
         machine: "box".to_string(),
+        adapter: "neon".to_string(),
         metrics,
     }
 }
@@ -42,6 +43,7 @@ fn results(entries: &[(&str, f64)]) -> Results {
         .collect::<BTreeMap<_, _>>();
     Results {
         machine: "box".to_string(),
+        adapter: "neon".to_string(),
         metrics,
     }
 }
@@ -97,6 +99,28 @@ fn compare_refuses_another_machine() {
     assert!(
         matches!(error, BenchError::WrongMachine { ref expected, ref got }
         if expected == "box" && got == "elsewhere")
+    );
+}
+
+#[test]
+fn compare_refuses_another_adapter() {
+    let mut other = results(&[("a", 1.0)]);
+    other.adapter = "portable".to_string();
+    let error = compare(&baseline(&[("a", 1.0)]), &other).unwrap_err();
+    assert!(
+        matches!(error, BenchError::OtherAdapter { ref expected, ref got }
+        if expected == "neon" && got == "portable")
+    );
+}
+
+#[test]
+fn a_baseline_without_an_adapter_is_another_adapter() {
+    let text = r#"{"machine":"box","metrics":{"a":{"best":1.0,"tolerance":0.05}}}"#;
+    let old: Baseline = serde_json::from_str(text).unwrap();
+    let error = compare(&old, &results(&[("a", 1.0)])).unwrap_err();
+    assert!(
+        matches!(error, BenchError::OtherAdapter { ref expected, ref got }
+        if expected.is_empty() && got == "neon")
     );
 }
 

@@ -95,11 +95,10 @@ jobs:
           title: "Coverage Report"
           tool-name: "Tarpaulin"
 
-  # The same gate on Linux arm64, with dotprod enabled so rusticide-simd's
-  # `neon` module (and every caller gated on it) is compiled, tested and
-  # covered. RUSTFLAGS replaces .cargo/config.toml's `-D warnings` rather
-  # than merging with it, hence the repeat. Test-only: release builds never
-  # enable dotprod for Linux aarch64.
+  # The same gate on Linux arm64, where the `neon` modules compile in and
+  # the adapter is selected at run time, then a check that the release
+  # binary on this CPU selects `neon`. RUSTFLAGS replaces .cargo/config.toml's
+  # `-D warnings` rather than merging with it, hence the repeat.
   arm:
     name: Gates arm64 (mise run ci:quick)
     needs: [version]
@@ -122,8 +121,16 @@ jobs:
       - name: mise run ci:quick
         env:
           RUST_COVERAGE_THRESHOLD: ${{ vars.RUST_COVERAGE_THRESHOLD || '100' }}
-          RUSTFLAGS: "-D warnings -C target-feature=+dotprod"
+          RUSTFLAGS: "-D warnings"
         run: mise run ci:quick
+
+      - name: The release binary selects the neon kernels
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: |
+          version="$(cargo run --release -p rusticide --features cli -- version)"
+          printf '%s\n' "$version"
+          grep -qx 'kernels: neon' <<<"$version"
 
   # docs/UNSAFE.md: every crate permitted `unsafe` runs under Miri in CI.
   # Interpreting for aarch64-apple-darwin compiles the `neon` module in (it

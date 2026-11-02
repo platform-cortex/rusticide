@@ -29,10 +29,20 @@ pub(crate) const KERNEL: QuantKernel = QuantKernel {
 };
 
 fn dot_group(group: &[u8], inputs: &[Q8Input], views: &GroupViews<'_>, out: &mut [f32]) {
-    let token = Dotprod::detect();
+    dot_group_with(super::proof(), group, inputs, views, out);
+}
+
+/// The group kernel with `proof`, or the portable kernel without one.
+fn dot_group_with(
+    proof: Option<Dotprod>,
+    group: &[u8],
+    inputs: &[Q8Input],
+    views: &GroupViews<'_>,
+    out: &mut [f32],
+) {
     group_dot::dot_group(
         &KERNEL,
-        token,
+        proof,
         q5_0_group,
         views.blocks(),
         group,

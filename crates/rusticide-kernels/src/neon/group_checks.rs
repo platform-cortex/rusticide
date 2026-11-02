@@ -8,7 +8,7 @@ use rusticide_quantize::block_format;
 use rusticide_simd::group::TOKENS;
 
 use crate::group_views::{GroupViews, visit_views};
-use crate::neon::ADAPTER;
+use crate::neon::{ADAPTER, proof};
 use crate::portable;
 use crate::q8_input::Q8Input;
 use crate::quant_kernel::{DotRows, Layout, QuantKernel};
@@ -17,8 +17,8 @@ use crate::test_support::pseudo_random_values;
 const ROWS: usize = 16;
 const COLS: usize = 1024;
 
-/// A format's group kernel wrapper with its token withheld.
-pub(super) type Untokened = fn(&[u8], &[Q8Input], &GroupViews<'_>, &mut [f32]);
+/// A format's group kernel wrapper with its proof withheld.
+pub(super) type Unproved = fn(&[u8], &[Q8Input], &GroupViews<'_>, &mut [f32]);
 
 fn kernel(type_id: u32) -> &'static QuantKernel {
     ADAPTER.quant_kernel(type_id).unwrap()
@@ -57,7 +57,15 @@ fn inputs(type_id: u32, tokens: usize, seed: u32) -> Vec<Q8Input> {
         .collect()
 }
 
+/// The products through the adapter, after detection stored the proof the
+/// wrappers read, so the NEON kernels (not the portable fallback) run.
 fn neon_products(type_id: u32, original: &[u8], row_bytes: usize, inputs: &[Q8Input]) -> Vec<f32> {
+    assert!(
+        crate::adapter::available()
+            .iter()
+            .any(|adapter| adapter.name() == "neon")
+    );
+    assert!(proof().is_some());
     let mut data = original.to_vec();
     let prepared = ADAPTER
         .prepare_matrix(type_id, &mut data, row_bytes)
@@ -237,9 +245,9 @@ fn assert_portable(
     }
 }
 
-/// A group kernel wrapper handed no token computes every value with the
+/// A group kernel wrapper handed no proof computes every value with the
 /// portable kernel instead, never the SIMD one.
-pub(super) fn without_a_token_matches_portable(type_id: u32, untokened: Untokened) {
+pub(super) fn wrapper_without_token_matches_portable(type_id: u32, unproved: Unproved) {
     let (original, row_bytes) = weights(type_id, 26);
     let mut data = original.clone();
     assert!((layout(type_id).prepare)(&mut data, row_bytes));
@@ -249,7 +257,7 @@ pub(super) fn without_a_token_matches_portable(type_id: u32, untokened: Untokene
     visit_views(&inputs, kernel(type_id).activation, |views| {
         let groups = data.chunks_exact(group_rows * row_bytes);
         for (group, out) in groups.zip(got.chunks_exact_mut(group_rows * inputs.len())) {
-            untokened(group, &inputs, views, out);
+            unproved(group, &inputs, views, out);
         }
     });
     assert_portable(type_id, &original, row_bytes, &inputs, &got);

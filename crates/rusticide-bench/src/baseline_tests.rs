@@ -18,6 +18,7 @@ fn sample(best: f64) -> Sample {
 fn session(machine: &str, entries: &[(&str, f64)]) -> Results {
     Results {
         machine: machine.to_string(),
+        adapter: "neon".to_string(),
         metrics: entries
             .iter()
             .map(|(name, best)| ((*name).to_string(), sample(*best)))
@@ -34,6 +35,7 @@ fn baseline_is_the_median_of_the_session_bests_with_a_tolerance_per_kind() {
     ];
     let baseline = Baseline::from_sessions(&sessions).unwrap();
     assert_eq!(baseline.machine, "box");
+    assert_eq!(baseline.adapter, "neon");
     assert_eq!(
         baseline.metrics["kernel/Q4_0/row"],
         Expected {
@@ -62,6 +64,17 @@ fn sessions_from_two_machines_are_rejected() {
     assert!(matches!(
         Baseline::from_sessions(&sessions),
         Err(BenchError::WrongMachine { expected, got }) if expected == "a" && got == "b"
+    ));
+}
+
+#[test]
+fn sessions_from_two_adapters_are_rejected() {
+    let mut other = session("box", &[("m", 1.0)]);
+    other.adapter = "portable".to_string();
+    let sessions = [session("box", &[("m", 1.0)]), other];
+    assert!(matches!(
+        Baseline::from_sessions(&sessions),
+        Err(BenchError::OtherAdapter { expected, got }) if expected == "neon" && got == "portable"
     ));
 }
 
@@ -97,6 +110,7 @@ fn baseline_round_trip_through_json() {
     );
     let original = Baseline {
         machine: "box".to_string(),
+        adapter: "neon".to_string(),
         metrics,
     };
     let text = serde_json::to_string(&original).unwrap();

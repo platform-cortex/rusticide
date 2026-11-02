@@ -17,7 +17,14 @@ rust-version.workspace = true
 version.workspace = true
 
 [features]
-cli = ["schema", "dispatch", "models", "dep:anyhow", "dep:clap"]
+cli = [
+  "schema",
+  "dispatch",
+  "models",
+  "dep:anyhow",
+  "dep:clap",
+  "dep:rusticide-kernels",
+]
 default = ["dispatch", "schema"]
 dispatch = ["dep:rusticide-dispatch"]
 io = ["dep:rusticide-io"]
@@ -36,6 +43,7 @@ clap = { workspace = true, optional = true }
 rusticide-core.workspace = true
 rusticide-dispatch = { workspace = true, optional = true }
 rusticide-io = { workspace = true, optional = true }
+rusticide-kernels = { workspace = true, optional = true }
 rusticide-llama = { workspace = true, optional = true }
 rusticide-model = { workspace = true, optional = true }
 rusticide-sampling = { workspace = true, optional = true }

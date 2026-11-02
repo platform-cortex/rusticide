@@ -20,6 +20,18 @@ fn messages_name_the_failure() {
 }
 
 #[test]
+fn other_adapter_message_names_both() {
+    let error = BenchError::OtherAdapter {
+        expected: String::new(),
+        got: "neon".into(),
+    };
+    assert_eq!(
+        error.to_string(),
+        r#"baseline adapter "" differs from the results' "neon""#
+    );
+}
+
+#[test]
 fn missing_metric_message_names_it() {
     let error = BenchError::MissingInSession {
         metric: "e2e/x".into(),

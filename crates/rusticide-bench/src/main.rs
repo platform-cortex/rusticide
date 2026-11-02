@@ -9,8 +9,8 @@ use std::time::Duration;
 use anyhow::Context;
 use clap::Parser;
 use rusticide_bench::{
-    Baseline, DECODE_PROMPT, PREFILL_PROMPT, Plan, Results, compare, e2e_metrics, kernel_metrics,
-    passed, rows_to_markdown,
+    Baseline, BenchError, DECODE_PROMPT, PREFILL_PROMPT, Plan, Results, compare, e2e_metrics,
+    kernel_metrics, passed, rows_to_markdown,
 };
 use rusticide_io::GgufFile;
 use rusticide_tokenizer::Tokenizer;
@@ -42,7 +42,8 @@ enum Command {
         #[arg(long)]
         results: PathBuf,
     },
-    /// Compare results with a baseline; exit 1 on a regression.
+    /// Compare results with a baseline; exit 1 on a regression, 2 when the
+    /// baseline is missing or was recorded with another kernel adapter.
     Gate {
         #[arg(long)]
         results: PathBuf,
@@ -102,7 +103,15 @@ fn run(
             metrics.extend(measure_model(name, &path, plan)?);
         }
     }
-    write_json(out, &Results { machine, metrics })?;
+    let adapter = rusticide_kernels::active().name().to_owned();
+    write_json(
+        out,
+        &Results {
+            machine,
+            adapter,
+            metrics,
+        },
+    )?;
     Ok(ExitCode::SUCCESS)
 }
 
@@ -114,7 +123,13 @@ fn gate(results: &Path, baseline: &Path) -> anyhow::Result<ExitCode> {
         );
         return Ok(ExitCode::from(MISSING_BASELINE));
     }
-    let rows = compare(&read_json(baseline)?, &read_json(results)?)?;
+    let rows = match compare(&read_json(baseline)?, &read_json(results)?) {
+        Err(error @ BenchError::OtherAdapter { .. }) => {
+            eprintln!("{error}; record one with `mise run bench:baseline`");
+            return Ok(ExitCode::from(MISSING_BASELINE));
+        }
+        rows => rows?,
+    };
     print!("{}", rows_to_markdown(&rows));
     Ok(if passed(&rows) {
         ExitCode::SUCCESS

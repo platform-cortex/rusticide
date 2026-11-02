@@ -15,6 +15,8 @@ pub enum BenchError {
     NotFinite,
     #[error("baseline was recorded on {expected}, results come from {got}")]
     WrongMachine { expected: String, got: String },
+    #[error("baseline adapter {expected:?} differs from the results' {got:?}")]
+    OtherAdapter { expected: String, got: String },
     #[error("metric {metric} is missing from a session")]
     MissingInSession { metric: String },
     #[error("no kernel for format {format}")]

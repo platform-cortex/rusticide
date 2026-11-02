@@ -27,6 +27,7 @@ fn results() -> Results {
     );
     Results {
         machine: "box".to_string(),
+        adapter: "neon".to_string(),
         metrics,
     }
 }
@@ -35,6 +36,7 @@ fn results() -> Results {
 fn results_round_trip_through_json() {
     let original = results();
     let text = serde_json::to_string(&original).unwrap();
+    assert!(text.contains(r#""adapter":"neon""#), "{text}");
     assert_eq!(serde_json::from_str::<Results>(&text).unwrap(), original);
 }
 

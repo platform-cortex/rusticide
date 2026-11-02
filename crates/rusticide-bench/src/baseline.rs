@@ -21,10 +21,13 @@ pub struct Expected {
     pub tolerance: f64,
 }
 
-/// Expected metrics recorded on one machine.
+/// Expected metrics recorded on one machine with one kernel adapter; a
+/// baseline recorded before adapters were named has an empty `adapter`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Baseline {
     pub machine: String,
+    #[serde(default)]
+    pub adapter: String,
     pub metrics: BTreeMap<String, Expected>,
 }
 
@@ -35,7 +38,8 @@ impl Baseline {
     /// # Errors
     ///
     /// [`BenchError::NoRuns`] without sessions, [`BenchError::WrongMachine`]
-    /// when they come from different machines and
+    /// when they come from different machines, [`BenchError::OtherAdapter`]
+    /// when from different adapters, and
     /// [`BenchError::MissingInSession`] when one lacks a metric another has.
     pub fn from_sessions(sessions: &[Results]) -> Result<Self, BenchError> {
         let (first, rest) = sessions.split_first().ok_or(BenchError::NoRuns)?;
@@ -43,6 +47,12 @@ impl Baseline {
             return Err(BenchError::WrongMachine {
                 expected: first.machine.clone(),
                 got: other.machine.clone(),
+            });
+        }
+        if let Some(other) = rest.iter().find(|session| session.adapter != first.adapter) {
+            return Err(BenchError::OtherAdapter {
+                expected: first.adapter.clone(),
+                got: other.adapter.clone(),
             });
         }
         let metrics = first
@@ -53,6 +63,7 @@ impl Baseline {
             .collect::<Result<_, BenchError>>()?;
         Ok(Self {
             machine: first.machine.clone(),
+            adapter: first.adapter.clone(),
             metrics,
         })
     }

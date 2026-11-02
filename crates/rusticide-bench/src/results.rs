@@ -9,10 +9,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::Sample;
 
-/// Measured metrics for one machine.
+/// Measured metrics for one machine and kernel adapter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Results {
     pub machine: String,
+    pub adapter: String,
     pub metrics: BTreeMap<String, Sample>,
 }
 

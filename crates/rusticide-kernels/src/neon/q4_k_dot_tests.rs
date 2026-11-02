@@ -2,14 +2,9 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_simd::Dotprod;
-use rusticide_simd::neon::q4_k::q4_k_group;
-
-use super::KERNEL;
-use crate::group_views::GroupViews;
-use crate::neon::{group_checks, group_dot};
+use super::dot_group_with;
+use crate::neon::group_checks;
 use crate::portable::int_dot;
-use crate::q8_input::Q8Input;
 
 #[test]
 fn neon_q4_k_matches_portable() {
@@ -36,20 +31,9 @@ fn a_minus_128_activation_matches_portable() {
     group_checks::a_minus_128_activation_matches_portable(12);
 }
 
-fn untokened(group: &[u8], inputs: &[Q8Input], views: &GroupViews<'_>, out: &mut [f32]) {
-    let views = views.superblocks();
-    group_dot::dot_group(
-        &KERNEL,
-        None::<Dotprod>,
-        q4_k_group,
-        views,
-        group,
-        inputs,
-        out,
-    );
-}
-
 #[test]
-fn without_a_token_matches_portable() {
-    group_checks::without_a_token_matches_portable(12, untokened);
+fn wrapper_without_token_matches_portable() {
+    group_checks::wrapper_without_token_matches_portable(12, |group, inputs, views, out| {
+        dot_group_with(None, group, inputs, views, out);
+    });
 }

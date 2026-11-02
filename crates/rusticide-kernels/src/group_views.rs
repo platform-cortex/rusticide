@@ -15,7 +15,7 @@ use crate::q8_input::{Q8Input, Q8Kind};
 /// One view per token of each activation scheme; `None` marks a token the
 /// view refused.
 #[cfg_attr(
-    not(all(target_arch = "aarch64", target_feature = "dotprod")),
+    not(target_arch = "aarch64"),
     allow(dead_code, reason = "only the SIMD adapters read the views")
 )]
 #[derive(Debug, Default)]
@@ -25,7 +25,7 @@ pub(crate) struct GroupViews<'a> {
 }
 
 #[cfg_attr(
-    not(all(target_arch = "aarch64", target_feature = "dotprod")),
+    not(target_arch = "aarch64"),
     allow(dead_code, reason = "only the SIMD adapters read the views")
 )]
 impl<'a> GroupViews<'a> {

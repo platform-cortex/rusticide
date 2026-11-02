@@ -10,70 +10,104 @@ static NEON_NAMED: Adapter = Adapter {
     ..portable::ADAPTER
 };
 
+static AVX2_NAMED: Adapter = Adapter {
+    name: "avx2",
+    ..portable::ADAPTER
+};
+
 fn name_of(chosen: (&'static Adapter, Option<String>)) -> (&'static str, Option<String>) {
     (chosen.0.name(), chosen.1)
 }
 
+fn names(adapters: &[&'static Adapter]) -> Vec<&'static str> {
+    adapters.iter().map(|adapter| adapter.name()).collect()
+}
+
+const BOTH: [&Adapter; 2] = [&NEON_NAMED, &portable::ADAPTER];
+const PORTABLE: [&Adapter; 1] = [&portable::ADAPTER];
+
 #[test]
-fn active_adapter_is_the_compiled_default() {
-    let expected = if cfg!(all(target_arch = "aarch64", target_feature = "dotprod")) {
-        "neon"
-    } else {
-        "portable"
-    };
-    assert_eq!(compiled_default().name(), expected);
-    let overridden = std::env::var("RUSTICIDE_KERNELS").is_ok_and(|value| value == "portable");
+fn available_ends_with_portable() {
+    let available = available();
     assert_eq!(
-        active().name(),
-        if overridden { "portable" } else { expected }
+        available.last().map(|adapter| adapter.name()),
+        Some("portable")
     );
+    let expected = if cfg!(target_arch = "aarch64") {
+        vec!["neon", "portable"]
+    } else {
+        vec!["portable"]
+    };
+    assert_eq!(names(&available), expected);
+}
+
+#[test]
+fn ranked_puts_each_detected_adapter_before_portable() {
+    assert_eq!(names(&ranked(&[Some(&NEON_NAMED)])), ["neon", "portable"]);
+    assert_eq!(names(&ranked(&[None])), ["portable"]);
+    assert_eq!(
+        names(&ranked(&[None, Some(&AVX2_NAMED)])),
+        ["avx2", "portable"]
+    );
+}
+
+#[test]
+fn active_adapter_is_the_best_available() {
+    let best = available()[0].name();
+    let overridden = std::env::var("RUSTICIDE_KERNELS").is_ok_and(|value| value == "portable");
+    assert_eq!(active().name(), if overridden { "portable" } else { best });
     assert!(std::ptr::eq(active(), active()));
 }
 
 #[test]
-fn unset_picks_the_compiled_default() {
-    assert_eq!(name_of(choose(None, &NEON_NAMED)), ("neon", None));
+fn unset_picks_the_best_available() {
+    assert_eq!(name_of(choose(None, &BOTH)), ("neon", None));
+    assert_eq!(name_of(choose(None, &PORTABLE)), ("portable", None));
+}
+
+#[test]
+fn an_available_name_is_honoured() {
+    assert_eq!(name_of(choose(Some("neon"), &BOTH)), ("neon", None));
+    assert_eq!(name_of(choose(Some("portable"), &BOTH)), ("portable", None));
+}
+
+#[test]
+fn portable_is_honoured_even_when_not_listed() {
     assert_eq!(
-        name_of(choose(None, &portable::ADAPTER)),
+        name_of(choose(Some("portable"), &[&NEON_NAMED])),
         ("portable", None)
     );
 }
 
 #[test]
-fn portable_is_always_honoured() {
+fn a_known_adapter_this_cpu_lacks_warns_and_uses_the_best() {
     assert_eq!(
-        name_of(choose(Some("portable"), &NEON_NAMED)),
-        ("portable", None)
-    );
-}
-
-#[test]
-fn neon_is_honoured_when_compiled() {
-    assert_eq!(name_of(choose(Some("neon"), &NEON_NAMED)), ("neon", None));
-}
-
-#[test]
-fn neon_without_the_adapter_warns_and_uses_portable() {
-    assert_eq!(
-        name_of(choose(Some("neon"), &portable::ADAPTER)),
+        name_of(choose(Some("neon"), &PORTABLE)),
         (
             "portable",
-            Some("RUSTICIDE_KERNELS=neon: adapter not compiled in, using portable".to_owned())
+            Some("RUSTICIDE_KERNELS=neon: not supported by this CPU, using portable".to_owned())
+        )
+    );
+    assert_eq!(
+        name_of(choose(Some("avx2"), &BOTH)),
+        (
+            "neon",
+            Some("RUSTICIDE_KERNELS=avx2: not supported by this CPU, using neon".to_owned())
         )
     );
 }
 
 #[test]
-fn unknown_value_warns_and_uses_the_compiled_default() {
+fn unknown_value_warns_and_uses_the_best() {
     assert_eq!(
-        name_of(choose(Some("avx"), &NEON_NAMED)),
+        name_of(choose(Some("avx"), &BOTH)),
         (
             "neon",
             Some("RUSTICIDE_KERNELS=avx: unknown adapter, using neon".to_owned())
         )
     );
     assert_eq!(
-        name_of(choose(Some(""), &portable::ADAPTER)),
+        name_of(choose(Some(""), &PORTABLE)),
         (
             "portable",
             Some("RUSTICIDE_KERNELS=: unknown adapter, using portable".to_owned())
@@ -82,9 +116,14 @@ fn unknown_value_warns_and_uses_the_compiled_default() {
 }
 
 #[test]
+fn an_empty_list_falls_back_to_portable() {
+    assert_eq!(name_of(choose(None, &[])), ("portable", None));
+}
+
+#[test]
 fn select_writes_the_warning_as_one_line() {
     let mut sink = Vec::new();
-    let adapter = select(Some("avx"), &NEON_NAMED, &mut sink);
+    let adapter = select(Some("avx"), &BOTH, &mut sink);
     assert_eq!(adapter.name(), "neon");
     assert_eq!(
         String::from_utf8(sink).unwrap(),
@@ -95,7 +134,7 @@ fn select_writes_the_warning_as_one_line() {
 #[test]
 fn select_is_silent_without_a_warning() {
     let mut sink = Vec::new();
-    select(None, &NEON_NAMED, &mut sink);
+    select(None, &BOTH, &mut sink);
     assert_eq!(sink, Vec::<u8>::new());
 }
 
@@ -145,7 +184,7 @@ fn prepare_matrix_without_a_kernel_uses_portable_or_none() {
 
 #[test]
 fn every_layout_groups_more_than_one_row() {
-    for adapter in [&portable::ADAPTER, compiled_default(), &PAIRED] {
+    for adapter in available().into_iter().chain([&PAIRED]) {
         for layout in adapter.quantized.iter().filter_map(|kernel| kernel.layout) {
             assert!(layout.group_rows > 1, "{}", adapter.name());
         }

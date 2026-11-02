@@ -64,8 +64,10 @@ Under `cfg(miri)` `Dotprod::detect()` returns `Some`, since the scalar
 bodies need no hardware. The Miri gate therefore checks the scalar bodies
 and the casts, not the intrinsic path; the soundness of each intrinsic
 call rests on the detection argument above.
-The `arm` CI job compiles the module in on Linux arm64 with
-`-C target-feature=+dotprod` and runs the full gate there.
+The `arm` CI job runs the full gate on Linux arm64 with no extra target
+features: the module compiles in on every `aarch64` target, the kernel
+adapter is selected at run time from `Dotprod::detect()`, and the job
+fails unless the release binary reports `kernels: neon`.
 
 **How it could be deleted:** if a future Rust release lets safe code
 call a `#[target_feature]` function once a run-time check has proved the

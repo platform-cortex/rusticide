@@ -5,7 +5,10 @@
 use std::io::Write;
 use std::sync::OnceLock;
 
-#[cfg(all(target_arch = "aarch64", target_feature = "dotprod"))]
+#[cfg(target_arch = "aarch64")]
+use rusticide_simd::Dotprod;
+
+#[cfg(target_arch = "aarch64")]
 use crate::neon;
 use crate::portable;
 use crate::q8_input::{Q8Input, Q8Kind};
@@ -77,52 +80,67 @@ impl Adapter {
 
 static ACTIVE: OnceLock<&'static Adapter> = OnceLock::new();
 
-#[cfg(all(target_arch = "aarch64", target_feature = "dotprod"))]
-fn compiled_default() -> &'static Adapter {
-    &neon::ADAPTER
+/// Every adapter name `RUSTICIDE_KERNELS` accepts on some CPU.
+const KNOWN: [&str; 3] = ["portable", "neon", "avx2"];
+
+/// The adapters this CPU runs, best first and `portable` last; detecting
+/// a SIMD adapter stores the proof its kernels read.
+pub(crate) fn available() -> Vec<&'static Adapter> {
+    ranked(&detected())
 }
 
-#[cfg(not(all(target_arch = "aarch64", target_feature = "dotprod")))]
-fn compiled_default() -> &'static Adapter {
-    &portable::ADAPTER
+#[cfg(target_arch = "aarch64")]
+fn detected() -> [Option<&'static Adapter>; 1] {
+    [Dotprod::detect().map(neon::armed)]
 }
 
-/// Resolves the `RUSTICIDE_KERNELS` request against the compiled default;
-/// the second value is a warning when the request cannot be honoured.
+#[cfg(not(target_arch = "aarch64"))]
+const fn detected() -> [Option<&'static Adapter>; 0] {
+    []
+}
+
+/// The detected SIMD adapters, best first, then `portable`.
+fn ranked(detected: &[Option<&'static Adapter>]) -> Vec<&'static Adapter> {
+    detected
+        .iter()
+        .flatten()
+        .copied()
+        .chain([&portable::ADAPTER])
+        .collect()
+}
+
+/// Resolves the `RUSTICIDE_KERNELS` request against the adapters this CPU
+/// runs, best first; the second value is a warning when the request
+/// cannot be honoured.
 fn choose(
     requested: Option<&str>,
-    compiled: &'static Adapter,
+    available: &[&'static Adapter],
 ) -> (&'static Adapter, Option<String>) {
-    match requested {
-        None => (compiled, None),
-        Some("portable") => (&portable::ADAPTER, None),
-        Some("neon") if compiled.name() == "neon" => (compiled, None),
-        Some("neon") => (
-            &portable::ADAPTER,
-            Some("RUSTICIDE_KERNELS=neon: adapter not compiled in, using portable".to_owned()),
-        ),
-        Some(other) => (
-            compiled,
-            Some(format!(
-                "RUSTICIDE_KERNELS={other}: unknown adapter, using {}",
-                compiled.name()
-            )),
-        ),
+    let best = available.first().copied().unwrap_or(&portable::ADAPTER);
+    let Some(name) = requested else {
+        return (best, None);
+    };
+    let mut runnable = available.iter().copied().chain([&portable::ADAPTER]);
+    if let Some(adapter) = runnable.find(|adapter| adapter.name() == name) {
+        return (adapter, None);
     }
+    let reason = if KNOWN.contains(&name) {
+        "not supported by this CPU"
+    } else {
+        "unknown adapter"
+    };
+    let warning = format!("RUSTICIDE_KERNELS={name}: {reason}, using {}", best.name());
+    (best, Some(warning))
 }
 
 /// The adapter every kernel call routes through, chosen on first use from
-/// the build target and the `RUSTICIDE_KERNELS` environment variable
-/// (`portable` or `neon`).
+/// what this CPU runs and the `RUSTICIDE_KERNELS` environment variable
+/// (`portable`, `neon` or `avx2`).
 #[must_use]
 pub fn active() -> &'static Adapter {
     ACTIVE.get_or_init(|| {
         let requested = std::env::var("RUSTICIDE_KERNELS").ok();
-        select(
-            requested.as_deref(),
-            compiled_default(),
-            &mut std::io::stderr(),
-        )
+        select(requested.as_deref(), &available(), &mut std::io::stderr())
     })
 }
 
@@ -130,10 +148,10 @@ pub fn active() -> &'static Adapter {
 /// write is dropped because the warning is advisory.
 fn select(
     requested: Option<&str>,
-    compiled: &'static Adapter,
+    available: &[&'static Adapter],
     diagnostics: &mut impl Write,
 ) -> &'static Adapter {
-    let (adapter, warning) = choose(requested, compiled);
+    let (adapter, warning) = choose(requested, available);
     if let Some(message) = warning {
         let _ = writeln!(diagnostics, "{message}");
     }

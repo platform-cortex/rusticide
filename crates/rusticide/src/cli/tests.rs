@@ -32,10 +32,11 @@ fn version_flags_print_exactly_the_version_line() {
 }
 
 #[test]
-fn the_version_subcommand_prints_the_same_line() {
+fn the_version_subcommand_adds_the_kernels_line() {
+    let kernels = format!("kernels: {}\n", rusticide_kernels::active().name());
     assert_eq!(
         invoke(&["rusticide", "version"]),
-        (0, version_line(), String::new())
+        (0, version_line() + &kernels, String::new())
     );
 }
 

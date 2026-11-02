@@ -40,12 +40,20 @@ pub struct Row {
 ///
 /// # Errors
 ///
-/// Returns [`BenchError::WrongMachine`] when the machines differ.
+/// Returns [`BenchError::WrongMachine`] when the machines differ and
+/// [`BenchError::OtherAdapter`] when the kernel adapters do: a baseline
+/// says nothing about another adapter's speed.
 pub fn compare(baseline: &Baseline, results: &Results) -> Result<Vec<Row>, BenchError> {
     if baseline.machine != results.machine {
         return Err(BenchError::WrongMachine {
             expected: baseline.machine.clone(),
             got: results.machine.clone(),
+        });
+    }
+    if baseline.adapter != results.adapter {
+        return Err(BenchError::OtherAdapter {
+            expected: baseline.adapter.clone(),
+            got: results.adapter.clone(),
         });
     }
     let names: BTreeSet<&String> = baseline
