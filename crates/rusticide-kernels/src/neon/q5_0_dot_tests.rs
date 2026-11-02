@@ -1,0 +1,26 @@
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+//
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+use crate::neon::group_checks;
+use crate::portable::int_dot;
+
+#[test]
+fn neon_q5_0_matches_portable() {
+    group_checks::neon_matches_portable(6, int_dot::q5_0_rows);
+}
+
+#[test]
+fn a_batch_is_bit_identical_to_its_tokens_one_at_a_time() {
+    group_checks::a_batch_is_bit_identical_to_its_tokens_one_at_a_time(6);
+}
+
+#[test]
+fn no_inputs_leave_the_output_untouched() {
+    group_checks::no_inputs_leave_the_output_untouched(6);
+}
+
+#[test]
+fn the_adapter_runs_q5_0_on_neon_in_groups_of_eight() {
+    group_checks::runs_in_groups_of_eight(6);
+}

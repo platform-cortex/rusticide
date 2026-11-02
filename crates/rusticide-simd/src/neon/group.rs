@@ -37,3 +37,23 @@ impl<'a> Q8Superblocks<'a> {
         }
     }
 }
+
+/// One token's `Q8_0` activation as whole 32-element blocks: each block's
+/// scale and its quants.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Q8Blocks<'a> {
+    pub(crate) scales: &'a [f32],
+    pub(crate) quants: &'a [[i8; 32]],
+}
+
+impl<'a> Q8Blocks<'a> {
+    /// A view of the blocks both slices cover.
+    #[must_use]
+    pub fn new(scales: &'a [f32], quants: &'a [[i8; 32]]) -> Self {
+        let len = scales.len().min(quants.len());
+        Self {
+            scales: scales.get(..len).unwrap_or_default(),
+            quants: quants.get(..len).unwrap_or_default(),
+        }
+    }
+}

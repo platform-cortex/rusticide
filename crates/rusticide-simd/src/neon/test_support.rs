@@ -5,7 +5,7 @@
 //! What the group kernels' tests share, and the checks every group kernel
 //! must pass against its scalar body.
 
-use super::group::{Q8Superblocks, ROWS};
+use super::group::{Q8Blocks, Q8Superblocks, ROWS};
 
 /// A random test activation and the view of it a kernel reads.
 pub(crate) trait Input: Sized {
@@ -66,6 +66,33 @@ impl Activation {
             quants,
             sums,
         }
+    }
+}
+
+/// One token's random `Q8_0` activation.
+pub(crate) struct Blocks {
+    pub(crate) scales: Vec<f32>,
+    pub(crate) quants: Vec<[i8; 32]>,
+}
+
+impl Input for Blocks {
+    type View<'a> = Q8Blocks<'a>;
+
+    fn random(rng: &mut fastrand::Rng, blocks: usize) -> Self {
+        Self {
+            scales: (0..blocks).map(|_| rng.f32() * 0.01).collect(),
+            quants: (0..blocks)
+                .map(|_| core::array::from_fn(|_| rng.i8(..)))
+                .collect(),
+        }
+    }
+
+    fn view(&self) -> Q8Blocks<'_> {
+        Q8Blocks::new(&self.scales, &self.quants)
+    }
+
+    fn first(&self, blocks: usize) -> Q8Blocks<'_> {
+        Q8Blocks::new(&self.scales[..blocks], &self.quants)
     }
 }
 

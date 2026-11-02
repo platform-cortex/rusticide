@@ -7,8 +7,8 @@
 //! reduction.
 
 use core::arch::aarch64::{
-    float32x4_t, int8x16_t, int32x4_t, uint16x8_t, uint32x4_t, vandq_u32, vbslq_u32, vcgeq_u32,
-    vdotq_laneq_s32, vdupq_n_f32, vdupq_n_s32, vdupq_n_u32, vget_low_u16, vmlaq_s32,
+    float32x4_t, int8x16_t, int32x4_t, uint16x8_t, uint32x4_t, vaddq_s32, vandq_u32, vbslq_u32,
+    vcgeq_u32, vdotq_laneq_s32, vdupq_n_f32, vdupq_n_s32, vdupq_n_u32, vget_low_u16, vmlaq_s32,
     vmovl_high_u16, vmovl_u16, vmulq_f32, vorrq_u32, vreinterpretq_f32_u32, vreinterpretq_u32_f32,
     vshlq_n_u32,
 };
@@ -76,6 +76,23 @@ pub(crate) fn run(
     for (quad, slot) in out.iter_mut().enumerate() {
         let low = vmlaq_s32(*slot, four(zero, chunks(quad, 0), first), scales[0][quad]);
         *slot = vmlaq_s32(low, four(zero, chunks(quad, 4), second), scales[1][quad]);
+    }
+    out
+}
+
+/// One 32-element run's dot products, its two halves summed apart.
+#[inline]
+#[target_feature(enable = "neon,dotprod")]
+pub(crate) fn dot(weights: &[int8x16_t; 16], quants: [i8; 32]) -> Rows<int32x4_t> {
+    let [first, second]: [int8x16_t; 2] = bytemuck::cast(quants);
+    let zero = vdupq_n_s32(0);
+    let chunks = |quad: usize, from: usize| -> [int8x16_t; 4] {
+        core::array::from_fn(|chunk| weights[2 * (from + chunk) + quad])
+    };
+    let mut out = [zero; 2];
+    for (quad, slot) in out.iter_mut().enumerate() {
+        let low = four(zero, chunks(quad, 0), first);
+        *slot = vaddq_s32(low, four(zero, chunks(quad, 4), second));
     }
     out
 }

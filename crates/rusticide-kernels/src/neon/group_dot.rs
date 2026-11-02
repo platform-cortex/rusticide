@@ -6,7 +6,7 @@
 //! kernel reads them and handed to a `rusticide_simd` kernel a chunk of
 //! tokens at a time.
 
-use rusticide_simd::neon::group::{GroupKernel, Q8Superblocks, ROWS, TOKENS};
+use rusticide_simd::neon::group::{GroupKernel, Q8Blocks, Q8Superblocks, ROWS, TOKENS};
 
 use crate::q8_input::Q8Input;
 
@@ -16,6 +16,10 @@ pub(super) fn superblocks(input: &Q8Input) -> Q8Superblocks<'_> {
         input.quants.as_chunks().0,
         input.sums.as_chunks().0,
     )
+}
+
+pub(super) fn blocks(input: &Q8Input) -> Q8Blocks<'_> {
+    Q8Blocks::new(&input.scales, input.quants.as_chunks().0)
 }
 
 /// One group against every input, into `out[row * inputs.len() + token]`.

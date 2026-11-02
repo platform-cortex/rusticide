@@ -29,7 +29,7 @@ pub(crate) const Q4_0: QuantKernel = QuantKernel {
     layout: None,
 };
 
-pub(crate) const Q5_0: QuantKernel = QuantKernel {
+const Q5_0: QuantKernel = QuantKernel {
     type_id: 6,
     activation: Q8Kind::Block,
     dot: int_dot::q5_0,

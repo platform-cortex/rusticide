@@ -116,14 +116,14 @@ pub(super) fn read_row_rejects_a_missing_row_or_a_wrong_buffer(type_id: u32, blo
     let Layout {
         prepare, read_row, ..
     } = layout(type_id);
-    let (mut data, row_bytes) = random_rows(block, 1, 4);
+    let (mut data, row_bytes) = random_rows(block, 2, 4);
     assert!(prepare(&mut data, row_bytes));
     let mut row = vec![7; row_bytes];
     assert!(!read_row(&data, row_bytes, ROWS, &mut row));
     assert!(!read_row(&data, row_bytes, usize::MAX, &mut row));
     assert!(!read_row(&data, row_bytes, 0, &mut row[1..]));
     assert!(!read_row(&data, 0, 0, &mut []));
-    assert!(!read_row(&data, 100, 0, &mut row[..100]));
+    assert!(!read_row(&data, block + 1, 0, &mut row[..=block]));
     assert_eq!(row, vec![7; row_bytes]);
 }
 
