@@ -5,6 +5,8 @@
 # The one pipeline for every push and pull request:
 #
 #   version -+- gates (mise run ci:quick) -+
+#            +- arm (ci:quick on arm64) ---+
+#            +- miri (rusticide-simd) -----+
 #            +- sast (codeql.yml) ---------+
 #            +- msrv ----------------------+
 #            +- build (release smoke) -----+- tag -- publish (publish.yml)
@@ -92,6 +94,57 @@ jobs:
           file-path: results.sarif
           title: "Coverage Report"
           tool-name: "Tarpaulin"
+
+  # The same gate on Linux arm64, with dotprod enabled so rusticide-simd's
+  # `neon` module (and every caller gated on it) is compiled, tested and
+  # covered. RUSTFLAGS replaces .cargo/config.toml's `-D warnings` rather
+  # than merging with it, hence the repeat. Test-only: release builds never
+  # enable dotprod for Linux aarch64.
+  arm:
+    name: Gates arm64 (mise run ci:quick)
+    needs: [version]
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-rust-env
+
+      - name: mise run ci:quick
+        env:
+          RUST_COVERAGE_THRESHOLD: ${{ vars.RUST_COVERAGE_THRESHOLD || '100' }}
+          RUSTFLAGS: "-D warnings -C target-feature=+dotprod"
+        run: mise run ci:quick
+
+  # docs/UNSAFE.md: every crate permitted `unsafe` runs under Miri in CI.
+  # Interpreting for aarch64-apple-darwin compiles the `neon` module in (that
+  # target enables dotprod), and its `cfg(miri)` scalar bodies stand in for
+  # the intrinsics Miri cannot execute. Dated nightly, like the coverage task.
+  miri:
+    name: Miri (rusticide-simd)
+    needs: [version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-rust-env
+        with:
+          toolchain: nightly-2026-08-03
+          components: miri,rust-src
+          cache-key-suffix: miri
+
+      - name: cargo miri test
+        env:
+          MIRIFLAGS: "-Zmiri-strict-provenance"
+        run: cargo miri test -p rusticide-simd --target aarch64-apple-darwin
 
   # Informational: tokens/s needs model files, so CI measures kernels only and
   # publishes the table. It fails only if the tool crashes.
@@ -280,7 +333,7 @@ jobs:
 
   tag:
     name: Tag release
-    needs: [version, gates, sast, msrv, build, markdown, yaml, secrets, supply-chain]
+    needs: [version, gates, arm, miri, sast, msrv, build, markdown, yaml, secrets, supply-chain]
     if: >-
       github.event_name == 'push'
       && github.ref_name == github.event.repository.default_branch
