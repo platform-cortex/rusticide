@@ -4,14 +4,23 @@
 
 use std::cmp::Ordering;
 
-use crate::error::Result;
+use crate::error::{Result, SamplingError};
 use crate::logits::token_id;
+use crate::params::SamplingParams;
 
 pub(crate) struct Candidates {
     entries: Vec<(usize, f32)>,
 }
 
 impl Candidates {
+    pub(crate) fn filter(logits: &[f32], params: &SamplingParams) -> Self {
+        let mut candidates = Self::top_k(logits, params.temperature, params.top_k);
+        if params.top_p < 1.0 {
+            candidates.top_p(params.top_p);
+        }
+        candidates
+    }
+
     pub(crate) fn top_k(logits: &[f32], temperature: f32, k: u32) -> Self {
         let scale = if temperature > 0.0 {
             1.0 / temperature
@@ -73,7 +82,11 @@ impl Candidates {
     }
 
     pub(crate) fn token(&self, position: usize) -> Result<u32> {
-        token_id(self.entries[position].0)
+        let &(index, _) = self
+            .entries
+            .get(position)
+            .ok_or(SamplingError::NoValidTokens)?;
+        token_id(index)
     }
 }
 

@@ -42,10 +42,7 @@ impl Sampler {
     /// Returns an error if no token survives filtering or if the chosen
     /// index does not fit a `u32`.
     pub fn sample_logits(&mut self, logits: &[f32], params: &SamplingParams) -> Result<u32> {
-        let mut candidates = Candidates::top_k(logits, params.temperature, params.top_k);
-        if params.top_p < 1.0 {
-            candidates.top_p(params.top_p);
-        }
+        let candidates = Candidates::filter(logits, params);
         let values = candidates.values();
         let probs = valid_probabilities(&values)?;
         let position = if params.temperature == 0.0 || params.top_k == 1 {
@@ -129,6 +126,9 @@ mod tests;
 
 #[cfg(test)]
 mod non_finite_tests;
+
+#[cfg(test)]
+mod fallback_tests;
 
 fn valid_probabilities(logits: &[f32]) -> Result<Vec<f32>> {
     let probs = softmax(logits);

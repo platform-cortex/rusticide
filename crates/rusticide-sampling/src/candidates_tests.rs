@@ -84,11 +84,7 @@ fn reference_multinomial(rng: &mut fastrand::Rng, probs: &[f32]) -> usize {
     probs.len() - 1
 }
 
-fn reference_sample(
-    rng: &mut fastrand::Rng,
-    logits: &[f32],
-    params: &SamplingParams,
-) -> Result<u32, String> {
+fn reference_filter(logits: &[f32], params: &SamplingParams) -> (Vec<f32>, Vec<f32>) {
     let mut logits: Vec<f32> = logits
         .iter()
         .map(|&l| if l.is_nan() { f32::NEG_INFINITY } else { l })
@@ -101,6 +97,15 @@ fn reference_sample(
         reference_top_p(&mut logits, params.top_p);
     }
     let probs = softmax(&logits);
+    (logits, probs)
+}
+
+fn reference_sample(
+    rng: &mut fastrand::Rng,
+    logits: &[f32],
+    params: &SamplingParams,
+) -> Result<u32, String> {
+    let (logits, probs) = reference_filter(logits, params);
     let no_valid = || SamplingError::NoValidTokens.to_string();
     if probs.iter().all(|&p| p.is_nan() || p <= 0.0) {
         return Err(no_valid());
@@ -146,6 +151,24 @@ fn random_logits(seed: u64) -> Vec<f32> {
     logits
 }
 
+fn assert_survivor_probabilities_match(logits: &[f32], params: &SamplingParams) {
+    let (_, want) = reference_filter(logits, params);
+    if want.iter().all(|&p| p.is_nan() || p <= 0.0) {
+        return;
+    }
+    let survivors = Candidates::filter(logits, params);
+    let got = softmax(&survivors.values());
+    let mut expected_zero = vec![true; want.len()];
+    for (position, probability) in got.iter().enumerate() {
+        let index = survivors.token(position).unwrap() as usize;
+        assert_eq!(probability.to_bits(), want[index].to_bits(), "{params:?}");
+        expected_zero[index] = false;
+    }
+    for (index, zero) in expected_zero.into_iter().enumerate() {
+        assert!(!zero || want[index] == 0.0, "token {index} {params:?}");
+    }
+}
+
 #[test]
 fn survivors_reproduce_the_full_vocabulary_sampler() {
     for seed in 0..200_u64 {
@@ -161,6 +184,7 @@ fn survivors_reproduce_the_full_vocabulary_sampler() {
             for top_k in TOP_KS {
                 for top_p in TOP_PS {
                     let params = params(temperature, top_k, top_p);
+                    assert_survivor_probabilities_match(&logits, &params);
                     let mut sampler = Sampler::new(seed);
                     let mut rng = fastrand::Rng::with_seed(seed);
                     for draw in 0..2 {
@@ -224,6 +248,10 @@ fn top_k_beyond_the_vocabulary_keeps_everything() {
     let survivors = Candidates::top_k(&logits, 1.0, 5000);
     assert_eq!(survivors.values(), [3.0, -1.0, 0.5, 3.0]);
     assert_eq!(survivors.token(3).unwrap(), 5);
+    assert!(matches!(
+        survivors.token(4),
+        Err(SamplingError::NoValidTokens)
+    ));
     let mut beyond = Sampler::new(9);
     let mut disabled = Sampler::new(9);
     for _ in 0..32 {
