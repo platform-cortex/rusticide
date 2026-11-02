@@ -142,3 +142,13 @@ fn prepare_matrix_without_a_kernel_uses_portable_or_none() {
     ));
     assert_eq!(data, original);
 }
+
+#[test]
+fn every_layout_groups_more_than_one_row() {
+    for adapter in [&portable::ADAPTER, compiled_default(), &PAIRED] {
+        for layout in adapter.quantized.iter().filter_map(|kernel| kernel.layout) {
+            assert!(layout.group_rows > 1, "{}", adapter.name());
+        }
+    }
+    assert_eq!(PAIRED_Q8_0.layout.map(|layout| layout.group_rows), Some(2));
+}

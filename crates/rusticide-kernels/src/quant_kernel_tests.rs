@@ -116,12 +116,14 @@ fn batched_kernels_cover_q5_0_and_the_k_formats() {
     assert_eq!(batched, [6, 12, 14]);
 }
 
+fn row_major_q8_0() -> &'static QuantKernel {
+    crate::portable::ADAPTER.quant_kernel(8).unwrap()
+}
+
 #[test]
 fn portable_kernels_read_rows_one_at_a_time() {
     for kernel in crate::portable::ADAPTER.quantized {
-        assert_eq!(kernel.group_rows, 1);
-        assert!(kernel.prepare.is_none() && kernel.read_row.is_none());
-        assert!(kernel.dot_group.is_none());
+        assert!(kernel.layout.is_none());
     }
 }
 
@@ -131,10 +133,13 @@ fn read_row_restores_every_original_row() {
     let original = format.synthetic_blocks(6, 7).unwrap();
     let row_bytes = original.len() / 6;
     let mut prepared = original.clone();
-    assert!(PAIRED_Q8_0.prepare.unwrap()(&mut prepared, row_bytes));
+    assert!((PAIRED_Q8_0.layout.unwrap().prepare)(
+        &mut prepared,
+        row_bytes
+    ));
     assert_ne!(prepared, original);
-    for kernel in [kernel(format), &PAIRED_Q8_0] {
-        let data = if kernel.group_rows == 1 {
+    for kernel in [row_major_q8_0(), &PAIRED_Q8_0] {
+        let data = if kernel.layout.is_none() {
             &original
         } else {
             &prepared
@@ -150,7 +155,7 @@ fn read_row_restores_every_original_row() {
 #[test]
 fn read_row_rejects_a_missing_row_or_a_wrong_buffer() {
     let data = [1_u8, 2, 3, 4];
-    let identity = kernel(rusticide_quantize::block_format(8).unwrap());
+    let identity = row_major_q8_0();
     let mut row = [0_u8; 2];
     assert!(identity.read_row(&data, 2, 1, &mut row));
     assert_eq!(row, [3, 4]);
@@ -163,11 +168,23 @@ fn read_row_rejects_a_missing_row_or_a_wrong_buffer() {
 
 #[test]
 fn the_paired_kernel_prepares_only_whole_pairs() {
-    let prepare = PAIRED_Q8_0.prepare.unwrap();
+    let prepare = PAIRED_Q8_0.layout.unwrap().prepare;
     let mut data = [1_u8, 2, 3, 4, 5, 6];
     assert!(!prepare(&mut data, 2));
     assert!(!prepare(&mut data, 0));
     assert_eq!(data, [1, 2, 3, 4, 5, 6]);
     assert!(prepare(&mut data, 3));
     assert_eq!(data, [4, 5, 6, 1, 2, 3]);
+}
+
+#[test]
+fn visit_row_hands_over_the_original_row_of_either_layout() {
+    let original = [1_u8, 2, 3, 4];
+    let prepared = [3_u8, 4, 1, 2];
+    for (kernel, data) in [(row_major_q8_0(), original), (&PAIRED_Q8_0, prepared)] {
+        let mut seen = Vec::new();
+        assert!(kernel.visit_row(&data, 2, 0, |row| seen.extend_from_slice(row)));
+        assert_eq!(seen, [1, 2]);
+        assert!(!kernel.visit_row(&data, 2, 2, |_| panic!("visited a missing row")));
+    }
 }

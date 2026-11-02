@@ -107,14 +107,9 @@ impl Matrix {
                 kernel,
                 data,
                 row_bytes,
-            } => {
-                let mut row = vec![0; *row_bytes];
-                let found = kernel.read_row(data, *row_bytes, index, &mut row);
-                if found {
-                    format.dequantize_row(&row, out);
-                }
-                found
-            }
+            } => kernel.visit_row(data, *row_bytes, index, |row| {
+                format.dequantize_row(row, out);
+            }),
         }
     }
 

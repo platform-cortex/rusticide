@@ -6,9 +6,20 @@ use crate::q8_input::{Q8Input, Q8Kind};
 
 pub(crate) type DotRow = fn(row: &[u8], input: &Q8Input) -> f32;
 pub(crate) type DotRows = fn(row: &[u8], inputs: &[Q8Input], out: &mut [f32]);
-pub(crate) type Prepare = fn(data: &mut [u8], row_bytes: usize) -> bool;
-pub(crate) type ReadRow = fn(data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> bool;
-pub(crate) type DotGroup = fn(group: &[u8], inputs: &[Q8Input], out: &mut [f32]);
+
+/// A weight layout that stores `group_rows` rows together, always more
+/// than one; a kernel without one reads row-major data.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Layout {
+    pub(crate) group_rows: usize,
+    /// Repacks a row-major matrix into this layout in place; `false`, with
+    /// the data untouched, when it does not split into whole groups.
+    pub(crate) prepare: fn(data: &mut [u8], row_bytes: usize) -> bool,
+    /// Writes row `index`'s original bytes from the prepared layout.
+    pub(crate) read_row: fn(data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> bool,
+    /// One group against every input, into `out[row * inputs.len() + token]`.
+    pub(crate) dot_group: fn(group: &[u8], inputs: &[Q8Input], out: &mut [f32]),
+}
 
 /// The row kernels for one block format, keyed by its GGML type id, the
 /// activation scheme they pair with, and the weight layout they read.
@@ -19,15 +30,8 @@ pub struct QuantKernel {
     pub(crate) dot: DotRow,
     /// One row against two or more inputs, when that beats one `dot` each.
     pub(crate) dot_rows: Option<DotRows>,
-    /// Rows stored together as one group; 1 for a row-major layout.
-    pub(crate) group_rows: usize,
-    /// Repacks a row-major matrix into this layout in place; `false`, with
-    /// the data untouched, when it does not split into whole groups.
-    pub(crate) prepare: Option<Prepare>,
-    /// Writes row `index`'s original bytes from the prepared layout.
-    pub(crate) read_row: Option<ReadRow>,
-    /// One group against every input, into `out[row * inputs.len() + token]`.
-    pub(crate) dot_group: Option<DotGroup>,
+    /// The grouped layout this kernel reads; `None` for row-major data.
+    pub(crate) layout: Option<Layout>,
 }
 
 impl QuantKernel {
@@ -67,8 +71,36 @@ impl QuantKernel {
     /// kernel's layout into `out`; `false` when the row does not exist or
     /// `out` is not `row_bytes` long.
     pub fn read_row(&self, data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> bool {
-        let read = self.read_row.unwrap_or(read_row_major);
+        let read = self
+            .layout
+            .map_or(read_row_major as _, |layout| layout.read_row);
         read(data, row_bytes, index, out)
+    }
+
+    /// Calls `visit` with the original block bytes of row `index`, borrowed
+    /// from row-major data and copied out of a grouped layout; `false`, with
+    /// no call, when the row does not exist.
+    pub fn visit_row(
+        &self,
+        data: &[u8],
+        row_bytes: usize,
+        index: usize,
+        visit: impl FnOnce(&[u8]),
+    ) -> bool {
+        if self.layout.is_none() {
+            return row_major(data, row_bytes, index).map(visit).is_some();
+        }
+        let mut row = vec![0; row_bytes];
+        let found = self.read_row(data, row_bytes, index, &mut row);
+        if found {
+            visit(&row);
+        }
+        found
+    }
+
+    /// Rows a scheduler task must keep together.
+    pub(crate) fn group_rows(&self) -> usize {
+        self.layout.map_or(1, |layout| layout.group_rows)
     }
 
     /// The products of the rows from `first_row` (a group boundary) with
@@ -82,8 +114,8 @@ impl QuantKernel {
         out: &mut [f32],
     ) {
         let tokens = inputs.len().max(1);
-        if let Some(dot_group) = self.dot_group {
-            let group = self.group_rows.max(1);
+        if let Some(layout) = self.layout {
+            let group = layout.group_rows;
             // Only a matrix `prepare` accepted reaches a grouped kernel, and
             // it accepts whole groups only; `chunks_exact` would skip a
             // trailing partial group rather than read past the data.
@@ -94,7 +126,7 @@ impl QuantKernel {
                 .chunks_exact_mut(group.saturating_mul(tokens))
                 .zip(groups)
             {
-                dot_group(rows, inputs, slots);
+                (layout.dot_group)(rows, inputs, slots);
             }
         } else {
             let rows = data.chunks_exact(row_bytes).skip(first_row);
@@ -107,15 +139,19 @@ impl QuantKernel {
 
 /// [`QuantKernel::read_row`] for a row-major layout.
 pub(crate) fn read_row_major(data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> bool {
-    let start = index.checked_mul(row_bytes);
-    let row = start.and_then(|start| data.get(start..start.checked_add(row_bytes)?));
-    match row {
-        Some(row) if row_bytes > 0 && row.len() == out.len() => {
+    match row_major(data, row_bytes, index) {
+        Some(row) if row.len() == out.len() => {
             out.copy_from_slice(row);
             true
         }
         _ => false,
     }
+}
+
+/// Row `index` of row-major data; `None` when it does not exist.
+fn row_major(data: &[u8], row_bytes: usize, index: usize) -> Option<&[u8]> {
+    let start = index.checked_mul(row_bytes).filter(|_| row_bytes > 0)?;
+    data.get(start..start.checked_add(row_bytes)?)
 }
 
 #[cfg(test)]

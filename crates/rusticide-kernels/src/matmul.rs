@@ -51,10 +51,10 @@ impl Weights<'_> {
     }
 
     /// Rows a task must keep together: every run starts on a group.
-    const fn group_rows(&self) -> usize {
+    fn group_rows(&self) -> usize {
         match self {
             Self::Dense { .. } => 1,
-            Self::Blocks { kernel, .. } => kernel.group_rows,
+            Self::Blocks { kernel, .. } => kernel.group_rows(),
         }
     }
 
@@ -177,7 +177,7 @@ pub fn matmul_batch(inputs: &[f32], tokens: usize, jobs: &mut [(Weights<'_>, &mu
     let rows_per_task = total.div_ceil(tasks).max(1);
     let mut runs = Vec::with_capacity(tasks + jobs.len());
     for (weights, output) in jobs.iter_mut().filter(|(weights, _)| weights.rows() > 0) {
-        let rows = rows_per_task.next_multiple_of(weights.group_rows().max(1));
+        let rows = rows_per_task.next_multiple_of(weights.group_rows());
         for (index, run) in output.chunks_mut(rows.saturating_mul(tokens)).enumerate() {
             runs.push((*weights, index * rows, run));
         }

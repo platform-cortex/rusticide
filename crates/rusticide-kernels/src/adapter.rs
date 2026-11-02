@@ -56,6 +56,7 @@ impl Adapter {
     /// `type_id` and returns that kernel; when it has none or its layout
     /// does not fit the matrix, the data stays row-major and the `portable`
     /// kernel reads it. `None` when neither has a kernel for the format.
+    #[must_use]
     pub fn prepare_matrix(
         &self,
         type_id: u32,
@@ -65,8 +66,8 @@ impl Adapter {
         let own = self.quant_kernel(type_id);
         own.filter(|kernel| {
             kernel
-                .prepare
-                .is_none_or(|prepare| prepare(data, row_bytes))
+                .layout
+                .is_none_or(|layout| (layout.prepare)(data, row_bytes))
         })
         .or_else(|| portable::ADAPTER.quant_kernel(type_id))
     }

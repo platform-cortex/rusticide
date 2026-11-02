@@ -8,7 +8,7 @@
 use crate::adapter::Adapter;
 use crate::portable::{self, int_dot};
 use crate::q8_input::{Q8Input, Q8Kind};
-use crate::quant_kernel::{QuantKernel, read_row_major};
+use crate::quant_kernel::{Layout, QuantKernel, read_row_major};
 
 /// A `Q8_0` kernel whose layout groups rows in pairs, each pair stored
 /// swapped: the smallest layout a row-major reader gets wrong.
@@ -17,10 +17,12 @@ pub static PAIRED_Q8_0: QuantKernel = QuantKernel {
     activation: Q8Kind::Block,
     dot: int_dot::q8_0,
     dot_rows: None,
-    group_rows: 2,
-    prepare: Some(swap_pairs),
-    read_row: Some(read_swapped),
-    dot_group: Some(dot_swapped),
+    layout: Some(Layout {
+        group_rows: 2,
+        prepare: swap_pairs,
+        read_row: read_swapped,
+        dot_group: dot_swapped,
+    }),
 };
 
 /// The portable adapter with [`PAIRED_Q8_0`] as its only quantized kernel.
