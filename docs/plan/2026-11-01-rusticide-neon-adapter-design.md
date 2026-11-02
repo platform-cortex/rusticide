@@ -243,8 +243,8 @@ alternating before (commit 6e56270) and after.
 
 Part 3, Apple M1 Pro (8 cores), NEON adapter (dotprod, selected at build
 time on aarch64-apple-darwin). Before is the part-2 baseline (portable
-kernels); after is the re-recorded baseline. Kernel metrics are in G/s as
-printed by the gate.
+kernels); after is the re-recorded baseline. Kernel metrics are G/s: weights
+(multiply-adds) per second on one thread, as printed by the gate.
 
 - Q4_K kernel: row 29.43 -> 35.10, rows8 29.94 -> 90.25.
 - Q6_K kernel: row 25.94 -> 28.43, rows8 26.81 -> 79.99.
@@ -256,12 +256,19 @@ printed by the gate.
   before, 102.82 after (+7%).
 - Portable fallback (`RUSTICIDE_KERNELS=portable`) passes the gate against
   the part-2 baseline: no regression.
-- llama.cpp pp128 (`llama-bench -ngl 0`, best of `-t 6` and `-t 8`; build
-  8642541b2, BLAS+Metal backends, noisy): TinyLlama 286.71, Qwen2.5-0.5B
-  640.46. Our bench prefill prompt is a fixed paragraph of roughly 150
-  tokens, not exactly 128, so the comparison is approximate.
-- Ratio to llama.cpp: TinyLlama 468.82 / 286.71 = 164%, Qwen2.5 1016.21 /
-  640.46 = 159%. Goal 1 (at least 65%) is met.
+- llama.cpp (`llama-bench -ngl 0 -t 6,8 -p 128,512 -n 0 -r 5`, build
+  8642541b2, BLAS+Metal backends). The reference is `-t 6`: `-t 8` is much
+  slower and noisier on this 6P+2E M1 Pro because two threads land on
+  efficiency cores. TinyLlama pp128 318.20 +- 4.62 (t8 273.26), pp512
+  281.36 (t6). Qwen2.5-0.5B pp128 599.26 +- 25.91 (t8 340.41), pp512 722.82
+  +- 17.44 (t8 475.82). An earlier single-run measurement (286.71 and
+  640.46) was noisy and is superseded.
+- Our bench prefill prompt is a fixed paragraph of roughly 150 tokens,
+  between pp128 and pp512, so both are given. TinyLlama: 468.82 / 318.20 =
+  147% of pp128 (pp512 is below pp128, so 147% is the conservative figure).
+  Qwen2.5: 1016.21 / 599.26 = 170% of pp128, 1016.21 / 722.82 = 141% of
+  pp512. Headline (conservative): 141% for Qwen2.5 and 147% for TinyLlama.
+  Goal 1 (at least 65%) is met.
 - Follow-up: an N=1 decode specialization for Q4_K.
 - Follow-up: Linux aarch64 release builds still run portable (run-time
   dotprod detection is a later decision).

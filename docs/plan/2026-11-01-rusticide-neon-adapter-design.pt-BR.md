@@ -260,7 +260,8 @@ Parte 2, Apple M1 Pro (8 nucleos), tokens/s. O decode com amostragem e
 Parte 3, Apple M1 Pro (8 nucleos), adaptador NEON (dotprod, escolhido em
 tempo de build em aarch64-apple-darwin). Antes e o baseline da parte 2
 (kernels portateis); depois e o baseline regravado. As metricas de kernel
-estao em G/s como impressas pelo gate.
+sao G/s: pesos (multiplicacoes-acumulacoes) por segundo em uma thread, como
+impressas pelo gate.
 
 - Kernel Q4_K: row 29,43 -> 35,10, rows8 29,94 -> 90,25.
 - Kernel Q6_K: row 25,94 -> 28,43, rows8 26,81 -> 79,99.
@@ -272,12 +273,19 @@ estao em G/s como impressas pelo gate.
   antes, 102,82 depois (+7%).
 - O fallback portatil (`RUSTICIDE_KERNELS=portable`) passa o gate contra o
   baseline da parte 2: sem regressao.
-- llama.cpp pp128 (`llama-bench -ngl 0`, melhor de `-t 6` e `-t 8`; build
-  8642541b2, backends BLAS+Metal, ruidoso): TinyLlama 286,71, Qwen2.5-0.5B
-  640,46. O prompt de prefill do nosso bench e um paragrafo fixo de cerca
-  de 150 tokens, nao exatamente 128, entao a comparacao e aproximada.
-- Razao com o llama.cpp: TinyLlama 468,82 / 286,71 = 164%, Qwen2.5 1016,21
-  / 640,46 = 159%. O Objetivo 1 (pelo menos 65%) foi atingido.
+- llama.cpp (`llama-bench -ngl 0 -t 6,8 -p 128,512 -n 0 -r 5`, build
+  8642541b2, backends BLAS+Metal). A referencia e `-t 6`: `-t 8` e bem mais
+  lento e ruidoso neste M1 Pro 6P+2E porque duas threads caem nos nucleos de
+  eficiencia. TinyLlama pp128 318,20 +- 4,62 (t8 273,26), pp512 281,36 (t6).
+  Qwen2.5-0.5B pp128 599,26 +- 25,91 (t8 340,41), pp512 722,82 +- 17,44 (t8
+  475,82). Uma medicao anterior de execucao unica (286,71 e 640,46) era
+  ruidosa e foi substituida.
+- O prompt de prefill do nosso bench e um paragrafo fixo de cerca de 150
+  tokens, entre pp128 e pp512, entao ambos sao dados. TinyLlama: 468,82 /
+  318,20 = 147% do pp128 (o pp512 e menor que o pp128, entao 147% e o valor
+  conservador). Qwen2.5: 1016,21 / 599,26 = 170% do pp128, 1016,21 / 722,82
+  = 141% do pp512. Destaque (conservador): 141% no Qwen2.5 e 147% no
+  TinyLlama. O Objetivo 1 (pelo menos 65%) foi atingido.
 - Proximo passo: especializacao de decode com N=1 para o Q4_K.
 - Proximo passo: os builds de release Linux aarch64 ainda rodam portateis
   (deteccao de dotprod em tempo de execucao fica para uma decisao futura).
