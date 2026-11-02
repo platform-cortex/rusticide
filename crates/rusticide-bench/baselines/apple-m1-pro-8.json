@@ -2,67 +2,67 @@
   "machine": "apple-m1-pro-8",
   "metrics": {
     "e2e/qwen2.5/decode": {
-      "best": 130.37710048458518,
+      "best": 146.21239921125263,
       "tolerance": 0.05
     },
     "e2e/qwen2.5/prefill": {
-      "best": 424.6803588698568,
+      "best": 1016.2137985016216,
       "tolerance": 0.05
     },
     "e2e/tinyllama/decode": {
-      "best": 96.25237367565136,
+      "best": 102.8184161721686,
       "tolerance": 0.05
     },
     "e2e/tinyllama/prefill": {
-      "best": 167.54707660228823,
+      "best": 468.8205806108189,
       "tolerance": 0.05
     },
     "kernel/Q4_0/row": {
-      "best": 32044705156.266693,
+      "best": 31908212233.60396,
       "tolerance": 0.05
     },
     "kernel/Q4_0/rows8": {
-      "best": 32217288828.485863,
+      "best": 32038909071.377945,
       "tolerance": 0.05
     },
     "kernel/Q4_K/row": {
-      "best": 29427310660.334377,
+      "best": 35100679346.21469,
       "tolerance": 0.05
     },
     "kernel/Q4_K/rows8": {
-      "best": 29944467120.33162,
+      "best": 90245121554.91914,
       "tolerance": 0.05
     },
     "kernel/Q5_0/row": {
-      "best": 20284373098.93714,
+      "best": 29241044271.821968,
       "tolerance": 0.05
     },
     "kernel/Q5_0/rows8": {
-      "best": 24371362676.334988,
+      "best": 81478182488.23174,
       "tolerance": 0.05
     },
     "kernel/Q6_K/row": {
-      "best": 25942975744.399776,
+      "best": 28433086586.601963,
       "tolerance": 0.05
     },
     "kernel/Q6_K/rows8": {
-      "best": 26814557990.23024,
+      "best": 79992506781.1238,
       "tolerance": 0.05
     },
     "kernel/Q8_0/row": {
-      "best": 35035108650.190384,
+      "best": 59532406495.053894,
       "tolerance": 0.05
     },
     "kernel/Q8_0/rows8": {
-      "best": 35433888911.04778,
+      "best": 97180120407.34184,
       "tolerance": 0.05
     },
     "kernel/q8/block": {
-      "best": 1117620125.9360735,
+      "best": 1117493286.0605114,
       "tolerance": 0.05
     },
     "kernel/q8/superblock": {
-      "best": 1079061952.621635,
+      "best": 1079771771.5287125,
       "tolerance": 0.05
     }
   }
