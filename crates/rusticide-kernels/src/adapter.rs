@@ -44,7 +44,9 @@ impl Adapter {
     }
 
     /// The row kernels for the block format with GGML type id `type_id`;
-    /// `None` when this adapter has none.
+    /// `None` when this adapter has none. The kernel reads only data
+    /// `prepare_matrix` returned it for: row-major only when the kernel has
+    /// no layout.
     #[must_use]
     pub fn quant_kernel(&self, type_id: u32) -> Option<&'static QuantKernel> {
         self.quantized

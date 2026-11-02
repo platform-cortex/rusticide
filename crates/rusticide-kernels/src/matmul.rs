@@ -16,7 +16,7 @@ use crate::quant_kernel::QuantKernel;
 /// up the join, few enough that scheduling stays small next to a task.
 const TASKS_PER_THREAD: usize = 16;
 
-/// A borrowed row-major weight matrix, as the scheduler reads it.
+/// A borrowed weight matrix, as the scheduler reads it.
 ///
 /// The row count is `data.len() / width` (`cols` or `row_bytes`), so each
 /// output holds `rows() * tokens` values. The width must match the input
@@ -26,7 +26,8 @@ const TASKS_PER_THREAD: usize = 16;
 pub enum Weights<'a> {
     /// `f32` rows of `cols` values each.
     Dense { data: &'a [f32], cols: usize },
-    /// Block-quantized rows of `row_bytes` bytes each, read by `kernel`.
+    /// Block-quantized rows of `row_bytes` bytes each, in `kernel`'s layout,
+    /// as `Adapter::prepare_matrix` leaves them.
     Blocks {
         kernel: &'static QuantKernel,
         data: &'a [u8],

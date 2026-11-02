@@ -217,3 +217,22 @@ fn dot_matrix_multiplies_every_row_of_either_layout() {
         assert_eq!(out.to_vec(), expected);
     }
 }
+
+#[test]
+fn dot_matrix_with_zero_byte_rows_writes_nothing() {
+    let inputs = [quantized(32, 1, Q8Kind::Block)];
+    for kernel in [row_major_q8_0(), &PAIRED_Q8_0] {
+        let mut out = [f32::NAN; 4];
+        kernel.dot_matrix(&[1, 2, 3, 4], 0, &inputs, &mut out);
+        assert!(out.iter().all(|value| value.is_nan()));
+    }
+}
+
+#[test]
+fn visit_row_of_a_grouped_layout_checks_the_index_before_allocating() {
+    let prepared = [3_u8, 4, 1, 2];
+    for row_bytes in [0, usize::MAX] {
+        assert!(!PAIRED_Q8_0.visit_row(&prepared, row_bytes, 0, |_| panic!("visited")));
+    }
+    assert!(!PAIRED_Q8_0.visit_row(&prepared, 2, 2, |_| panic!("visited")));
+}

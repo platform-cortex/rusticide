@@ -90,6 +90,9 @@ impl QuantKernel {
         if self.layout.is_none() {
             return row_major(data, row_bytes, index).map(visit).is_some();
         }
+        if row_bytes == 0 || index >= data.len() / row_bytes {
+            return false;
+        }
         let mut row = vec![0; row_bytes];
         let found = self.read_row(data, row_bytes, index, &mut row);
         if found {
@@ -98,8 +101,11 @@ impl QuantKernel {
         found
     }
 
-    /// The products of every row of `data`, in this kernel's layout, with
-    /// each input, on the calling thread: `out[row * inputs.len() + token]`.
+    /// The products of every row of `data` with each input, on the calling
+    /// thread: `out[row * inputs.len() + token]`. `out.len()` bounds the
+    /// rows computed, and `data` must be in this kernel's layout, as
+    /// `Adapter::prepare_matrix` left it. Nothing is written when
+    /// `row_bytes` is zero.
     pub fn dot_matrix(&self, data: &[u8], row_bytes: usize, inputs: &[Q8Input], out: &mut [f32]) {
         self.compute_rows(data, row_bytes, 0, inputs, out);
     }
@@ -119,6 +125,9 @@ impl QuantKernel {
         inputs: &[Q8Input],
         out: &mut [f32],
     ) {
+        if row_bytes == 0 {
+            return;
+        }
         let tokens = inputs.len().max(1);
         if let Some(layout) = self.layout {
             let group = layout.group_rows;
