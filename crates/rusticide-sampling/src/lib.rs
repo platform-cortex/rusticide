@@ -5,6 +5,9 @@
 //! Token sampling strategies (greedy, top-k, top-p, temperature) over logits
 //! held in `rusticide-core` tensors.
 
+mod candidates;
+#[cfg(test)]
+mod candidates_tests;
 mod error;
 mod filters;
 mod logits;

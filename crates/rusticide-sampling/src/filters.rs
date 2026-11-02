@@ -21,53 +21,6 @@ pub(crate) fn apply_temperature(logits: &mut [f32], temperature: f32) {
     }
 }
 
-pub(crate) fn apply_top_k(logits: &mut [f32], k: u32) {
-    let k = k as usize;
-    if k == 0 || k >= logits.len() {
-        return;
-    }
-    let mut indices: Vec<usize> = (0..logits.len()).collect();
-    indices.select_nth_unstable_by(k - 1, |&a, &b| logits[b].total_cmp(&logits[a]));
-    let threshold = logits[indices[k - 1]];
-    for logit in logits.iter_mut() {
-        if *logit < threshold {
-            *logit = f32::NEG_INFINITY;
-        }
-    }
-}
-
-pub(crate) fn apply_top_p(logits: &mut [f32], p: f32) {
-    let n = logits.len();
-    let mut indices: Vec<usize> = (0..n).collect();
-    indices.sort_unstable_by(|&a, &b| logits[b].total_cmp(&logits[a]));
-
-    let Some(&best) = indices.first() else {
-        return;
-    };
-    let max_logit = logits[best];
-    let mut exp_vals = Vec::with_capacity(n);
-    let mut exp_sum = 0.0;
-    for &idx in &indices {
-        let v = (logits[idx] - max_logit).exp();
-        exp_vals.push(v);
-        exp_sum += v;
-    }
-
-    let mut cumsum = 0.0;
-    let mut cutoff = n;
-    for (i, &ev) in exp_vals.iter().enumerate() {
-        cumsum += ev / exp_sum;
-        if cumsum > p {
-            cutoff = i + 1;
-            break;
-        }
-    }
-
-    for &idx in &indices[cutoff..] {
-        logits[idx] = f32::NEG_INFINITY;
-    }
-}
-
 pub(crate) fn apply_repetition_penalty(logits: &mut [f32], tokens: &[u32], penalty: f32) {
     for &token in tokens {
         let idx = token as usize;
@@ -81,9 +34,9 @@ pub(crate) fn apply_repetition_penalty(logits: &mut [f32], tokens: &[u32], penal
     }
 }
 
-pub(crate) fn argmax(logits: &[f32]) -> Option<usize> {
+pub(crate) fn argmax(logits: impl IntoIterator<Item = f32>) -> Option<usize> {
     logits
-        .iter()
+        .into_iter()
         .enumerate()
         .max_by(|(_, a), (_, b)| a.total_cmp(b))
         .map(|(idx, _)| idx)
@@ -92,40 +45,6 @@ pub(crate) fn argmax(logits: &[f32]) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_top_k_filtering() {
-        let mut logits = vec![-5.0, -3.0, 10.0, 8.0, 4.0, -1.0, 2.0];
-        apply_top_k(&mut logits, 3);
-        let non_inf = logits.iter().filter(|&&v| v.is_finite()).count();
-        assert_eq!(non_inf, 3);
-    }
-
-    #[test]
-    fn test_top_k_with_k_greater_than_len() {
-        let data = vec![-5.0, -3.0, 10.0, 8.0];
-        let mut logits = data.clone();
-        apply_top_k(&mut logits, 100);
-        assert_eq!(logits, data);
-    }
-
-    #[test]
-    fn test_top_p_nucleus_filtering() {
-        let data = vec![0.0, 1.0, 2.0, 3.0, 4.0];
-        let mut logits = data;
-        apply_top_p(&mut logits, 0.5);
-        let non_inf = logits.iter().filter(|&&v| v.is_finite()).count();
-        assert!(non_inf < 5);
-        assert!(non_inf >= 1);
-    }
-
-    #[test]
-    fn test_top_p_disabled_at_one() {
-        let data = vec![0.0, 1.0, 2.0, 3.0, 4.0];
-        let mut logits = data.clone();
-        apply_top_p(&mut logits, 1.0);
-        assert_eq!(logits, data);
-    }
 
     #[test]
     fn test_softmax_sums_to_one() {
@@ -166,13 +85,10 @@ mod tests {
 
     #[test]
     fn test_argmax_returns_correct_index() {
-        assert_eq!(argmax(&[1.0, 3.0, 2.0]), Some(1));
-        assert_eq!(argmax(&[0.0]), Some(0));
-        assert_eq!(
-            argmax(&[f32::NEG_INFINITY, 0.0, f32::NEG_INFINITY]),
-            Some(1)
-        );
-        assert_eq!(argmax(&[]), None);
+        assert_eq!(argmax([1.0, 3.0, 2.0]), Some(1));
+        assert_eq!(argmax([0.0]), Some(0));
+        assert_eq!(argmax([f32::NEG_INFINITY, 0.0, f32::NEG_INFINITY]), Some(1));
+        assert_eq!(argmax(Vec::<f32>::new()), None);
     }
 
     #[test]
