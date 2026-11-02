@@ -6,6 +6,7 @@ use rayon::prelude::*;
 use rusticide_kernels::{add_assign, dot_rows, matmul_batch, mix_rows, softmax};
 use rusticide_model::{KvCache, Result};
 
+use crate::batch::PARALLEL_MIN_TOKENS;
 use crate::config::LlamaConfig;
 use crate::layout::to_token_major;
 use crate::variant::RopeStyle;
@@ -114,18 +115,12 @@ impl Attention {
     ) -> Result<()> {
         let tokens = input.len() / self.width;
         self.project(block, input, tokens);
-        let (width, kv_dim) = (self.width, self.heads.kv_dim);
-        let rows = self
-            .query
-            .chunks_exact_mut(width)
-            .zip(self.key.chunks_exact_mut(kv_dim))
-            .zip(self.value.chunks_exact_mut(kv_dim));
-        for (offset, ((query, key), value)) in rows.enumerate() {
+        let kv_dim = self.heads.kv_dim;
+        self.rotate_rows(block, tokens, start);
+        for offset in 0..tokens {
             let position = start + offset;
-            add_bias(query, block.attn_q_bias.as_deref());
-            add_bias(key, block.attn_k_bias.as_deref());
-            add_bias(value, block.attn_v_bias.as_deref());
-            self.heads.rotate(query, key, position);
+            let key = &self.key[offset * kv_dim..(offset + 1) * kv_dim];
+            let value = &self.value[offset * kv_dim..(offset + 1) * kv_dim];
             cache.store(layer, position, key, value)?;
         }
         self.attend(cache.keys(layer), cache.values(layer), start);
@@ -133,6 +128,37 @@ impl Attention {
         matmul_batch(&self.mixed, tokens, jobs);
         to_token_major(&self.query_rows, tokens, output);
         Ok(())
+    }
+
+    /// Adds the biases and rotates the rows of token `offset` to position
+    /// `start + offset`, every token on the pool for a batch.
+    fn rotate_rows(&mut self, block: &BlockWeights, tokens: usize, start: usize) {
+        let (width, kv_dim, heads) = (self.width, self.heads.kv_dim, self.heads);
+        let prepare = |offset: usize, query: &mut [f32], key: &mut [f32], value: &mut [f32]| {
+            add_bias(query, block.attn_q_bias.as_deref());
+            add_bias(key, block.attn_k_bias.as_deref());
+            add_bias(value, block.attn_v_bias.as_deref());
+            heads.rotate(query, key, start + offset);
+        };
+        if tokens >= PARALLEL_MIN_TOKENS {
+            let rows = self
+                .query
+                .par_chunks_exact_mut(width)
+                .zip(self.key.par_chunks_exact_mut(kv_dim))
+                .zip(self.value.par_chunks_exact_mut(kv_dim))
+                .enumerate();
+            rows.for_each(|(offset, ((query, key), value))| prepare(offset, query, key, value));
+        } else {
+            let rows = self
+                .query
+                .chunks_exact_mut(width)
+                .zip(self.key.chunks_exact_mut(kv_dim))
+                .zip(self.value.chunks_exact_mut(kv_dim))
+                .enumerate();
+            for (offset, ((query, key), value)) in rows {
+                prepare(offset, query, key, value);
+            }
+        }
     }
 
     /// Mixes every (token, head) of the batch in parallel, all cached first.

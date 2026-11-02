@@ -225,3 +225,50 @@ fn qwen2_adds_query_and_key_biases_before_rope() {
     let late = attend_wide(&late_query, [&first_key, &late_key], [&first, &second]);
     assert!(output.iter().zip(&late).any(|(a, b)| (a - b).abs() > 1e-3));
 }
+
+#[test]
+fn batched_rotation_matches_one_token_at_a_time() {
+    let bias = [0.5, -1.0, 0.25, 2.0, -0.5, 1.5, 0.75, -0.25];
+    let source = wide(1, 1, WIDTH)
+        .with_tensor("blk.0.attn_q.weight", identity(WIDTH))
+        .with_tensor("blk.0.attn_k.weight", identity(WIDTH))
+        .with_tensor("blk.0.attn_v.weight", identity(WIDTH))
+        .with_tensor("blk.0.attn_q.bias", tensor(&[WIDTH], &bias))
+        .with_tensor("blk.0.attn_k.bias", tensor(&[WIDTH], &bias))
+        .build();
+    let mut config = LlamaConfig::from_source(&source, Variant::Llama).unwrap();
+    let weights = LlamaWeights::load(&source, &config).unwrap();
+    config.variant = Variant::Qwen2;
+    let tokens = 12;
+    let input: Vec<f32> = (0..tokens * WIDTH)
+        .map(|i| (f32::from(u8::try_from(i % 13).unwrap()) - 4.0) * 0.25)
+        .collect();
+    let run = |batches: &[&[f32]]| {
+        let mut attention = Attention::new(&config).unwrap();
+        let mut cache = KvCache::new(1, WIDTH, config.context_length);
+        let (mut output, mut start) = (Vec::new(), 0);
+        for batch in batches {
+            let mut out = vec![0.0; batch.len()];
+            attention
+                .forward(&weights.blocks[0], &mut cache, 0, start, batch, &mut out)
+                .unwrap();
+            start += batch.len() / WIDTH;
+            output.extend(out);
+        }
+        (output, cache.keys(0).to_vec(), cache.values(0).to_vec())
+    };
+    let singles: Vec<&[f32]> = input
+        .as_chunks::<WIDTH>()
+        .0
+        .iter()
+        .map(<[f32; WIDTH]>::as_slice)
+        .collect();
+    let (batch_out, batch_keys, batch_values) = run(&[&input]);
+    let (single_out, single_keys, single_values) = run(&singles);
+    assert_eq!(batch_keys, single_keys);
+    assert_eq!(batch_values, single_values);
+    assert_eq!(
+        batch_out[(tokens - 1) * WIDTH..],
+        single_out[(tokens - 1) * WIDTH..]
+    );
+}
