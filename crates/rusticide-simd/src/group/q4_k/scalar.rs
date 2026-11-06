@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! The kernel one value at a time: Miri's stand-in for the NEON body, and
-//! the reference the NEON body is tested against. Integer arithmetic wraps
-//! as NEON's does, so no input can make the two differ or this one panic.
+//! The kernel one value at a time: Miri's stand-in for the SIMD bodies,
+//! and the reference they are tested against. Integer arithmetic wraps as
+//! theirs does, so no input can make them differ or this one panic.
 
 use super::{D, DMIN, LANE, QS, SCALES, UNIT};
 use crate::group::{Q8Superblocks, ROWS};
-use crate::neon::scalar::{f16_at, lossy};
+use crate::scalar::{f16_at, lossy};
 
 /// Row `row`'s eight 6-bit scales and mins, unpacked as ggml does.
 fn scales_and_mins(unit: &[u8; UNIT], row: usize) -> ([i32; 8], [i32; 8]) {
@@ -54,7 +54,7 @@ fn row_term(unit: &[u8; UNIT], row: usize, quants: &[i8; 256], sums: &[i32; 8], 
     d8 * d.mul_add(lossy(sum), -(dmin * lossy(min_sum)))
 }
 
-pub(super) fn group(units: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
+pub(crate) fn group(units: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
     for (input, rows) in inputs.iter().zip(out) {
         *rows = [-0.0; ROWS];
         let blocks = input.quants.iter().zip(input.sums).zip(input.scales);

@@ -2,12 +2,16 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Checks every NEON group kernel must pass, by GGML type id.
+//! Checks every SIMD group kernel must pass, by GGML type id, against
+//! this architecture's SIMD adapter.
 
 use rusticide_quantize::block_format;
 use rusticide_simd::group::TOKENS;
 
+#[cfg(target_arch = "x86_64")]
+use crate::avx2::{ADAPTER, proof};
 use crate::group_views::{GroupViews, visit_views};
+#[cfg(target_arch = "aarch64")]
 use crate::neon::{ADAPTER, proof};
 use crate::portable;
 use crate::q8_input::Q8Input;
@@ -18,7 +22,7 @@ const ROWS: usize = 16;
 const COLS: usize = 1024;
 
 /// A format's group kernel wrapper with its proof withheld.
-pub(super) type Unproved = fn(&[u8], &[Q8Input], &GroupViews<'_>, &mut [f32]);
+pub(crate) type Unproved = fn(&[u8], &[Q8Input], &GroupViews<'_>, &mut [f32]);
 
 fn kernel(type_id: u32) -> &'static QuantKernel {
     ADAPTER.quant_kernel(type_id).unwrap()
@@ -58,12 +62,12 @@ fn inputs(type_id: u32, tokens: usize, seed: u32) -> Vec<Q8Input> {
 }
 
 /// The products through the adapter, after detection stored the proof the
-/// wrappers read, so the NEON kernels (not the portable fallback) run.
-fn neon_products(type_id: u32, original: &[u8], row_bytes: usize, inputs: &[Q8Input]) -> Vec<f32> {
+/// wrappers read, so the SIMD kernels (not the portable fallback) run.
+fn simd_products(type_id: u32, original: &[u8], row_bytes: usize, inputs: &[Q8Input]) -> Vec<f32> {
     assert!(
         crate::adapter::available()
             .iter()
-            .any(|adapter| adapter.name() == "neon")
+            .any(|adapter| adapter.name() == ADAPTER.name())
     );
     assert!(proof().is_some());
     let mut data = original.to_vec();
@@ -77,7 +81,7 @@ fn neon_products(type_id: u32, original: &[u8], row_bytes: usize, inputs: &[Q8In
     out
 }
 
-pub(super) fn prepare_then_read_row_is_identity(type_id: u32, block: usize) {
+pub(crate) fn prepare_then_read_row_is_identity(type_id: u32, block: usize) {
     let Layout {
         prepare, read_row, ..
     } = layout(type_id);
@@ -96,7 +100,7 @@ pub(super) fn prepare_then_read_row_is_identity(type_id: u32, block: usize) {
 
 /// Row 3's second block, after preparing two-block rows, and the unit
 /// that holds it.
-pub(super) fn second_unit_and_block(type_id: u32, block: usize) -> (Vec<u8>, Vec<u8>) {
+pub(crate) fn second_unit_and_block(type_id: u32, block: usize) -> (Vec<u8>, Vec<u8>) {
     let (original, row_bytes) = random_rows(block, 2, 9);
     let mut data = original.clone();
     assert!((layout(type_id).prepare)(&mut data, row_bytes));
@@ -105,7 +109,7 @@ pub(super) fn second_unit_and_block(type_id: u32, block: usize) -> (Vec<u8>, Vec
     (unit, original[start..start + block].to_vec())
 }
 
-pub(super) fn prepare_leaves_partial_groups_or_blocks_untouched(type_id: u32, block: usize) {
+pub(crate) fn prepare_leaves_partial_groups_or_blocks_untouched(type_id: u32, block: usize) {
     let prepare = layout(type_id).prepare;
     let (original, row_bytes) = random_rows(block, 1, 3);
     for (len, width) in [
@@ -125,7 +129,7 @@ pub(super) fn prepare_leaves_partial_groups_or_blocks_untouched(type_id: u32, bl
     assert!(prepare(&mut [], row_bytes));
 }
 
-pub(super) fn read_row_rejects_a_missing_row_or_a_wrong_buffer(type_id: u32, block: usize) {
+pub(crate) fn read_row_rejects_a_missing_row_or_a_wrong_buffer(type_id: u32, block: usize) {
     let Layout {
         prepare, read_row, ..
     } = layout(type_id);
@@ -141,11 +145,11 @@ pub(super) fn read_row_rejects_a_missing_row_or_a_wrong_buffer(type_id: u32, blo
 }
 
 /// More than a chunk of tokens, the last chunk partial, included.
-pub(super) fn neon_matches_portable(type_id: u32, portable_rows: DotRows) {
+pub(crate) fn simd_matches_portable(type_id: u32, portable_rows: DotRows) {
     let (original, row_bytes) = weights(type_id, 21);
     for tokens in [1, 2, 7, 19, 64] {
         let inputs = inputs(type_id, tokens, 40);
-        let got = neon_products(type_id, &original, row_bytes, &inputs);
+        let got = simd_products(type_id, &original, row_bytes, &inputs);
         for (row, values) in original
             .chunks_exact(row_bytes)
             .zip(got.chunks_exact(tokens))
@@ -163,13 +167,13 @@ pub(super) fn neon_matches_portable(type_id: u32, portable_rows: DotRows) {
     }
 }
 
-pub(super) fn a_batch_is_bit_identical_to_its_tokens_one_at_a_time(type_id: u32) {
+pub(crate) fn a_batch_is_bit_identical_to_its_tokens_one_at_a_time(type_id: u32) {
     let (original, row_bytes) = weights(type_id, 22);
     let tokens = 19;
     let inputs = inputs(type_id, tokens, 50);
-    let batch = neon_products(type_id, &original, row_bytes, &inputs);
+    let batch = simd_products(type_id, &original, row_bytes, &inputs);
     for (token, input) in inputs.iter().enumerate() {
-        let alone = neon_products(type_id, &original, row_bytes, std::slice::from_ref(input));
+        let alone = simd_products(type_id, &original, row_bytes, std::slice::from_ref(input));
         let column: Vec<u32> = batch
             .iter()
             .skip(token)
@@ -181,7 +185,7 @@ pub(super) fn a_batch_is_bit_identical_to_its_tokens_one_at_a_time(type_id: u32)
     }
 }
 
-pub(super) fn no_inputs_leave_the_output_untouched(type_id: u32) {
+pub(crate) fn no_inputs_leave_the_output_untouched(type_id: u32) {
     let (mut data, row_bytes) = weights(type_id, 23);
     assert!((layout(type_id).prepare)(&mut data, row_bytes));
     let mut out = [1.5; ROWS];
@@ -189,17 +193,17 @@ pub(super) fn no_inputs_leave_the_output_untouched(type_id: u32) {
     assert_eq!(out, [1.5; ROWS]);
 }
 
-/// The kernel groups eight rows, and a matrix of fewer falls back to the
-/// portable kernel.
-pub(super) fn runs_in_groups_of_eight(type_id: u32) {
+/// The kernel groups eight rows, and a matrix of fewer, or of zero-byte
+/// rows, stays row-major for the portable kernel.
+pub(crate) fn runs_in_groups_of_eight(type_id: u32) {
     assert_eq!(layout(type_id).group_rows, 8);
     let portable_types: Vec<u32> = portable::ADAPTER
         .quantized
         .iter()
         .map(|k| k.type_id)
         .collect();
-    let neon_types: Vec<u32> = ADAPTER.quantized.iter().map(|k| k.type_id).collect();
-    assert_eq!(neon_types, portable_types);
+    let simd_types: Vec<u32> = ADAPTER.quantized.iter().map(|k| k.type_id).collect();
+    assert_eq!(simd_types, portable_types);
     let (original, row_bytes) = weights(type_id, 24);
     let mut data = original[..3 * row_bytes].to_vec();
     let prepared = ADAPTER
@@ -207,12 +211,15 @@ pub(super) fn runs_in_groups_of_eight(type_id: u32) {
         .unwrap();
     let fallback = portable::ADAPTER.quant_kernel(type_id).unwrap();
     assert!(std::ptr::eq(prepared, fallback));
+    assert_eq!(data, original[..3 * row_bytes]);
+    let zero_byte_rows = ADAPTER.prepare_matrix(type_id, &mut [], 0).unwrap();
+    assert!(std::ptr::eq(zero_byte_rows, fallback));
 }
 
 /// Tokens in the first, second and last (partial) chunk carry a `-128`,
 /// which the group views refuse: every value still equals the portable
 /// kernel's.
-pub(super) fn a_minus_128_activation_matches_portable(type_id: u32) {
+pub(crate) fn a_minus_128_activation_matches_portable(type_id: u32) {
     let (original, row_bytes) = weights(type_id, 25);
     let mut inputs = inputs(type_id, 2 * TOKENS + 3, 60);
     for (token, element) in [(3, 5), (TOKENS + 4, 700), (2 * TOKENS + 2, 9)] {
@@ -221,7 +228,7 @@ pub(super) fn a_minus_128_activation_matches_portable(type_id: u32) {
         input.quants[element] = i8::MIN;
         input.sums[element / 32] += i32::from(i8::MIN) - old;
     }
-    let got = neon_products(type_id, &original, row_bytes, &inputs);
+    let got = simd_products(type_id, &original, row_bytes, &inputs);
     assert_portable(type_id, &original, row_bytes, &inputs, &got);
 }
 
@@ -247,7 +254,7 @@ fn assert_portable(
 
 /// A group kernel wrapper handed no proof computes every value with the
 /// portable kernel instead, never the SIMD one.
-pub(super) fn wrapper_without_token_matches_portable(type_id: u32, unproved: Unproved) {
+pub(crate) fn wrapper_without_token_matches_portable(type_id: u32, unproved: Unproved) {
     let (original, row_bytes) = weights(type_id, 26);
     let mut data = original.clone();
     assert!((layout(type_id).prepare)(&mut data, row_bytes));

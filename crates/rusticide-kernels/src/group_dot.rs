@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! The NEON group kernels' common entry: [`Q8Input`]s viewed as the
+//! The SIMD group kernels' common entry: [`Q8Input`]s viewed as the
 //! kernel reads them (views built once per product, see `GroupViews`) and
 //! handed to a `rusticide_simd` kernel a chunk of tokens at a time. A token
 //! whose view is refused (it holds a `-128`) is computed by the format's
@@ -18,7 +18,7 @@ use crate::quant_kernel::QuantKernel;
 /// `views` are those inputs' views; `format` supplies the row reader and
 /// the dot for a refused token, or for every token when `proof` (the
 /// instruction set's detected token) is `None`.
-pub(super) fn dot_group<Proof: Copy, const UNIT: usize, View: Copy + Default>(
+pub(crate) fn dot_group<Proof: Copy, const UNIT: usize, View: Copy + Default>(
     format: &QuantKernel,
     proof: Option<Proof>,
     kernel: GroupKernel<Proof, UNIT, View>,

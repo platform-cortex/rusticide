@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! The `Q4_K` group layout: each unit interleaves the `k`-th 144-byte
-//! block of eight rows in the byte order `rusticide_simd::neon::q4_k`
-//! documents.
+//! block of eight rows in the byte order `rusticide_simd::group::q4_k`
+//! documents, which the NEON and AVX2 kernels share.
 
 use rusticide_simd::group::ROWS;
-use rusticide_simd::neon::q4_k::{D, DMIN, LANE, QS, SCALES, UNIT};
+use rusticide_simd::group::q4_k::{D, DMIN, LANE, QS, SCALES, UNIT};
 
-use super::group_layout;
+use crate::group_layout;
 
 /// Bytes per `Q4_K` block.
-pub(super) const BLOCK: usize = 144;
+pub(crate) const BLOCK: usize = 144;
 
 /// Where row `row`'s block bytes go in a unit: `(block offset, unit
 /// offset, length)` for each run that stays contiguous.
@@ -24,14 +24,14 @@ fn runs(row: usize) -> impl Iterator<Item = (usize, usize, usize)> {
     floats.into_iter().chain(scales).chain(quants)
 }
 
-pub(super) fn prepare(data: &mut [u8], row_bytes: usize) -> bool {
+pub(crate) fn prepare(data: &mut [u8], row_bytes: usize) -> bool {
     group_layout::prepare::<BLOCK, UNIT, _>(data, row_bytes, runs)
 }
 
-pub(super) fn read_row(data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> bool {
+pub(crate) fn read_row(data: &[u8], row_bytes: usize, index: usize, out: &mut [u8]) -> bool {
     group_layout::read_row::<BLOCK, UNIT, _>(data, row_bytes, index, out, runs)
 }
 
 #[cfg(test)]
-#[path = "q4_k_tests.rs"]
+#[path = "q4_k_layout_tests.rs"]
 mod tests;

@@ -41,7 +41,7 @@ fn dot(lhs: &[i8; 32], rhs: &[i8; 32]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::dot_i8x32;
-    use crate::neon::test_support::token;
+    use crate::test_support::token;
 
     fn scalar(lhs: &[i8; 32], rhs: &[i8; 32]) -> i32 {
         lhs.iter()

@@ -16,7 +16,7 @@ use crate::q8_input::{Q8Input, Q8Kind};
 /// for every token, a refused token holding the empty default view, and
 /// the refused tokens in ascending order.
 #[cfg_attr(
-    not(target_arch = "aarch64"),
+    not(any(target_arch = "aarch64", target_arch = "x86_64")),
     allow(dead_code, reason = "only the SIMD adapters read the views")
 )]
 #[derive(Debug, Default)]
@@ -26,7 +26,7 @@ pub(crate) struct SchemeViews<'a, View: Clone> {
 }
 
 #[cfg_attr(
-    not(target_arch = "aarch64"),
+    not(any(target_arch = "aarch64", target_arch = "x86_64")),
     allow(dead_code, reason = "only the SIMD adapters read the views")
 )]
 impl<'a, View: Copy + Default> SchemeViews<'a, View> {
@@ -64,7 +64,7 @@ pub(crate) struct GroupViews<'a> {
 }
 
 #[cfg_attr(
-    not(target_arch = "aarch64"),
+    not(any(target_arch = "aarch64", target_arch = "x86_64")),
     allow(dead_code, reason = "only the SIMD adapters read the views")
 )]
 impl<'a> GroupViews<'a> {
@@ -76,6 +76,10 @@ impl<'a> GroupViews<'a> {
         }
     }
 
+    #[cfg_attr(
+        not(target_arch = "aarch64"),
+        allow(dead_code, reason = "only the NEON adapter reads block views")
+    )]
     pub(crate) const fn blocks(&self) -> &SchemeViews<'a, Q8Blocks<'a>> {
         &self.blocks
     }

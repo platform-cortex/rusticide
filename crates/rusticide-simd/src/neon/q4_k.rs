@@ -4,41 +4,22 @@
 
 //! `Q4_K` weights against `Q8_K` activations, eight rows at a time.
 //!
-//! The kernel reads units: the `k`-th 144-byte block of eight rows, 1152
-//! bytes, interleaved so that one 16-byte load holds the same four quant
-//! bytes of four rows and one `vdotq_laneq_s32` accumulates a lane per row.
-//! Row `r`'s block bytes sit at:
-//!
-//! - `d` (f16): `D + 2r`; `dmin` (f16): `DMIN + 2r`.
-//! - byte `i` of its 12 packed 6-bit scales and mins: `SCALES + 8i + r`, so
-//!   byte `i` of all eight rows is one 8-byte lane.
-//! - quant bytes `4c..4c + 4` (`c < 32`): `QS + 32c + 4r`.
+//! The kernel reads the units `crate::group::q4_k` lays out; one
+//! `vdotq_laneq_s32` accumulates four of its rows' quant bytes, a lane
+//! per row.
 
-#[cfg(any(miri, test))]
-mod scalar;
 #[cfg(not(miri))]
 mod vector;
+
+pub use crate::group::q4_k::UNIT;
 
 use crate::Dotprod;
 use crate::group::{Q8Superblocks, ROWS};
 
 #[cfg(miri)]
-use scalar as body;
+use crate::group::q4_k::scalar as body;
 #[cfg(not(miri))]
 use vector as body;
-
-/// Bytes per unit: one 144-byte block of each of eight rows.
-pub const UNIT: usize = 1152;
-/// Offset of the rows' `d` values in a unit.
-pub const D: usize = 0;
-/// Offset of the rows' `dmin` values in a unit.
-pub const DMIN: usize = 16;
-/// Offset of the rows' packed scales in a unit.
-pub const SCALES: usize = 32;
-/// Offset of the rows' quant bytes in a unit.
-pub const QS: usize = 128;
-/// Quant bytes of one row side by side in a unit.
-pub const LANE: usize = 4;
 
 /// The products of the eight rows in `group` (one unit per block) with
 /// each input, the rows side by side in the input's slot of `out`.

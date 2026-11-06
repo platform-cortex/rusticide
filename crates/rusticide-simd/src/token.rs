@@ -36,15 +36,16 @@ const fn dotprod_detected() -> bool {
     true
 }
 
-/// Proof that this CPU runs AVX2: only [`Avx2::detect`] makes one. No
-/// kernel needs FMA, so detection asks for `avx2` alone.
+/// Proof that this CPU runs AVX2 and FMA: only [`Avx2::detect`] makes
+/// one. FMA comes along because the portable `Q4_K` kernel fuses a
+/// multiply and add, which the AVX2 one must round the same way.
 #[cfg(target_arch = "x86_64")]
 #[derive(Clone, Copy, Debug)]
 pub struct Avx2(());
 
 #[cfg(target_arch = "x86_64")]
 impl Avx2 {
-    /// A token when this CPU has `avx2`; std caches the answer.
+    /// A token when this CPU has `avx2` and `fma`; std caches the answer.
     #[must_use]
     pub fn detect() -> Option<Self> {
         Self::from_detected(avx2_detected())
@@ -57,7 +58,7 @@ impl Avx2 {
 
 #[cfg(all(target_arch = "x86_64", not(miri)))]
 fn avx2_detected() -> bool {
-    std::arch::is_x86_feature_detected!("avx2")
+    std::arch::is_x86_feature_detected!("avx2") && std::arch::is_x86_feature_detected!("fma")
 }
 
 #[cfg(all(target_arch = "x86_64", miri))]
@@ -102,7 +103,9 @@ mod avx2_tests {
 
     #[test]
     fn detect_matches_std() {
-        let expected = cfg!(miri) || std::arch::is_x86_feature_detected!("avx2");
+        let expected = cfg!(miri)
+            || (std::arch::is_x86_feature_detected!("avx2")
+                && std::arch::is_x86_feature_detected!("fma"));
         assert_eq!(Avx2::detect().is_some(), expected);
     }
 }

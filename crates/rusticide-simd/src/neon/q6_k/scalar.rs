@@ -8,7 +8,7 @@
 
 use super::{D, LANE, QH, QL, SCALES, UNIT};
 use crate::group::{Q8Superblocks, ROWS};
-use crate::neon::scalar::{f16_at, lossy};
+use crate::scalar::{f16_at, lossy};
 
 /// Byte `byte` of row `row`'s bits starting at `base`.
 const fn interleaved(unit: &[u8; UNIT], base: usize, row: usize, byte: usize) -> u8 {

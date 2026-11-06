@@ -39,7 +39,8 @@ folds back into `rusticide-core`.
 
 ## `rusticide-simd`
 
-**Capability:** NEON kernels (`neon,dotprod`) behind safe entry points.
+**Capability:** NEON (`neon,dotprod`) and AVX2 (`avx2,fma`) kernels behind
+safe entry points.
 
 **Why safe Rust is not enough:** the kernels are safe Rust compiled with
 `#[target_feature(enable = "neon,dotprod")]`, but calling such a function
@@ -65,10 +66,10 @@ bodies need no hardware. The Miri gate therefore checks the scalar bodies
 and the casts, not the intrinsic path; the soundness of each intrinsic
 call rests on the detection argument above.
 On `x86_64` the `Avx2` token is made the same way, by `Avx2::detect()`
-from `is_x86_feature_detected!("avx2")`, and a second Miri step
-interprets the tests for `x86_64-unknown-linux-gnu`. No AVX2 kernel
-exists yet; each will take an `Avx2` by value, as the NEON ones take a
-`Dotprod`.
+when `is_x86_feature_detected!` reports both `avx2` and `fma`, and a
+second Miri step interprets the tests for `x86_64-unknown-linux-gnu`.
+Each AVX2 kernel (`avx2::q4_k` so far) takes an `Avx2` by value, as the
+NEON ones take a `Dotprod`, and enables `avx2,fma`.
 The `arm` CI job runs the full gate on Linux arm64 with no extra target
 features: the module compiles in on every `aarch64` target, the kernel
 adapter is selected at run time from `Dotprod::detect()`, and the job

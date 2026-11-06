@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # rusticide-simd
 
-NEON kernels behind safe entry points for Rusticide.
+NEON and AVX2 kernels behind safe entry points for Rusticide.
 
 This is the second crate in the workspace permitted to use `unsafe`; the
 workspace otherwise sets `unsafe_code = "deny"`. The kernels themselves
@@ -36,9 +36,12 @@ cannot execute the intrinsics, and `Dotprod::detect()` returns `Some`;
 CI interprets the tests under Miri for `aarch64-apple-darwin`.
 
 On `x86_64` the `Avx2` token follows the same rules: only `Avx2::detect()`
-makes one, when `is_x86_feature_detected!("avx2")` reports the feature,
-and it returns `Some` under `cfg(miri)`. No kernel takes it yet; CI also
-interprets the tests under Miri for `x86_64-unknown-linux-gnu`.
+makes one, when `is_x86_feature_detected!` reports both `avx2` and `fma`,
+and it returns `Some` under `cfg(miri)`. FMA is part of the proof because
+the portable `Q4_K` kernel fuses a multiply and add, and the AVX2 one must
+round it the same way. The `avx2` module's kernels (`Q4_K` so far) enable
+`avx2,fma`; CI also interprets the tests under Miri for
+`x86_64-unknown-linux-gnu`.
 
 See [`docs/UNSAFE.md`](../../docs/UNSAFE.md) for the workspace's full
 `unsafe` policy and the index of every crate permitted to use it.

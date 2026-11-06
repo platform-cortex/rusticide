@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::BLOCK;
-use crate::neon::group_checks;
+use crate::group_checks;
 
 #[test]
 fn prepare_then_read_row_is_identity() {

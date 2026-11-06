@@ -13,11 +13,20 @@ mod adapter;
 #[cfg(target_arch = "x86_64")]
 mod avx2;
 mod facade;
+#[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
+#[cfg(test)]
+mod group_checks;
+#[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
+mod group_dot;
+#[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
+mod group_layout;
 mod group_views;
 mod matmul;
 #[cfg(target_arch = "aarch64")]
 mod neon;
 mod portable;
+#[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
+mod q4_k_layout;
 mod q8_input;
 mod quant_kernel;
 #[cfg(any(test, feature = "test-kernels"))]

@@ -4,7 +4,7 @@
 
 use super::{D, QH, QL, SCALES, UNIT, q6_k_group, scalar};
 use crate::group::{Q8Superblocks, ROWS};
-use crate::neon::test_support::{Activation, Format, Input, set_f16, token};
+use crate::test_support::{Activation, Format, Input, set_f16, token};
 
 /// Random units whose `d` are finite f16 values in `[0, 2)`.
 fn random_units(rng: &mut fastrand::Rng, blocks: usize) -> Vec<[u8; UNIT]> {
@@ -39,7 +39,7 @@ const Q6_K: Format<UNIT> = Format {
 
 #[test]
 fn the_neon_body_matches_the_scalar_body() {
-    Q6_K.the_neon_body_matches_the_scalar_body(0x0006_00a6);
+    Q6_K.the_simd_body_matches_the_scalar_body(0x0006_00a6);
 }
 
 #[test]

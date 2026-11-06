@@ -9,7 +9,7 @@
 use rusticide_simd::group::ROWS;
 use rusticide_simd::neon::q6_k::{D, LANE, QH, QL, SCALES, UNIT};
 
-use super::group_layout;
+use crate::group_layout;
 
 /// Bytes per `Q6_K` block.
 pub(super) const BLOCK: usize = 210;

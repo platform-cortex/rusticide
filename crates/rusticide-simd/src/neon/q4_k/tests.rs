@@ -2,46 +2,21 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::{D, DMIN, UNIT, q4_k_group, scalar};
+use super::{UNIT, q4_k_group};
+use crate::group::q4_k::samples;
 use crate::group::{Q8Superblocks, ROWS};
-use crate::neon::test_support::{Format, set_f16, token};
-
-/// Random units whose `d` and `dmin` are finite f16 values in `[0, 2)`.
-fn random_units(rng: &mut fastrand::Rng, blocks: usize) -> Vec<[u8; UNIT]> {
-    (0..blocks)
-        .map(|_| {
-            let mut unit: [u8; UNIT] = core::array::from_fn(|_| rng.u8(..));
-            for row in 0..ROWS {
-                set_f16(&mut unit, D + 2 * row, rng.u16(..0x4000));
-                set_f16(&mut unit, DMIN + 2 * row, rng.u16(..0x4000));
-            }
-            unit
-        })
-        .collect()
-}
-
-/// Each row's `d` gets its special and its `dmin` that of the row 3 on.
-fn set_specials(unit: &mut [u8; UNIT], specials: &[u16; ROWS]) {
-    for (row, &bits) in specials.iter().enumerate() {
-        set_f16(unit, D + 2 * row, bits);
-        set_f16(unit, DMIN + 2 * row, specials[(row + 3) % ROWS]);
-    }
-}
+use crate::test_support::{Format, token};
 
 /// The NEON kernel under the test host's token.
 fn neon(group: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
     q4_k_group(token(), group, inputs, out);
 }
 
-const Q4_K: Format<UNIT> = Format {
-    kernels: [neon, scalar::group],
-    random_units,
-    set_specials,
-};
+const Q4_K: Format<UNIT> = samples::format(neon);
 
 #[test]
 fn the_neon_body_matches_the_scalar_body() {
-    Q4_K.the_neon_body_matches_the_scalar_body(0x0004_00a4);
+    Q4_K.the_simd_body_matches_the_scalar_body(0x0004_00a4);
 }
 
 #[test]
@@ -62,4 +37,14 @@ fn special_scales_match_the_scalar_body() {
 #[test]
 fn a_group_at_an_odd_address_gives_the_same_products() {
     Q4_K.a_group_at_an_odd_address_gives_the_same_products(31);
+}
+
+#[test]
+fn extreme_bytes_match_the_scalar_body() {
+    Q4_K.extreme_bytes_match_the_scalar_body();
+}
+
+#[test]
+fn wrapping_sums_match_the_scalar_body() {
+    samples::wrapping_sums_match_the_scalar_body(&Q4_K, 17);
 }

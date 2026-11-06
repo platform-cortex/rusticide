@@ -2,11 +2,6 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-#[cfg(test)]
-mod group_checks;
-mod group_dot;
-mod group_layout;
-mod q4_k;
 mod q4_k_dot;
 mod q5_0;
 mod q5_0_dot;
@@ -52,6 +47,6 @@ pub(crate) fn armed(proof: Dotprod) -> &'static Adapter {
 }
 
 /// The stored proof, `None` before detection found `dotprod`.
-fn proof() -> Option<Dotprod> {
+pub(crate) fn proof() -> Option<Dotprod> {
     TOKEN.get().copied()
 }

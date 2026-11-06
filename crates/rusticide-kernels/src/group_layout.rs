@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! The layout the NEON group kernels read: groups of eight rows, each
+//! The layout the SIMD group kernels read: groups of eight rows, each
 //! group stored as one `UNIT`-byte unit per block column, the unit holding
 //! the `k`-th `BLOCK`-byte block of all eight rows. A format's `runs(row)`
 //! gives `(block offset, unit offset, length)` for each contiguous run of
@@ -18,7 +18,7 @@ fn group_bytes<const BLOCK: usize>(row_bytes: usize) -> Option<usize> {
     row_bytes.checked_mul(ROWS).filter(|_| whole)
 }
 
-pub(super) fn prepare<const BLOCK: usize, const UNIT: usize, I>(
+pub(crate) fn prepare<const BLOCK: usize, const UNIT: usize, I>(
     data: &mut [u8],
     row_bytes: usize,
     runs: impl Fn(usize) -> I,
@@ -49,7 +49,7 @@ where
     true
 }
 
-pub(super) fn read_row<const BLOCK: usize, const UNIT: usize, I>(
+pub(crate) fn read_row<const BLOCK: usize, const UNIT: usize, I>(
     data: &[u8],
     row_bytes: usize,
     index: usize,

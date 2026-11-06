@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! What every eight-row group kernel shares: the group shape and the views
-//! of the activations the kernels read.
+//! of the activations the kernels read, and the units they share.
+
+pub mod q4_k;
 
 /// Rows per unit.
 pub const ROWS: usize = 8;
@@ -29,7 +31,7 @@ fn has_minus_128(quants: &[i8]) -> bool {
 /// super-block's scale (stored once per 32 elements, all equal), its
 /// quants, and the sums of its eight 32-element runs.
 #[cfg_attr(
-    not(target_arch = "aarch64"),
+    not(any(target_arch = "aarch64", target_arch = "x86_64")),
     allow(dead_code, reason = "only the SIMD kernels read a view")
 )]
 #[derive(Debug, Default, Clone, Copy)]
@@ -66,7 +68,7 @@ impl<'a> Q8Superblocks<'a> {
 /// scale and its quants.
 #[cfg_attr(
     not(target_arch = "aarch64"),
-    allow(dead_code, reason = "only the SIMD kernels read a view")
+    allow(dead_code, reason = "only the NEON kernels read a block view")
 )]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Q8Blocks<'a> {

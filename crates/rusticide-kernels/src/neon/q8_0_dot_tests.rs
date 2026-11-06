@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::dot_group_with;
-use crate::neon::group_checks;
+use crate::group_checks;
 use crate::portable;
 use crate::q8_input::Q8Input;
 
@@ -14,7 +14,7 @@ fn portable_rows(row: &[u8], inputs: &[Q8Input], out: &mut [f32]) {
 
 #[test]
 fn neon_q8_0_matches_portable() {
-    group_checks::neon_matches_portable(8, portable_rows);
+    group_checks::simd_matches_portable(8, portable_rows);
 }
 
 #[test]

@@ -29,7 +29,7 @@ pub(crate) const Q4_0: QuantKernel = QuantKernel {
     layout: None,
 };
 
-const Q5_0: QuantKernel = QuantKernel {
+pub(crate) const Q5_0: QuantKernel = QuantKernel {
     type_id: 6,
     activation: Q8Kind::Block,
     dot: int_dot::q5_0,
@@ -37,7 +37,7 @@ const Q5_0: QuantKernel = QuantKernel {
     layout: None,
 };
 
-const Q4_K: QuantKernel = QuantKernel {
+pub(crate) const Q4_K: QuantKernel = QuantKernel {
     type_id: 12,
     activation: Q8Kind::SuperBlock,
     dot: int_dot::q4_k,
@@ -45,7 +45,7 @@ const Q4_K: QuantKernel = QuantKernel {
     layout: None,
 };
 
-const Q6_K: QuantKernel = QuantKernel {
+pub(crate) const Q6_K: QuantKernel = QuantKernel {
     type_id: 14,
     activation: Q8Kind::SuperBlock,
     dot: int_dot::q6_k,

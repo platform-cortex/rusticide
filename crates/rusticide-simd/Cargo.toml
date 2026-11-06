@@ -5,7 +5,7 @@
 [package]
 authors.workspace = true
 categories = ["hardware-support", "mathematics"]
-description = "NEON kernels behind safe entry points for Rusticide"
+description = "NEON and AVX2 kernels behind safe entry points for Rusticide"
 edition.workspace = true
 keywords = ["simd", "neon", "aarch64", "dotprod", "kernel"]
 license.workspace = true

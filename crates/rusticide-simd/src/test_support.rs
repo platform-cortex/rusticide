@@ -5,12 +5,18 @@
 //! What the group kernels' tests share, and the checks every group kernel
 //! must pass against its scalar body.
 
-use crate::Dotprod;
 use crate::group::{Q8Blocks, Q8Superblocks, ROWS};
 
 /// The token every NEON test runs under: the test hosts have `dotprod`.
-pub(crate) fn token() -> Dotprod {
-    Dotprod::detect().expect("the test host has dotprod")
+#[cfg(target_arch = "aarch64")]
+pub(crate) fn token() -> crate::Dotprod {
+    crate::Dotprod::detect().expect("the test host has dotprod")
+}
+
+/// The token every AVX2 test runs under: the test hosts have AVX2 and FMA.
+#[cfg(target_arch = "x86_64")]
+pub(crate) fn token() -> crate::Avx2 {
+    crate::Avx2::detect().expect("the test host has avx2 and fma")
 }
 
 /// A random test activation and the view of it a kernel reads.
@@ -19,6 +25,8 @@ pub(crate) trait Input: Sized {
     where
         Self: 'a;
     fn random(rng: &mut fastrand::Rng, blocks: usize) -> Self;
+    /// `blocks` blocks of `quant` alone.
+    fn filled(quant: i8, blocks: usize) -> Self;
     fn view(&self) -> Self::View<'_>;
     /// The view of only its first `blocks` blocks.
     fn first(&self, blocks: usize) -> Self::View<'_>;
@@ -43,6 +51,10 @@ impl Input for Activation {
             .map(|_| core::array::from_fn(|_| rng.i8(-127..)))
             .collect();
         Self::from_quants(quants, (0..blocks).map(|_| rng.f32() * 0.01).collect())
+    }
+
+    fn filled(quant: i8, blocks: usize) -> Self {
+        Self::from_quants(vec![[quant; 256]; blocks], vec![0.01; blocks])
     }
 
     fn view(&self) -> Q8Superblocks<'_> {
@@ -76,6 +88,10 @@ impl Activation {
 }
 
 /// One token's random `Q8_0` activation.
+#[cfg_attr(
+    not(target_arch = "aarch64"),
+    expect(dead_code, reason = "only the NEON block kernels read one")
+)]
 pub(crate) struct Blocks {
     pub(crate) scales: Vec<f32>,
     pub(crate) quants: Vec<[i8; 32]>,
@@ -90,6 +106,13 @@ impl Input for Blocks {
             quants: (0..blocks)
                 .map(|_| core::array::from_fn(|_| rng.i8(-127..)))
                 .collect(),
+        }
+    }
+
+    fn filled(quant: i8, blocks: usize) -> Self {
+        Self {
+            scales: vec![0.01; blocks],
+            quants: vec![[quant; 32]; blocks],
         }
     }
 
@@ -126,7 +149,7 @@ pub(crate) const TOKEN_COUNTS: &[usize] = if cfg!(miri) {
 };
 pub(crate) const BLOCKS: usize = if cfg!(miri) { 1 } else { 3 };
 
-/// A group kernel under test: its NEON and scalar bodies, how to make
+/// A group kernel under test: its SIMD and scalar bodies, how to make
 /// random units with finite float scales, and how to give a unit's rows
 /// one special float scale each.
 pub(crate) struct Format<const UNIT: usize, I: Input = Activation> {
@@ -136,7 +159,7 @@ pub(crate) struct Format<const UNIT: usize, I: Input = Activation> {
 }
 
 impl<const UNIT: usize, I: Input> Format<UNIT, I> {
-    /// `views` through the NEON body and the scalar body, as bits.
+    /// `views` through the SIMD body and the scalar body, as bits.
     pub(crate) fn both(
         &self,
         units: &[[u8; UNIT]],
@@ -154,7 +177,7 @@ impl<const UNIT: usize, I: Input> Format<UNIT, I> {
         (0..tokens).map(|_| I::random(rng, blocks)).collect()
     }
 
-    pub(crate) fn the_neon_body_matches_the_scalar_body(&self, seed: u64) {
+    pub(crate) fn the_simd_body_matches_the_scalar_body(&self, seed: u64) {
         let mut rng = fastrand::Rng::with_seed(seed);
         for &tokens in TOKEN_COUNTS {
             let units = (self.random_units)(&mut rng, BLOCKS);
@@ -205,6 +228,22 @@ impl<const UNIT: usize, I: Input> Format<UNIT, I> {
         for (&left, &right) in native[0].iter().zip(&reference[0]) {
             assert!(same(left, right), "{left:#x} vs {right:#x}");
         }
+    }
+
+    /// Every weight byte `0xff` (finite float scales aside) against the
+    /// largest and smallest quants the views accept.
+    pub(crate) fn extreme_bytes_match_the_scalar_body(&self) {
+        let mut units = vec![[0xff; UNIT]; BLOCKS];
+        for unit in &mut units {
+            (self.set_specials)(
+                unit,
+                &[0x7bff, 0x3c00, 0x0001, 0x8001, 0xfbff, 0, 0x3555, 0x8000],
+            );
+        }
+        let activations = [I::filled(127, BLOCKS), I::filled(-127, BLOCKS)];
+        let views: Vec<_> = activations.iter().map(I::view).collect();
+        let [native, reference] = self.both(&units, &views);
+        assert_eq!(native, reference);
     }
 
     /// Weight data at an odd address: the kernel must not assume alignment.

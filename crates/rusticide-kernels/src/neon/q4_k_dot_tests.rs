@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::dot_group_with;
-use crate::neon::group_checks;
+use crate::group_checks;
 use crate::portable::int_dot;
 
 #[test]
 fn neon_q4_k_matches_portable() {
-    group_checks::neon_matches_portable(12, int_dot::q4_k_rows);
+    group_checks::simd_matches_portable(12, int_dot::q4_k_rows);
 }
 
 #[test]
