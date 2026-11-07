@@ -69,9 +69,10 @@ call rests on the detection argument above.
 On `x86_64` the `Avx2` token is made the same way, by `Avx2::detect()`
 when `is_x86_feature_detected!` reports both `avx2` and `fma`, and a
 second Miri step interprets the tests for `x86_64-unknown-linux-gnu`.
-Each AVX2 kernel (`avx2::q4_k`, `avx2::q5_0`, `avx2::q6_k` and
-`avx2::q8_0`) takes an `Avx2` by value, as the NEON ones take a
-`Dotprod`, and enables `avx2,fma`.
+Each AVX2 kernel (`avx2::q4_k`, `avx2::q5_0`, `avx2::q6_k`,
+`avx2::q8_0` and the `f32` dot products of `avx2::float`) takes an
+`Avx2` by value, as the NEON ones take a `Dotprod`, and enables
+`avx2,fma`.
 The `arm` CI job runs the full gate on Linux arm64 with no extra target
 features: the module compiles in on every `aarch64` target, the kernel
 adapter is selected at run time from `Dotprod::detect()`, and the job

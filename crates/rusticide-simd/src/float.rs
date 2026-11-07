@@ -3,11 +3,19 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! The `f32` dot kernels of the portable adapter.
+//!
+//! Always inlined, so that `crate::avx2::float` compiles the same code
+//! with `fma` enabled.
+#![expect(
+    clippy::inline_always,
+    reason = "a caller with `fma` enabled must compile these bodies itself"
+)]
 
 const LANES: usize = 8;
 
 /// Dot product. The shorter slice bounds the work.
 #[must_use]
+#[inline(always)]
 pub fn dot(lhs: &[f32], rhs: &[f32]) -> f32 {
     let bound = lhs.len().min(rhs.len());
     let (lhs, rhs) = (lhs.split_at(bound).0, rhs.split_at(bound).0);
@@ -26,6 +34,7 @@ pub fn dot(lhs: &[f32], rhs: &[f32]) -> f32 {
 /// Scores every `row_stride`-wide row of `rows`: `out[i]` is
 /// `dot(query, rows_i[offset..]) / scale`. The shortest of `out`, the rows
 /// and `query` bounds the work; a zero stride is treated as one.
+#[inline(always)]
 pub fn dot_rows(
     query: &[f32],
     rows: &[f32],
@@ -43,6 +52,7 @@ pub fn dot_rows(
 
 /// Adds `weights[i] x rows_i[offset..offset + out.len()]` into `out`,
 /// each product fused into its slot.
+#[inline(always)]
 pub fn mix_rows(weights: &[f32], rows: &[f32], row_stride: usize, offset: usize, out: &mut [f32]) {
     let end = offset.checked_add(out.len());
     for (&weight, row) in weights.iter().zip(rows.chunks_exact(row_stride.max(1))) {

@@ -28,6 +28,7 @@ pub use token::Dotprod;
 pub mod avx2 {
     #[cfg(not(miri))]
     mod blocks;
+    pub mod float;
     pub mod q4_k;
     pub mod q5_0;
     pub mod q6_k;

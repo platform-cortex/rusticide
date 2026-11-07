@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+mod float;
+
 use std::sync::OnceLock;
 
 use rusticide_simd::Avx2;
@@ -49,9 +51,10 @@ static QUANTIZED: [QuantKernel; 5] = [
     q8_0_dot::KERNEL,
 ];
 
-/// The portable kernels, with AVX2 kernels in place of some of them.
+/// The portable kernels, with AVX2 and FMA kernels in place of some of them.
 pub(crate) static ADAPTER: Adapter = Adapter {
     name: "avx2",
+    f32: float::KERNELS,
     quantized: &QUANTIZED,
     ..portable::ADAPTER
 };
