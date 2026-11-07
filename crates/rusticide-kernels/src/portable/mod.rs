@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-mod dot;
 mod elementwise;
 pub(crate) mod int_dot;
 mod norm;
 mod q8;
 mod rope;
+
+use rusticide_simd::float as dot;
 
 use crate::adapter::{Adapter, F32Kernels};
 use crate::q8_input::Q8Kind;

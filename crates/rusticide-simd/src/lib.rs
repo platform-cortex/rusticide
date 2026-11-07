@@ -11,6 +11,7 @@
 //! On `x86_64` the `avx2` module's kernels take an `Avx2` token, proved
 //! the same way.
 
+pub mod float;
 pub mod group;
 #[cfg(any(miri, test))]
 mod scalar;
