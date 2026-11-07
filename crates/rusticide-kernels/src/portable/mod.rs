@@ -8,7 +8,7 @@ mod norm;
 mod q8;
 mod rope;
 
-use rusticide_simd::float as dot;
+use rusticide_simd::float;
 
 use crate::adapter::{Adapter, F32Kernels};
 use crate::q8_input::Q8Kind;
@@ -67,9 +67,9 @@ static QUANTIZED: [QuantKernel; 5] = [Q4_0, Q5_0, Q4_K, Q6_K, Q8_0];
 pub(crate) static ADAPTER: Adapter = Adapter {
     name: "portable",
     f32: F32Kernels {
-        dot: dot::dot,
-        dot_rows: dot::dot_rows,
-        mix_rows: dot::mix_rows,
+        dot: float::dot,
+        dot_rows: float::dot_rows,
+        mix_rows: float::mix_rows,
         add_assign: elementwise::add_assign,
         mul_assign: elementwise::mul_assign,
         silu_assign: elementwise::silu_assign,
