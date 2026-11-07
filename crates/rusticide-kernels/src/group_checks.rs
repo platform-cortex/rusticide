@@ -15,7 +15,7 @@ use crate::group_views::{GroupViews, visit_views};
 use crate::neon::{ADAPTER, proof};
 use crate::portable;
 use crate::q8_input::Q8Input;
-use crate::quant_kernel::{DotRows, Layout, QuantKernel};
+use crate::quant_kernel::{Layout, QuantKernel};
 use crate::test_support::pseudo_random_values;
 
 const ROWS: usize = 16;
@@ -144,8 +144,10 @@ pub(crate) fn read_row_rejects_a_missing_row_or_a_wrong_buffer(type_id: u32, blo
     assert_eq!(row, vec![7; row_bytes]);
 }
 
-/// More than a chunk of tokens, the last chunk partial, included.
-pub(crate) fn simd_matches_portable(type_id: u32, portable_rows: DotRows) {
+/// More than a chunk of tokens, the last chunk partial, included, against
+/// the portable kernel's batched rows.
+pub(crate) fn simd_matches_portable(type_id: u32) {
+    let portable = portable::ADAPTER.quant_kernel(type_id).unwrap();
     let (original, row_bytes) = weights(type_id, 21);
     for tokens in [1, 2, 7, 19, 64] {
         let inputs = inputs(type_id, tokens, 40);
@@ -155,7 +157,7 @@ pub(crate) fn simd_matches_portable(type_id: u32, portable_rows: DotRows) {
             .zip(got.chunks_exact(tokens))
         {
             let mut expected = vec![0.0; tokens];
-            portable_rows(row, &inputs, &mut expected);
+            portable.dot_rows(row, &inputs, &mut expected);
             for (&got, &expected) in values.iter().zip(&expected) {
                 assert_eq!(
                     got.to_bits(),
@@ -193,9 +195,10 @@ pub(crate) fn no_inputs_leave_the_output_untouched(type_id: u32) {
     assert_eq!(out, [1.5; ROWS]);
 }
 
-/// The kernel groups eight rows, and a matrix of fewer, of a whole group
-/// and a remainder, or of zero-byte rows, stays row-major for the
-/// portable kernel, which reads it.
+/// The kernel groups eight rows. A matrix that is not whole groups (fewer
+/// rows, or a whole group and a remainder) or has zero-byte rows is not
+/// grouped at all: the whole matrix stays row-major and the portable
+/// kernel reads it.
 pub(crate) fn runs_in_groups_of_eight(type_id: u32) {
     assert_eq!(layout(type_id).group_rows, 8);
     let portable_types: Vec<u32> = portable::ADAPTER

@@ -40,8 +40,6 @@ pub mod neon {
     pub mod q5_0;
     pub mod q6_k;
     pub mod q8_0;
-    #[cfg(any(miri, test))]
-    mod scalar;
     #[cfg(not(miri))]
     mod vector;
 }

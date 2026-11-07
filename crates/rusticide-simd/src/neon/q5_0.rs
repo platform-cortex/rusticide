@@ -4,40 +4,22 @@
 
 //! `Q5_0` weights against `Q8_0` activations, eight rows at a time.
 //!
-//! The kernel reads units: the `k`-th 22-byte block of eight rows, 176
-//! bytes, interleaved so that one 16-byte load holds the same four nibble
-//! bytes of four rows and one `vdotq_laneq_s32` accumulates a lane per row.
-//! Row `r`'s block bytes sit at:
-//!
-//! - `d` (f16): `D + 2r`.
-//! - its four fifth-bit bytes (bit `e` of the little-endian word is
-//!   weight `e`'s): `QH + 4r`.
-//! - nibble bytes `4c..4c + 4` (`c < 4`): `QS + 32c + 4r`; byte `i`
-//!   holds weight `i` in its low nibble and weight `i + 16` in its high.
+//! The kernel reads the units `crate::group::q5_0` lays out; one
+//! `vdotq_laneq_s32` accumulates four of its rows' nibble bytes, a lane
+//! per row.
 
-#[cfg(any(miri, test))]
-mod scalar;
 #[cfg(not(miri))]
 mod vector;
+
+pub use crate::group::q5_0::UNIT;
 
 use crate::Dotprod;
 use crate::group::{Q8Blocks, ROWS};
 
 #[cfg(miri)]
-use scalar as body;
+use crate::group::q5_0::scalar as body;
 #[cfg(not(miri))]
 use vector as body;
-
-/// Bytes per unit: one 22-byte block of each of eight rows.
-pub const UNIT: usize = 176;
-/// Offset of the rows' `d` values in a unit.
-pub const D: usize = 0;
-/// Offset of the rows' fifth bits in a unit.
-pub const QH: usize = 16;
-/// Offset of the rows' nibble bytes in a unit.
-pub const QS: usize = 48;
-/// Bytes of one row side by side in a unit.
-pub const LANE: usize = 4;
 
 /// The products of the eight rows in `group` (one unit per block) with
 /// each input, the rows side by side in the input's slot of `out`.
@@ -60,4 +42,11 @@ pub fn q5_0_group(
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    crate::test_support::group_body_tests!(
+        super::q5_0_group,
+        crate::group::q5_0::samples,
+        0x0005_00a5,
+        the_largest_sums_are_exact,
+    );
+}

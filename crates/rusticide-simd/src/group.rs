@@ -6,7 +6,9 @@
 //! of the activations the kernels read, and the units they share.
 
 pub mod q4_k;
+pub mod q5_0;
 pub mod q6_k;
+pub mod q8_0;
 
 /// Rows per unit.
 pub const ROWS: usize = 8;

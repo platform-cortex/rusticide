@@ -44,4 +44,11 @@ pub fn q6_k_group(
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    crate::test_support::group_body_tests!(
+        super::q6_k_group,
+        crate::group::q6_k::samples,
+        0x0006_00a6,
+        the_largest_sums_are_exact,
+    );
+}

@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! The kernel one value at a time: Miri's stand-in for the NEON body, and
-//! the reference the NEON body is tested against.
+//! The kernel one value at a time: Miri's stand-in for the SIMD bodies,
+//! and the reference they are tested against.
 
 use super::{D, LANE, QH, QS, UNIT};
 use crate::group::{Q8Blocks, ROWS};
-use crate::neon::scalar::blocks;
+use crate::scalar::blocks;
 
 /// Weight `element` of row `row`, unpacked as ggml does.
 fn weight(unit: &[u8; UNIT], row: usize, element: usize) -> i32 {
@@ -22,6 +22,6 @@ fn weight(unit: &[u8; UNIT], row: usize, element: usize) -> i32 {
     i32::from(nibble) + 16 * i32::from((high >> element) & 1 == 1) - 16
 }
 
-pub(super) fn group(units: &[[u8; UNIT]], inputs: &[Q8Blocks<'_>], out: &mut [[f32; ROWS]]) {
+pub(crate) fn group(units: &[[u8; UNIT]], inputs: &[Q8Blocks<'_>], out: &mut [[f32; ROWS]]) {
     blocks(units, inputs, out, D, weight);
 }

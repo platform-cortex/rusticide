@@ -27,8 +27,12 @@ mod neon;
 mod portable;
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 mod q4_k_layout;
+#[cfg(target_arch = "aarch64")]
+mod q5_0_layout;
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 mod q6_k_layout;
+#[cfg(target_arch = "aarch64")]
+mod q8_0_layout;
 mod q8_input;
 mod quant_kernel;
 #[cfg(any(test, feature = "test-kernels"))]

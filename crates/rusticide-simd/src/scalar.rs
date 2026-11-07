@@ -5,6 +5,8 @@
 //! Helpers for the scalar kernel bodies: Miri's stand-ins for the SIMD
 //! bodies, and the references the SIMD bodies are tested against.
 
+use crate::group::{Q8Blocks, ROWS};
+
 #[expect(
     clippy::cast_precision_loss,
     reason = "a block sum past 2^24 loses low bits, as the SIMD conversions do"
@@ -29,6 +31,48 @@ pub(crate) fn f16_to_f32(bits: u16) -> f32 {
 /// The little-endian half at `offset` of `bytes`, widened.
 pub(crate) fn f16_at(bytes: &[u8], offset: usize) -> f32 {
     f16_to_f32(u16::from_le_bytes([bytes[offset], bytes[offset + 1]]))
+}
+
+#[cfg_attr(
+    not(target_arch = "aarch64"),
+    expect(dead_code, reason = "only the NEON block bodies read it")
+)]
+fn block_term<const UNIT: usize>(
+    unit: &[u8; UNIT],
+    row: usize,
+    quants: &[i8; 32],
+    d8: f32,
+    d: usize,
+    weight: fn(&[u8; UNIT], usize, usize) -> i32,
+) -> f32 {
+    let sum: i32 = (0..32)
+        .map(|element| weight(unit, row, element) * i32::from(quants[element]))
+        .sum();
+    f16_at(unit, d + 2 * row) * d8 * lossy(sum)
+}
+
+/// A 32-element block format's kernel: `weight(unit, row, element)` is a
+/// row's signed weight and its `d` sits at `d + 2 * row`. No sum can
+/// overflow: a block's is at most `32 * 128 * 128 = 2^19` in magnitude.
+#[cfg_attr(
+    not(target_arch = "aarch64"),
+    expect(dead_code, reason = "only the NEON block bodies read it")
+)]
+pub(crate) fn blocks<const UNIT: usize>(
+    units: &[[u8; UNIT]],
+    inputs: &[Q8Blocks<'_>],
+    out: &mut [[f32; ROWS]],
+    d: usize,
+    weight: fn(&[u8; UNIT], usize, usize) -> i32,
+) {
+    for (input, rows) in inputs.iter().zip(out) {
+        *rows = [-0.0; ROWS];
+        for (unit, (quants, &d8)) in units.iter().zip(input.quants.iter().zip(input.scales)) {
+            for (row, value) in rows.iter_mut().enumerate() {
+                *value += block_term(unit, row, quants, d8, d, weight);
+            }
+        }
+    }
 }
 
 #[cfg(test)]

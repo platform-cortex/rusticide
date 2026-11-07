@@ -41,8 +41,8 @@ pub(crate) const fn format(native: Kernel<UNIT, Activation>) -> Format<UNIT> {
 
 /// Run sums at the ends of `i32`, which no activation of real quants
 /// holds but the views accept: the min sums wrap in every body alike.
-pub(crate) fn wrapping_sums_match_the_scalar_body(format: &Format<UNIT>, seed: u64) {
-    let mut rng = fastrand::Rng::with_seed(seed);
+pub(crate) fn wrapping_sums_match_the_scalar_body(format: &Format<UNIT>) {
+    let mut rng = fastrand::Rng::with_seed(17);
     let units = random_units(&mut rng, BLOCKS);
     let mut activation = Activation::random(&mut rng, BLOCKS);
     for (block, sums) in activation.sums.iter_mut().enumerate() {

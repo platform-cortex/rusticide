@@ -7,6 +7,10 @@
 
 use crate::group::{Q8Blocks, Q8Superblocks, ROWS};
 
+mod body_tests;
+
+pub(crate) use body_tests::group_body_tests;
+
 /// The token every NEON test runs under: the test hosts have `dotprod`.
 #[cfg(target_arch = "aarch64")]
 pub(crate) fn token() -> crate::Dotprod {
@@ -127,6 +131,33 @@ impl Input for Blocks {
 
 pub(crate) fn set_f16(unit: &mut [u8], offset: usize, bits: u16) {
     unit[offset..offset + 2].copy_from_slice(&bits.to_le_bytes());
+}
+
+/// Random units whose only float scales, the rows' `d` at `D + 2 * row`,
+/// are finite f16 values in `[0, 2)`.
+pub(crate) fn random_d_units<const UNIT: usize, const D: usize>(
+    rng: &mut fastrand::Rng,
+    blocks: usize,
+) -> Vec<[u8; UNIT]> {
+    (0..blocks)
+        .map(|_| {
+            let mut unit: [u8; UNIT] = core::array::from_fn(|_| rng.u8(..));
+            for row in 0..ROWS {
+                set_f16(&mut unit, D + 2 * row, rng.u16(..0x4000));
+            }
+            unit
+        })
+        .collect()
+}
+
+/// Each row's `d`, at `D + 2 * row`, gets its special.
+pub(crate) fn set_d_specials<const UNIT: usize, const D: usize>(
+    unit: &mut [u8; UNIT],
+    specials: &[u16; ROWS],
+) {
+    for (row, &bits) in specials.iter().enumerate() {
+        set_f16(unit, D + 2 * row, bits);
+    }
 }
 
 /// Bitwise equal, or both NaN.

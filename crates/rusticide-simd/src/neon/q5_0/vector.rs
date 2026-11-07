@@ -12,7 +12,8 @@ use core::arch::aarch64::{
     vreinterpretq_s8_u8, vshrq_n_u8, vtstq_u8,
 };
 
-use super::{D, QH, QS, UNIT};
+use super::UNIT;
+use crate::group::q5_0::{D, QH, QS};
 use crate::group::{Q8Blocks, ROWS};
 use crate::neon::blocks::{self, Unpacked};
 

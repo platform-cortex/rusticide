@@ -72,3 +72,100 @@ fn portable_tokens(
         }
     }
 }
+
+/// Module `$name` holding a format's group kernel `KERNEL`: the portable
+/// `$portable` reading the layout of module `$layout` (`prepare` and
+/// `read_row`), whose groups the `rusticide_simd` kernel `$group` computes
+/// on the views `GroupViews::$views` picks, under the calling adapter's
+/// `proof()`. Its tests are the checks every group kernel passes.
+macro_rules! group_kernel {
+    ($name:ident: $portable:ident, $layout:path, $group:path, $views:ident) => {
+        pub(crate) mod $name {
+            use $crate::group_views::GroupViews;
+            use $crate::q8_input::Q8Input;
+            use $crate::quant_kernel::{Layout, QuantKernel};
+            use $layout as layout;
+
+            pub(crate) const KERNEL: QuantKernel = QuantKernel {
+                layout: Some(Layout {
+                    group_rows: rusticide_simd::group::ROWS,
+                    prepare: layout::prepare,
+                    read_row: layout::read_row,
+                    dot_group,
+                }),
+                ..$crate::portable::$portable
+            };
+
+            fn dot_group(
+                group: &[u8],
+                inputs: &[Q8Input],
+                views: &GroupViews<'_>,
+                out: &mut [f32],
+            ) {
+                dot_group_with(super::proof(), group, inputs, views, out);
+            }
+
+            /// The group kernel with `proof`, or the portable kernel without one.
+            fn dot_group_with(
+                proof: Option<super::Proof>,
+                group: &[u8],
+                inputs: &[Q8Input],
+                views: &GroupViews<'_>,
+                out: &mut [f32],
+            ) {
+                $crate::group_dot::dot_group(
+                    &KERNEL,
+                    proof,
+                    $group,
+                    views.$views(),
+                    group,
+                    inputs,
+                    out,
+                );
+            }
+
+            #[cfg(test)]
+            mod tests {
+                use super::{KERNEL, dot_group_with};
+                use $crate::group_checks;
+
+                #[test]
+                fn simd_matches_portable() {
+                    group_checks::simd_matches_portable(KERNEL.type_id);
+                }
+
+                #[test]
+                fn a_batch_is_bit_identical_to_its_tokens_one_at_a_time() {
+                    group_checks::a_batch_is_bit_identical_to_its_tokens_one_at_a_time(
+                        KERNEL.type_id,
+                    );
+                }
+
+                #[test]
+                fn no_inputs_leave_the_output_untouched() {
+                    group_checks::no_inputs_leave_the_output_untouched(KERNEL.type_id);
+                }
+
+                #[test]
+                fn the_adapter_runs_it_in_groups_of_eight() {
+                    group_checks::runs_in_groups_of_eight(KERNEL.type_id);
+                }
+
+                #[test]
+                fn a_minus_128_activation_matches_portable() {
+                    group_checks::a_minus_128_activation_matches_portable(KERNEL.type_id);
+                }
+
+                #[test]
+                fn wrapper_without_token_matches_portable() {
+                    group_checks::wrapper_without_token_matches_portable(
+                        KERNEL.type_id,
+                        |group, inputs, views, out| dot_group_with(None, group, inputs, views, out),
+                    );
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use group_kernel;

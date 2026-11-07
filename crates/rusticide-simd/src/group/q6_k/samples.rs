@@ -6,34 +6,16 @@
 
 use super::{D, QH, QL, SCALES, UNIT, scalar};
 use crate::group::ROWS;
-use crate::test_support::{Activation, Format, Input, Kernel, set_f16};
-
-/// Random units whose `d` are finite f16 values in `[0, 2)`.
-fn random_units(rng: &mut fastrand::Rng, blocks: usize) -> Vec<[u8; UNIT]> {
-    (0..blocks)
-        .map(|_| {
-            let mut unit: [u8; UNIT] = core::array::from_fn(|_| rng.u8(..));
-            for row in 0..ROWS {
-                set_f16(&mut unit, D + 2 * row, rng.u16(..0x4000));
-            }
-            unit
-        })
-        .collect()
-}
-
-/// Each row's `d` gets its special.
-fn set_specials(unit: &mut [u8; UNIT], specials: &[u16; ROWS]) {
-    for (row, &bits) in specials.iter().enumerate() {
-        set_f16(unit, D + 2 * row, bits);
-    }
-}
+use crate::test_support::{
+    Activation, Format, Input, Kernel, random_d_units, set_d_specials, set_f16,
+};
 
 /// The checks for the SIMD body `native`, against the scalar body.
 pub(crate) const fn format(native: Kernel<UNIT, Activation>) -> Format<UNIT> {
     Format {
         kernels: [native, scalar::group],
-        random_units,
-        set_specials,
+        random_units: random_d_units::<UNIT, D>,
+        set_specials: set_d_specials::<UNIT, D>,
     }
 }
 

@@ -2,16 +2,30 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-mod q4_k_dot;
-mod q6_k_dot;
-
 use std::sync::OnceLock;
 
 use rusticide_simd::Avx2;
 
 use crate::adapter::Adapter;
+use crate::group_dot::group_kernel;
 use crate::portable;
 use crate::quant_kernel::QuantKernel;
+
+group_kernel!(
+    q4_k_dot: Q4_K,
+    crate::q4_k_layout,
+    rusticide_simd::avx2::q4_k::q4_k_group,
+    superblocks
+);
+group_kernel!(
+    q6_k_dot: Q6_K,
+    crate::q6_k_layout,
+    rusticide_simd::avx2::q6_k::q6_k_group,
+    superblocks
+);
+
+/// The proof token the AVX2 kernels take.
+type Proof = Avx2;
 
 /// The portable kernels in the same order, `Q4_K` and `Q6_K` replaced by
 /// the AVX2 ones.
@@ -42,7 +56,7 @@ pub(crate) fn armed(proof: Avx2) -> &'static Adapter {
 }
 
 /// The stored proof, `None` before detection found AVX2 and FMA.
-pub(crate) fn proof() -> Option<Avx2> {
+pub(crate) fn proof() -> Option<Proof> {
     TOKEN.get().copied()
 }
 

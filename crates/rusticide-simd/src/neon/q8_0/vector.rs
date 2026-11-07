@@ -5,7 +5,8 @@
 //! The kernel on NEON: a unit's weight bytes are already the sixteen
 //! weight vectors.
 
-use super::{D, QS, UNIT};
+use super::UNIT;
+use crate::group::q8_0::{D, QS};
 use crate::group::{Q8Blocks, ROWS};
 use crate::neon::blocks::{self, Unpacked};
 

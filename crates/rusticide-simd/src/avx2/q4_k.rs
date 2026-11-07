@@ -44,4 +44,11 @@ pub fn q4_k_group(
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    crate::test_support::group_body_tests!(
+        super::q4_k_group,
+        crate::group::q4_k::samples,
+        0x0004_00a4,
+        wrapping_sums_match_the_scalar_body,
+    );
+}
