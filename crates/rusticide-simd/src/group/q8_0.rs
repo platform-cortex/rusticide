@@ -13,9 +13,9 @@
 //! - `d` (f16): `D + 2r`.
 //! - weight bytes `4c..4c + 4` (`c < 8`): `QS + 32c + 4r`.
 
-#[cfg(all(test, target_arch = "aarch64"))]
+#[cfg(test)]
 pub(crate) mod samples;
-#[cfg(all(any(miri, test), target_arch = "aarch64"))]
+#[cfg(any(miri, test))]
 pub(crate) mod scalar;
 
 /// Bytes per unit: one 34-byte block of each of eight rows.

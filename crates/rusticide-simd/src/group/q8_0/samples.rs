@@ -35,3 +35,22 @@ pub(crate) fn the_largest_sums_are_exact(format: &Format<UNIT, Blocks>) {
     assert_eq!(native, [[(-516_128.0_f32).to_bits(); ROWS]]);
     assert_eq!(native, reference);
 }
+
+/// Weights all `-128`, whose magnitude `128` only fits `vpmaddubsw`'s
+/// unsigned operand, against the quants `127`, `-127` and the two
+/// alternating: each pair sums to `2 * 128 * 127 = 32512` at most, within
+/// `i16`.
+pub(crate) fn minus_128_weights_against_127_are_exact(format: &Format<UNIT, Blocks>) {
+    let mut unit = [0x80; UNIT];
+    set_d_specials::<UNIT, D>(&mut unit, &[0x3c00; ROWS]);
+    let alternating = core::array::from_fn(|element| if element % 2 == 0 { 127 } else { -127 });
+    let activations = [[127; 32], [-127; 32], alternating].map(|quants| Blocks {
+        scales: vec![1.0],
+        quants: vec![quants],
+    });
+    let views: Vec<_> = activations.iter().map(Input::view).collect();
+    let [native, reference] = format.both(&[unit], &views);
+    let expected = [-520_192.0_f32, 520_192.0, 0.0].map(|value| [value.to_bits(); ROWS]);
+    assert_eq!(native, expected);
+    assert_eq!(native, reference);
+}

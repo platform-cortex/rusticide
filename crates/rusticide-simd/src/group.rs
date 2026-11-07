@@ -70,8 +70,8 @@ impl<'a> Q8Superblocks<'a> {
 /// One token's `Q8_0` activation as whole 32-element blocks: each block's
 /// scale and its quants.
 #[cfg_attr(
-    not(target_arch = "aarch64"),
-    allow(dead_code, reason = "only the NEON kernels read a block view")
+    not(any(target_arch = "aarch64", target_arch = "x86_64")),
+    allow(dead_code, reason = "only the SIMD kernels read a view")
 )]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Q8Blocks<'a> {

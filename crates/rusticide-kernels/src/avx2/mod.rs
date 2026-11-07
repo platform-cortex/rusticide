@@ -18,23 +18,35 @@ group_kernel!(
     superblocks
 );
 group_kernel!(
+    q5_0_dot: Q5_0,
+    crate::q5_0_layout,
+    rusticide_simd::avx2::q5_0::q5_0_group,
+    blocks
+);
+group_kernel!(
     q6_k_dot: Q6_K,
     crate::q6_k_layout,
     rusticide_simd::avx2::q6_k::q6_k_group,
     superblocks
 );
+group_kernel!(
+    q8_0_dot: Q8_0,
+    crate::q8_0_layout,
+    rusticide_simd::avx2::q8_0::q8_0_group,
+    blocks
+);
 
 /// The proof token the AVX2 kernels take.
 type Proof = Avx2;
 
-/// The portable kernels in the same order, `Q4_K` and `Q6_K` replaced by
-/// the AVX2 ones.
+/// The portable kernels in the same order, all but `Q4_0` replaced by the
+/// AVX2 ones.
 static QUANTIZED: [QuantKernel; 5] = [
     portable::Q4_0,
-    portable::Q5_0,
+    q5_0_dot::KERNEL,
     q4_k_dot::KERNEL,
     q6_k_dot::KERNEL,
-    portable::Q8_0,
+    q8_0_dot::KERNEL,
 ];
 
 /// The portable kernels, with AVX2 kernels in place of some of them.

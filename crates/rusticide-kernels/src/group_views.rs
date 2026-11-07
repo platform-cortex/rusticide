@@ -76,10 +76,6 @@ impl<'a> GroupViews<'a> {
         }
     }
 
-    #[cfg_attr(
-        not(target_arch = "aarch64"),
-        allow(dead_code, reason = "only the NEON adapter reads block views")
-    )]
     pub(crate) const fn blocks(&self) -> &SchemeViews<'a, Q8Blocks<'a>> {
         &self.blocks
     }

@@ -16,9 +16,9 @@
 //! - nibble bytes `4c..4c + 4` (`c < 4`): `QS + 32c + 4r`; byte `i`
 //!   holds weight `i` in its low nibble and weight `i + 16` in its high.
 
-#[cfg(all(test, target_arch = "aarch64"))]
+#[cfg(test)]
 pub(crate) mod samples;
-#[cfg(all(any(miri, test), target_arch = "aarch64"))]
+#[cfg(any(miri, test))]
 pub(crate) mod scalar;
 
 /// Bytes per unit: one 22-byte block of each of eight rows.

@@ -48,5 +48,6 @@ mod tests {
         crate::group::q8_0::samples,
         0x0008_00a8,
         the_largest_sums_are_exact,
+        minus_128_weights_against_127_are_exact,
     );
 }

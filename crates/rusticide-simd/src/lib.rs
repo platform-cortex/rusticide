@@ -25,8 +25,12 @@ pub use token::Dotprod;
 
 #[cfg(target_arch = "x86_64")]
 pub mod avx2 {
+    #[cfg(not(miri))]
+    mod blocks;
     pub mod q4_k;
+    pub mod q5_0;
     pub mod q6_k;
+    pub mod q8_0;
     #[cfg(not(miri))]
     mod vector;
 }

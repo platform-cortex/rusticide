@@ -92,10 +92,6 @@ impl Activation {
 }
 
 /// One token's random `Q8_0` activation.
-#[cfg_attr(
-    not(target_arch = "aarch64"),
-    expect(dead_code, reason = "only the NEON block kernels read one")
-)]
 pub(crate) struct Blocks {
     pub(crate) scales: Vec<f32>,
     pub(crate) quants: Vec<[i8; 32]>,

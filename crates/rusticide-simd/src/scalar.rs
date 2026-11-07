@@ -33,10 +33,6 @@ pub(crate) fn f16_at(bytes: &[u8], offset: usize) -> f32 {
     f16_to_f32(u16::from_le_bytes([bytes[offset], bytes[offset + 1]]))
 }
 
-#[cfg_attr(
-    not(target_arch = "aarch64"),
-    expect(dead_code, reason = "only the NEON block bodies read it")
-)]
 fn block_term<const UNIT: usize>(
     unit: &[u8; UNIT],
     row: usize,
@@ -54,10 +50,6 @@ fn block_term<const UNIT: usize>(
 /// A 32-element block format's kernel: `weight(unit, row, element)` is a
 /// row's signed weight and its `d` sits at `d + 2 * row`. No sum can
 /// overflow: a block's is at most `32 * 128 * 128 = 2^19` in magnitude.
-#[cfg_attr(
-    not(target_arch = "aarch64"),
-    expect(dead_code, reason = "only the NEON block bodies read it")
-)]
 pub(crate) fn blocks<const UNIT: usize>(
     units: &[[u8; UNIT]],
     inputs: &[Q8Blocks<'_>],
