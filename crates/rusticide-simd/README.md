@@ -42,8 +42,9 @@ the portable `Q4_K` kernel fuses a multiply and add, and the AVX2 one must
 round it the same way. The `avx2` module's kernels (`Q4_K`, `Q5_0`, `Q6_K`,
 `Q8_0` and the `f32` dot products of `float`) enable `avx2,fma`. The
 `float` ones compile the portable bodies of the crate's `float` module, so
-`mul_add` is one instruction rather than a call to `fmaf`. CI also
-interprets the tests under Miri for `x86_64-unknown-linux-gnu`.
+`mul_add` is one instruction rather than a call to `fmaf`, with the same
+bits for every non-NaN input. CI also interprets the tests under Miri for
+`x86_64-unknown-linux-gnu`.
 
 See [`docs/UNSAFE.md`](../../docs/UNSAFE.md) for the workspace's full
 `unsafe` policy and the index of every crate permitted to use it.

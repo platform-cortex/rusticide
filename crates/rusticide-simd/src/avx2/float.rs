@@ -6,7 +6,8 @@
 //!
 //! `x86_64`'s baseline has no FMA, so the portable `mul_add` is a call to
 //! the C library's `fmaf`; with `fma` enabled it is one instruction. Both
-//! round once, so the results are bit-identical.
+//! round once, so the results are bit-identical for every non-NaN input
+//! (NaN payloads may differ, and Rust does not specify them).
 
 use crate::Avx2;
 

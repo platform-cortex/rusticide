@@ -5,7 +5,11 @@
 //! The `f32` dot kernels of the portable adapter.
 //!
 //! Always inlined, so that `crate::avx2::float` compiles the same code
-//! with `fma` enabled.
+//! with `fma` enabled. No test can see the attribute go: the results are
+//! the same bits either way, and only the prefill rows of `bench:gate`
+//! show the AVX2 path falling back to a libm `fmaf` call per element
+//! (about 30% of `x86_64` prefill time). Keep `#[inline(always)]` and the
+//! `clippy::inline_always` expectation below.
 #![expect(
     clippy::inline_always,
     reason = "a caller with `fma` enabled must compile these bodies itself"
