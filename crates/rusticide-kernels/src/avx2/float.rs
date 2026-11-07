@@ -37,11 +37,15 @@ fn mix_rows(weights: &[f32], rows: &[f32], row_stride: usize, offset: usize, out
     mix_rows_with(proof(), weights, rows, row_stride, offset, out);
 }
 
+#[expect(
+    clippy::option_if_let_else,
+    reason = "the shape of its siblings, whose two closures could not share `out`"
+)]
 fn dot_with(proof: Option<Proof>, lhs: &[f32], rhs: &[f32]) -> f32 {
-    proof.map_or_else(
-        || float::dot(lhs, rhs),
-        |token| avx2::float::dot(token, lhs, rhs),
-    )
+    match proof {
+        Some(token) => avx2::float::dot(token, lhs, rhs),
+        None => float::dot(lhs, rhs),
+    }
 }
 
 fn dot_rows_with(
