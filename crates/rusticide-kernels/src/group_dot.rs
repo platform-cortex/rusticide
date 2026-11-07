@@ -76,8 +76,10 @@ fn portable_tokens(
 /// Module `$name` holding a format's group kernel `KERNEL`: the portable
 /// `$portable` reading the layout of module `$layout` (`prepare` and
 /// `read_row`), whose groups the `rusticide_simd` kernel `$group` computes
-/// on the views `GroupViews::$views` picks, under the calling adapter's
-/// `proof()`. Its tests are the checks every group kernel passes.
+/// on the views `GroupViews::$views` picks. The calling module must define
+/// `super::proof()`, returning the adapter's stored `Option<super::Proof>`,
+/// and the `super::Proof` token type. Its tests are the checks every group
+/// kernel passes.
 macro_rules! group_kernel {
     ($name:ident: $portable:ident, $layout:path, $group:path, $views:ident) => {
         pub(crate) mod $name {
