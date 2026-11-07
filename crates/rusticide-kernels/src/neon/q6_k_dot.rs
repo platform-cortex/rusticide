@@ -8,10 +8,10 @@ use rusticide_simd::Dotprod;
 use rusticide_simd::group::ROWS;
 use rusticide_simd::neon::q6_k::q6_k_group;
 
-use super::q6_k::{prepare, read_row};
 use crate::group_dot;
 use crate::group_views::GroupViews;
 use crate::portable::int_dot;
+use crate::q6_k_layout::{prepare, read_row};
 use crate::q8_input::{Q8Input, Q8Kind};
 use crate::quant_kernel::{Layout, QuantKernel};
 

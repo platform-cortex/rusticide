@@ -19,7 +19,8 @@ use core::arch::aarch64::{
     vsriq_n_u8,
 };
 
-use super::{D, QH, SCALES, UNIT};
+use super::UNIT;
+use crate::group::q6_k::{D, QH, SCALES};
 use crate::group::{Q8Superblocks, ROWS, TOKENS};
 use crate::neon::vector::{Rows, halves, run};
 

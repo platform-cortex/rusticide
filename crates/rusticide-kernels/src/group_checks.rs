@@ -193,8 +193,9 @@ pub(crate) fn no_inputs_leave_the_output_untouched(type_id: u32) {
     assert_eq!(out, [1.5; ROWS]);
 }
 
-/// The kernel groups eight rows, and a matrix of fewer, or of zero-byte
-/// rows, stays row-major for the portable kernel.
+/// The kernel groups eight rows, and a matrix of fewer, of a whole group
+/// and a remainder, or of zero-byte rows, stays row-major for the
+/// portable kernel, which reads it.
 pub(crate) fn runs_in_groups_of_eight(type_id: u32) {
     assert_eq!(layout(type_id).group_rows, 8);
     let portable_types: Vec<u32> = portable::ADAPTER
@@ -205,13 +206,20 @@ pub(crate) fn runs_in_groups_of_eight(type_id: u32) {
     let simd_types: Vec<u32> = ADAPTER.quantized.iter().map(|k| k.type_id).collect();
     assert_eq!(simd_types, portable_types);
     let (original, row_bytes) = weights(type_id, 24);
-    let mut data = original[..3 * row_bytes].to_vec();
-    let prepared = ADAPTER
-        .prepare_matrix(type_id, &mut data, row_bytes)
-        .unwrap();
     let fallback = portable::ADAPTER.quant_kernel(type_id).unwrap();
-    assert!(std::ptr::eq(prepared, fallback));
-    assert_eq!(data, original[..3 * row_bytes]);
+    let inputs = inputs(type_id, 3, 80);
+    for rows in [3, 11] {
+        let original = &original[..rows * row_bytes];
+        let mut data = original.to_vec();
+        let prepared = ADAPTER
+            .prepare_matrix(type_id, &mut data, row_bytes)
+            .unwrap();
+        assert!(std::ptr::eq(prepared, fallback), "{rows} rows");
+        assert_eq!(data, original, "{rows} rows");
+        let mut got = vec![f32::NAN; rows * inputs.len()];
+        prepared.dot_matrix(&data, row_bytes, &inputs, &mut got);
+        assert_portable(type_id, original, row_bytes, &inputs, &got);
+    }
     let zero_byte_rows = ADAPTER.prepare_matrix(type_id, &mut [], 0).unwrap();
     assert!(std::ptr::eq(zero_byte_rows, fallback));
 }

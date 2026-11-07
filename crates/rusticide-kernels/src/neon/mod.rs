@@ -5,7 +5,6 @@
 mod q4_k_dot;
 mod q5_0;
 mod q5_0_dot;
-mod q6_k;
 mod q6_k_dot;
 mod q8_0;
 mod q8_0_dot;

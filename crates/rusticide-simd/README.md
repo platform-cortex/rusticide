@@ -39,8 +39,8 @@ On `x86_64` the `Avx2` token follows the same rules: only `Avx2::detect()`
 makes one, when `is_x86_feature_detected!` reports both `avx2` and `fma`,
 and it returns `Some` under `cfg(miri)`. FMA is part of the proof because
 the portable `Q4_K` kernel fuses a multiply and add, and the AVX2 one must
-round it the same way. The `avx2` module's kernels (`Q4_K` so far) enable
-`avx2,fma`; CI also interprets the tests under Miri for
+round it the same way. The `avx2` module's kernels (`Q4_K` and `Q6_K` so
+far) enable `avx2,fma`; CI also interprets the tests under Miri for
 `x86_64-unknown-linux-gnu`.
 
 See [`docs/UNSAFE.md`](../../docs/UNSAFE.md) for the workspace's full

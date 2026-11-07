@@ -2,40 +2,17 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::{D, QH, QL, SCALES, UNIT, q6_k_group, scalar};
+use super::{UNIT, q6_k_group};
+use crate::group::q6_k::samples;
 use crate::group::{Q8Superblocks, ROWS};
-use crate::test_support::{Activation, Format, Input, set_f16, token};
-
-/// Random units whose `d` are finite f16 values in `[0, 2)`.
-fn random_units(rng: &mut fastrand::Rng, blocks: usize) -> Vec<[u8; UNIT]> {
-    (0..blocks)
-        .map(|_| {
-            let mut unit: [u8; UNIT] = core::array::from_fn(|_| rng.u8(..));
-            for row in 0..ROWS {
-                set_f16(&mut unit, D + 2 * row, rng.u16(..0x4000));
-            }
-            unit
-        })
-        .collect()
-}
-
-/// Each row's `d` gets its special.
-fn set_specials(unit: &mut [u8; UNIT], specials: &[u16; ROWS]) {
-    for (row, &bits) in specials.iter().enumerate() {
-        set_f16(unit, D + 2 * row, bits);
-    }
-}
+use crate::test_support::{Format, token};
 
 /// The NEON kernel under the test host's token.
 fn neon(group: &[[u8; UNIT]], inputs: &[Q8Superblocks<'_>], out: &mut [[f32; ROWS]]) {
     q6_k_group(token(), group, inputs, out);
 }
 
-const Q6_K: Format<UNIT> = Format {
-    kernels: [neon, scalar::group],
-    random_units,
-    set_specials,
-};
+const Q6_K: Format<UNIT> = samples::format(neon);
 
 #[test]
 fn the_neon_body_matches_the_scalar_body() {
@@ -63,20 +40,11 @@ fn a_group_at_an_odd_address_gives_the_same_products() {
 }
 
 #[test]
+fn extreme_bytes_match_the_scalar_body() {
+    Q6_K.extreme_bytes_match_the_scalar_body();
+}
+
+#[test]
 fn the_largest_sums_are_exact() {
-    let mut unit = [0; UNIT];
-    unit[SCALES..D].fill(0x80);
-    for row in 0..ROWS {
-        set_f16(&mut unit, D + 2 * row, 0x3c00);
-    }
-    let lowest = Activation::from_quants(vec![[-127; 256]], vec![1.0]);
-    let [native, reference] = Q6_K.both(&[unit], &[lowest.view()]);
-    let expected = -133_169_152.0_f32;
-    assert_eq!(native, [[expected.to_bits(); ROWS]]);
-    assert_eq!(native, reference);
-    unit[QL..QH].fill(0xff);
-    unit[QH..SCALES].fill(0xff);
-    let [native, reference] = Q6_K.both(&[unit], &[lowest.view()]);
-    assert_eq!(native, [[(31.0_f32 / 32.0 * -expected).to_bits(); ROWS]]);
-    assert_eq!(native, reference);
+    samples::the_largest_sums_are_exact(&Q6_K);
 }

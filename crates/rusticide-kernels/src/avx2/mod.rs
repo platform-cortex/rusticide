@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 mod q4_k_dot;
+mod q6_k_dot;
 
 use std::sync::OnceLock;
 
@@ -12,13 +13,13 @@ use crate::adapter::Adapter;
 use crate::portable;
 use crate::quant_kernel::QuantKernel;
 
-/// The portable kernels in the same order, `Q4_K` replaced by the AVX2
-/// one.
+/// The portable kernels in the same order, `Q4_K` and `Q6_K` replaced by
+/// the AVX2 ones.
 static QUANTIZED: [QuantKernel; 5] = [
     portable::Q4_0,
     portable::Q5_0,
     q4_k_dot::KERNEL,
-    portable::Q6_K,
+    q6_k_dot::KERNEL,
     portable::Q8_0,
 ];
 

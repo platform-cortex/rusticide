@@ -4,42 +4,22 @@
 
 //! `Q6_K` weights against `Q8_K` activations, eight rows at a time.
 //!
-//! The kernel reads units: the `k`-th 210-byte block of eight rows, 1680
-//! bytes, interleaved so that one 16-byte load holds the same four low-bit
-//! (or high-bit) bytes of four rows and one `vdotq_laneq_s32` accumulates
-//! a lane per row. Row `r`'s block bytes sit at:
-//!
-//! - its 128 low-bit bytes `4c..4c + 4` (`c < 32`): `QL + 32c + 4r`.
-//! - its 64 high-bit bytes `4c..4c + 4` (`c < 16`): `QH + 32c + 4r`.
-//! - its 16 signed scales, scale `s`: `SCALES + 8s + r`, so scale `s` of
-//!   all eight rows is one 8-byte lane.
-//! - `d` (f16): `D + 2r`.
+//! The kernel reads the units `crate::group::q6_k` lays out; one
+//! `vdotq_laneq_s32` accumulates four of its rows' low-bit (or high-bit)
+//! bytes, a lane per row.
 
-#[cfg(any(miri, test))]
-mod scalar;
 #[cfg(not(miri))]
 mod vector;
+
+pub use crate::group::q6_k::UNIT;
 
 use crate::Dotprod;
 use crate::group::{Q8Superblocks, ROWS};
 
 #[cfg(miri)]
-use scalar as body;
+use crate::group::q6_k::scalar as body;
 #[cfg(not(miri))]
 use vector as body;
-
-/// Bytes per unit: one 210-byte block of each of eight rows.
-pub const UNIT: usize = 1680;
-/// Offset of the rows' low-bit bytes in a unit.
-pub const QL: usize = 0;
-/// Offset of the rows' high-bit bytes in a unit.
-pub const QH: usize = 1024;
-/// Offset of the rows' scales in a unit.
-pub const SCALES: usize = 1536;
-/// Offset of the rows' `d` values in a unit.
-pub const D: usize = 1664;
-/// Bytes of one row side by side in a unit.
-pub const LANE: usize = 4;
 
 /// The products of the eight rows in `group` (one unit per block) with
 /// each input, the rows side by side in the input's slot of `out`.
