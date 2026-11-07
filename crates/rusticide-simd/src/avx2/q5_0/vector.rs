@@ -79,5 +79,8 @@ fn unpack(unit: &[u8; UNIT]) -> Unpacked {
 
 #[target_feature(enable = "avx2,fma")]
 pub(super) fn group(units: &[[u8; UNIT]], inputs: &[Q8Blocks<'_>], out: &mut [[f32; ROWS]]) {
+    // A `#[target_feature]` fn does not implement `Fn`, so `unpack` cannot
+    // be passed by name; the closure, built where the features are enabled,
+    // can.
     blocks::group(units, inputs, out, |unit| unpack(unit));
 }
