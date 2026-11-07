@@ -94,12 +94,31 @@ strip = false
 [target.aarch64-apple-darwin]
 rustflags = ["-D", "warnings", "-C", "link-arg=-Wl,-dead_strip_dylibs"]
 
+# x86_64: LLVM aligns loops to 16 bytes only, so a hot loop head lands at 0 or
+# 16 mod 32 depending on how much code precedes it. On the Skylake-class iMac
+# Pro the 16 mod 32 placement costs the AVX2 kernels up to 9% (Q6_K rows8),
+# flipped by unrelated code added elsewhere. Pinning loops to 32 bytes is
+# CPU-independent, so release binaries still run on every x86_64.
+
 # macOS x86_64
 [target.x86_64-apple-darwin]
-rustflags = ["-D", "warnings", "-C", "link-arg=-Wl,-dead_strip_dylibs"]
+rustflags = [
+  "-D",
+  "warnings",
+  "-C",
+  "link-arg=-Wl,-dead_strip_dylibs",
+  "-C",
+  "llvm-args=-align-loops=32",
+]
 
 # Linux has no linker override on purpose. Release builds run on stock CI
 # runners (glibc and musl, x86_64 and aarch64) and in the Nix sandbox, where
 # neither clang + mold nor aarch64-linux-gnu-gcc exists; the platform `cc`
 # links every Linux target. A developer who wants mold sets it in
 # `~/.cargo/config.toml`.
+# The x86_64 lists below carry only the loop alignment above, no linker.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-D", "warnings", "-C", "llvm-args=-align-loops=32"]
+
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-D", "warnings", "-C", "llvm-args=-align-loops=32"]

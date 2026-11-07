@@ -2865,10 +2865,11 @@ set -Eeuo pipefail
 
 if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 
-# RUSTFLAGS REPLACES .cargo/config.toml's `-D warnings` rather than merging, so
-# --native restates it.
+# RUSTFLAGS REPLACES .cargo/config.toml's `-D warnings` (and its x86_64 loop
+# alignment) rather than merging, so --native restates both.
 if [ "${usage_native:-false}" = "true" ]; then
   export RUSTFLAGS="${RUSTFLAGS:-} -D warnings -C target-cpu=native"
+  if [ "$(uname -m)" = "x86_64" ]; then RUSTFLAGS="$RUSTFLAGS -C llvm-args=-align-loops=32"; fi
 fi
 
 cargo build --workspace
@@ -2891,11 +2892,13 @@ set -Eeuo pipefail
 
 if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 
-# RUSTFLAGS REPLACES .cargo/config.toml's `-D warnings` rather than merging, so
-# --native restates it. Native stays opt-in: the binary would crash with an
-# illegal instruction on any older CPU of the same architecture.
+# RUSTFLAGS REPLACES .cargo/config.toml's `-D warnings` (and its x86_64 loop
+# alignment) rather than merging, so --native restates both. Native stays
+# opt-in: the binary would crash with an illegal instruction on any older CPU
+# of the same architecture.
 if [ "${usage_native:-false}" = "true" ]; then
   export RUSTFLAGS="${RUSTFLAGS:-} -D warnings -C target-cpu=native"
+  if [ "$(uname -m)" = "x86_64" ]; then RUSTFLAGS="$RUSTFLAGS -C llvm-args=-align-loops=32"; fi
 fi
 
 cargo build --workspace --release --features cli
