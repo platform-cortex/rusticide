@@ -1,0 +1,70 @@
+{
+  "machine": "intel-r-xeon-r-w-2150b-cpu-3-00ghz-20",
+  "adapter": "avx2",
+  "metrics": {
+    "e2e/qwen2.5/decode": {
+      "best": 51.44584967335912,
+      "tolerance": 0.05
+    },
+    "e2e/qwen2.5/prefill": {
+      "best": 442.8069029392621,
+      "tolerance": 0.05
+    },
+    "e2e/tinyllama/decode": {
+      "best": 42.59814065652186,
+      "tolerance": 0.05
+    },
+    "e2e/tinyllama/prefill": {
+      "best": 223.63471792981505,
+      "tolerance": 0.05
+    },
+    "kernel/Q4_0/row": {
+      "best": 5987531928.099222,
+      "tolerance": 0.05
+    },
+    "kernel/Q4_0/rows8": {
+      "best": 6017567781.453112,
+      "tolerance": 0.05
+    },
+    "kernel/Q4_K/row": {
+      "best": 37391076927.82293,
+      "tolerance": 0.05
+    },
+    "kernel/Q4_K/rows8": {
+      "best": 63505259515.88908,
+      "tolerance": 0.05
+    },
+    "kernel/Q5_0/row": {
+      "best": 20816641357.53031,
+      "tolerance": 0.05
+    },
+    "kernel/Q5_0/rows8": {
+      "best": 40824878026.83925,
+      "tolerance": 0.05
+    },
+    "kernel/Q6_K/row": {
+      "best": 16865172408.888271,
+      "tolerance": 0.05
+    },
+    "kernel/Q6_K/rows8": {
+      "best": 45438740839.259605,
+      "tolerance": 0.05
+    },
+    "kernel/Q8_0/row": {
+      "best": 28290505368.708244,
+      "tolerance": 0.05
+    },
+    "kernel/Q8_0/rows8": {
+      "best": 41736851572.33875,
+      "tolerance": 0.05
+    },
+    "kernel/q8/block": {
+      "best": 367461177.0485819,
+      "tolerance": 0.05
+    },
+    "kernel/q8/superblock": {
+      "best": 443215293.46003085,
+      "tolerance": 0.05
+    }
+  }
+}
