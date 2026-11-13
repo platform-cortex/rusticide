@@ -3,47 +3,42 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_model::{Matrix, ModelSource, Result, load_vector};
-use rusticide_transformer::BlockWeights;
+use rusticide_transformer::{BlockWeights, DecoderWeights};
 
 use crate::config::LlamaConfig;
 
-/// Every weight of a llama model; `output` is `None` when tied to `token_embd`.
-#[derive(Debug)]
-pub struct LlamaWeights {
-    pub token_embd: Matrix,
-    pub blocks: Vec<BlockWeights>,
-    pub output_norm: Vec<f32>,
-    pub output: Option<Matrix>,
-}
-
-impl LlamaWeights {
-    /// # Errors
-    ///
-    /// `MissingTensor` or `ShapeMismatch` for any absent or mis-shaped weight,
-    /// and `InvalidConfig` when the configuration's sizes overflow.
-    pub fn load(source: &dyn ModelSource, config: &LlamaConfig) -> Result<Self> {
-        let embedding = config.embedding_length;
-        let mut blocks = Vec::new();
-        for index in 0..config.block_count {
-            blocks.push(load_block(source, config, index)?);
-        }
-        let output = if source.tensor_shape("output.weight").is_some() {
-            Some(Matrix::load(
-                source,
-                "output.weight",
-                config.vocab_size,
-                embedding,
-            )?)
-        } else {
-            None
-        };
-        Ok(Self {
-            token_embd: Matrix::load(source, "token_embd.weight", config.vocab_size, embedding)?,
-            blocks,
-            output_norm: load_vector(source, "output_norm.weight", embedding)?,
-            output,
-        })
+/// Loads every weight of a llama model by its tensor name; `output` is
+/// `None` when `output.weight` is absent, tied to `token_embd`.
+///
+/// # Errors
+///
+/// `MissingTensor` or `ShapeMismatch` for any absent or mis-shaped weight,
+/// and `InvalidConfig` when the configuration's sizes overflow.
+pub(crate) fn load_weights(
+    source: &dyn ModelSource,
+    config: &LlamaConfig,
+) -> Result<DecoderWeights> {
+    let embedding = config.embedding_length;
+    let mut blocks = Vec::new();
+    for index in 0..config.block_count {
+        blocks.push(load_block(source, config, index)?);
     }
+    let output = if source.tensor_shape("output.weight").is_some() {
+        Some(Matrix::load(
+            source,
+            "output.weight",
+            config.vocab_size,
+            embedding,
+        )?)
+    } else {
+        None
+    };
+    Ok(DecoderWeights {
+        token_embd: Matrix::load(source, "token_embd.weight", config.vocab_size, embedding)?,
+        blocks,
+        output_norm: load_vector(source, "output_norm.weight", embedding)?,
+        output,
+    })
 }
 
 /// Loads block `index` by its llama tensor names.

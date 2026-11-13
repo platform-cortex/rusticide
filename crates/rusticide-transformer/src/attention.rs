@@ -75,8 +75,10 @@ pub struct Attention {
 impl Attention {
     /// # Errors
     ///
-    /// `InvalidConfig` when the key-value width overflows.
+    /// `InvalidConfig` when [`DecoderConfig::validate`] rejects `config` or
+    /// the key-value width overflows.
     pub fn new(config: &DecoderConfig) -> Result<Self> {
+        config.validate()?;
         #[expect(
             clippy::cast_precision_loss,
             reason = "head dimensions are far below 2^24, where f32 is exact"

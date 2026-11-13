@@ -6,6 +6,9 @@ use rusticide_model::{ModelError, Result};
 
 use crate::rope::RopeStyle;
 
+/// The `InvalidConfig` reason for dimensions whose products overflow `usize`.
+pub const DIMENSIONS_TOO_LARGE: &str = "model dimensions are too large";
+
 /// The activation of the gated feed-forward.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Activation {
@@ -39,8 +42,41 @@ impl DecoderConfig {
         self.head_count_kv
             .checked_mul(self.head_dim)
             .ok_or(ModelError::InvalidConfig {
-                reason: "model dimensions are too large",
+                reason: DIMENSIONS_TOO_LARGE,
             })
+    }
+
+    /// Checks the head layout attention divides by and rotates in pairs.
+    ///
+    /// # Errors
+    ///
+    /// `InvalidConfig` when the head count or head dimension is zero, the
+    /// head dimension is odd, the kv head count is zero or does not divide
+    /// the head count, or the embedding length is not the head count times
+    /// the head dimension.
+    pub fn validate(&self) -> Result<()> {
+        ensure(self.head_count != 0, "head count must be non-zero")?;
+        ensure(
+            self.head_count_kv != 0 && self.head_count.is_multiple_of(self.head_count_kv),
+            "kv head count must be non-zero and divide the head count",
+        )?;
+        ensure(
+            self.head_dim != 0 && self.head_dim.is_multiple_of(2),
+            "head dimension must be even and non-zero",
+        )?;
+        let width = self.head_count.checked_mul(self.head_dim);
+        ensure(
+            matches!(width, Some(width) if width == self.embedding_length),
+            "embedding length must equal the head count times the head dimension",
+        )
+    }
+}
+
+const fn ensure(condition: bool, reason: &'static str) -> Result<()> {
+    if condition {
+        Ok(())
+    } else {
+        Err(ModelError::InvalidConfig { reason })
     }
 }
 

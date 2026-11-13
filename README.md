@@ -61,8 +61,10 @@ Everything lives under `crates/`:
   `unsafe`.
 - `rusticide-model` -- the `Model` contract, architecture registry, KV cache
   and streaming generation loop.
-- `rusticide-llama` -- the llama model family: configuration, weights and the
-  forward pass.
+- `rusticide-transformer` -- the decoder-only transformer shared by the model
+  families: the `Decoder` forward pass, attention, feed-forward, norm and RoPE.
+- `rusticide-llama` -- the llama model family: configuration and weights by
+  tensor name, loaded into a `rusticide-transformer` `Decoder`.
 - `rusticide-fuzz` -- libFuzzer targets for the GGUF reader, the tokenizer and
   loading a llama model (`llama_load`); its own workspace, not published.
 

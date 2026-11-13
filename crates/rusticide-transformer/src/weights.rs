@@ -23,3 +23,12 @@ pub struct BlockWeights {
     pub attn_sub_norm: Option<Vec<f32>>,
     pub ffn_sub_norm: Option<Vec<f32>>,
 }
+
+/// Every weight of a decoder; `output` is `None` when tied to `token_embd`.
+#[derive(Debug)]
+pub struct DecoderWeights {
+    pub token_embd: Matrix,
+    pub blocks: Vec<BlockWeights>,
+    pub output_norm: Vec<f32>,
+    pub output: Option<Matrix>,
+}

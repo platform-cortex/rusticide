@@ -40,7 +40,8 @@ rusticide-tokenizer -> rusticide-io
 
 rusticide-kernels  -> (no workspace crates)
 rusticide-model    -> core, io, kernels, sampling, tokenizer
-rusticide-llama    -> core, io, kernels, model
+rusticide-transformer -> kernels, model
+rusticide-llama    -> core, io, model, transformer
 rusticide-ggml     -> core, kernels
 
 rusticide-fuzz (own workspace) -> io, llama, model, tokenizer
@@ -70,8 +71,11 @@ From the bottom up:
 5. **Models.** `rusticide-kernels` holds the f32 kernels, each with exactly
    one implementation; `rusticide-ggml` delegates to it. `rusticide-model`
    defines the `Model` contract, the architecture registry, the KV cache and
-   the streaming `generate` loop. `rusticide-llama` implements the llama
-   family against that contract. It does not register itself: the CLI registers
+   the streaming `generate` loop. `rusticide-transformer` holds the
+   decoder-only transformer every family shares: the `Decoder` that
+   implements that contract, attention, the feed-forward, RMS norm and RoPE.
+   `rusticide-llama` reads llama and qwen2 hyperparameters and weights by
+   tensor name and loads them into a `Decoder`. It does not register itself: the CLI registers
    it in `crates/rusticide/src/cli/registry.rs`, one line in one place.
 6. **Facade.** `rusticide` re-exports the public API of the layers below
    behind feature gates and embeds the CLI. Only `rusticide-core` is a
@@ -120,6 +124,7 @@ The crates fall in two groups.
 
 - `rusticide-kernels`
 - `rusticide-model`
+- `rusticide-transformer`
 - `rusticide-llama`
 
 **Legacy crates, rewired onto the new core:**

@@ -5,7 +5,7 @@
 [package]
 authors.workspace = true
 categories = ["algorithms"]
-description = "Llama-family architecture for rusticide: configuration, f32 weights and the forward pass"
+description = "Llama-family architecture for rusticide: configuration and weights by tensor name, loaded into the shared transformer decoder"
 edition.workspace = true
 keywords = ["llm", "llama", "inference", "gguf", "weights"]
 license.workspace = true
@@ -19,10 +19,8 @@ version.workspace = true
 testing = []
 
 [dependencies]
-rayon.workspace = true
 rusticide-core.workspace = true
 rusticide-io.workspace = true
-rusticide-kernels.workspace = true
 rusticide-model.workspace = true
 rusticide-transformer.workspace = true
 

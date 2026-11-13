@@ -157,3 +157,18 @@ fn batched_rotation_matches_one_token_at_a_time() {
         single_out[(tokens - 1) * WIDTH..]
     );
 }
+
+#[test]
+fn attention_rejects_an_invalid_config_instead_of_panicking() {
+    let mut config = config(WIDTH, 2, 1);
+    config.head_count_kv = 0;
+    match Attention::new(&config) {
+        Err(rusticide_model::ModelError::InvalidConfig { reason }) => {
+            assert_eq!(
+                reason,
+                "kv head count must be non-zero and divide the head count"
+            );
+        }
+        other => panic!("unexpected: {other:?}"),
+    }
+}

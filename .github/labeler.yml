@@ -95,6 +95,7 @@ model:
       - any-glob-to-any-file:
           - "crates/rusticide-io/**/*"
           - "crates/rusticide-tokenizer/**/*"
+          - "crates/rusticide-transformer/**/*"
 
 inference:
   - changed-files:

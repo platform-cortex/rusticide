@@ -5,7 +5,7 @@
 use rusticide_core::Tensor;
 use rusticide_io::GGUFValue;
 use rusticide_model::{InMemorySource, ModelError};
-use rusticide_transformer::{Activation, DecoderConfig, RopeStyle};
+use rusticide_transformer::{Activation, DIMENSIONS_TOO_LARGE, DecoderConfig, RopeStyle};
 
 use super::LlamaConfig;
 use crate::Variant;
@@ -83,7 +83,7 @@ fn config_rejects_zero_heads() {
 fn config_rejects_embedding_not_divisible_by_heads() {
     invalid(
         &with("llama.embedding_length", 5),
-        "embedding length must be divisible by the head count",
+        "embedding length must equal the head count times the head dimension",
     );
 }
 
@@ -145,14 +145,11 @@ fn config_rejects_values_that_do_not_fit_usize_arithmetic() {
             .with_metadata(key, GGUFValue::Uint64(1 << 63))
             .build()
     };
-    invalid(
-        &huge("llama.embedding_length"),
-        "model dimensions are too large",
-    );
+    invalid(&huge("llama.embedding_length"), DIMENSIONS_TOO_LARGE);
     let wide = TinySource::new()
         .with_metadata("llama.embedding_length", GGUFValue::Uint64(1 << 62))
         .build();
-    invalid(&wide, "model dimensions are too large");
+    invalid(&wide, DIMENSIONS_TOO_LARGE);
 }
 
 fn wide(entries: &[(&str, u64)]) -> InMemorySource {
@@ -171,13 +168,13 @@ fn config_rejects_an_embedding_square_that_overflows() {
         ("llama.attention.head_count", 1 << 16),
         ("llama.attention.head_count_kv", 1),
     ]);
-    invalid(&source, "model dimensions are too large");
+    invalid(&source, DIMENSIONS_TOO_LARGE);
 }
 
 #[test]
 fn config_rejects_an_embedding_by_feed_forward_product_that_overflows() {
     let source = wide(&[("llama.feed_forward_length", 1 << 63)]);
-    invalid(&source, "model dimensions are too large");
+    invalid(&source, DIMENSIONS_TOO_LARGE);
 }
 
 #[test]

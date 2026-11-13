@@ -4,7 +4,7 @@
 
 use rusticide_io::{GGUFValue, Metadata};
 use rusticide_model::{ModelError, ModelSource, Result};
-use rusticide_transformer::{Activation, DecoderConfig};
+use rusticide_transformer::{Activation, DIMENSIONS_TOO_LARGE, DecoderConfig};
 
 use crate::variant::Variant;
 
@@ -24,12 +24,13 @@ pub struct LlamaConfig {
     pub rms_norm_eps: f32,
 }
 
-const TOO_LARGE: &str = "model dimensions are too large";
 const DEFAULT_ROPE_FREQ_BASE: f32 = 10_000.0;
 const DEFAULT_RMS_NORM_EPS: f32 = 1e-5;
 
 fn to_usize(value: u64) -> Result<usize> {
-    usize::try_from(value).map_err(|_| ModelError::InvalidConfig { reason: TOO_LARGE })
+    usize::try_from(value).map_err(|_| ModelError::InvalidConfig {
+        reason: DIMENSIONS_TOO_LARGE,
+    })
 }
 
 fn required(value: Option<u64>, variant: Variant, suffix: &str) -> Result<usize> {
@@ -91,55 +92,47 @@ impl LlamaConfig {
     /// `token_embd.weight`, and `InvalidConfig` for any inconsistent or
     /// overflowing dimension.
     pub fn from_source(source: &dyn ModelSource, variant: Variant) -> Result<Self> {
-        let metadata = source.metadata();
-        let context_length = required(metadata.context_length(), variant, "context_length")?;
-        let embedding_length = required(metadata.embedding_length(), variant, "embedding_length")?;
-        let block_count = required(metadata.block_count(), variant, "block_count")?;
-        let feed_forward_length = required(
-            metadata.feed_forward_length(),
-            variant,
-            "feed_forward_length",
-        )?;
-        let head_count = required(metadata.head_count(), variant, "attention.head_count")?;
-        let head_count_kv = metadata.head_count_kv().map_or(Ok(head_count), to_usize)?;
-        ensure(head_count != 0, "head count must be non-zero")?;
+        let mut config = Self::read(source.metadata(), variant)?;
+        config.decoder().validate()?;
         ensure(
-            embedding_length % head_count == 0,
-            "embedding length must be divisible by the head count",
-        )?;
-        ensure(
-            head_count_kv != 0 && head_count % head_count_kv == 0,
-            "kv head count must be non-zero and divide the head count",
-        )?;
-        let head_dim = embedding_length / head_count;
-        ensure(
-            head_dim != 0 && head_dim % 2 == 0,
-            "head dimension must be even and non-zero",
-        )?;
-        ensure(
-            block_count != 0 && feed_forward_length != 0 && context_length != 0,
+            config.block_count != 0
+                && config.feed_forward_length != 0
+                && config.context_length != 0,
             "block count, feed-forward length and context length must be non-zero",
         )?;
         ensure(
             sizes_fit(
-                embedding_length,
-                feed_forward_length,
-                head_count_kv,
-                head_dim,
+                config.embedding_length,
+                config.feed_forward_length,
+                config.head_count_kv,
+                config.head_dim,
             ),
-            TOO_LARGE,
+            DIMENSIONS_TOO_LARGE,
         )?;
-        ensure_rope_dimension(metadata, variant, head_dim)?;
+        ensure_rope_dimension(source.metadata(), variant, config.head_dim)?;
+        config.vocab_size = vocab_size(source, config.embedding_length)?;
+        Ok(config)
+    }
+
+    /// The hyperparameters as `metadata` states them, unchecked; `vocab_size`
+    /// is left zero.
+    fn read(metadata: &Metadata, variant: Variant) -> Result<Self> {
+        let embedding_length = required(metadata.embedding_length(), variant, "embedding_length")?;
+        let head_count = required(metadata.head_count(), variant, "attention.head_count")?;
         Ok(Self {
             variant,
-            vocab_size: vocab_size(source, embedding_length)?,
+            vocab_size: 0,
             embedding_length,
-            block_count,
-            feed_forward_length,
+            block_count: required(metadata.block_count(), variant, "block_count")?,
+            feed_forward_length: required(
+                metadata.feed_forward_length(),
+                variant,
+                "feed_forward_length",
+            )?,
             head_count,
-            head_count_kv,
-            head_dim,
-            context_length,
+            head_count_kv: metadata.head_count_kv().map_or(Ok(head_count), to_usize)?,
+            head_dim: embedding_length.checked_div(head_count).unwrap_or(0),
+            context_length: required(metadata.context_length(), variant, "context_length")?,
             rope_freq_base: metadata.rope_freq_base().unwrap_or(DEFAULT_ROPE_FREQ_BASE),
             rms_norm_eps: metadata.rms_norm_eps().unwrap_or(DEFAULT_RMS_NORM_EPS),
         })

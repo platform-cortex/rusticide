@@ -7,7 +7,8 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 # rusticide-llama
 
 The llama architecture for rusticide: configuration read from GGUF metadata
-and the `f32` weights of every block. The `testing` feature exposes a tiny
+and the weights of every block, loaded by tensor name into the
+`rusticide-transformer` `Decoder`. The `testing` feature exposes a tiny
 in-memory model for tests in other crates.
 
 ## License
