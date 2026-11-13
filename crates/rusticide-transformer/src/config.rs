@@ -46,14 +46,16 @@ impl DecoderConfig {
             })
     }
 
-    /// Checks the head layout attention divides by and rotates in pairs.
+    /// Checks the sizes the decoder divides by, rotates in pairs or splits
+    /// rows by.
     ///
     /// # Errors
     ///
     /// `InvalidConfig` when the head count or head dimension is zero, the
     /// head dimension is odd, the kv head count is zero or does not divide
-    /// the head count, or the embedding length is not the head count times
-    /// the head dimension.
+    /// the head count, the embedding length is not the head count times
+    /// the head dimension, or the block count, feed-forward length or
+    /// context length is zero.
     pub fn validate(&self) -> Result<()> {
         ensure(self.head_count != 0, "head count must be non-zero")?;
         ensure(
@@ -67,7 +69,11 @@ impl DecoderConfig {
         let width = self.head_count.checked_mul(self.head_dim);
         ensure(
             matches!(width, Some(width) if width == self.embedding_length),
-            "embedding length must equal the head count times the head dimension",
+            "embedding length must be divisible by the head count: it must equal the head count times the head dimension",
+        )?;
+        ensure(
+            self.block_count != 0 && self.feed_forward_length != 0 && self.context_length != 0,
+            "block count, feed-forward length and context length must be non-zero",
         )
     }
 }

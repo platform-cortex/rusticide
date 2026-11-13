@@ -75,8 +75,9 @@ From the bottom up:
    decoder-only transformer every family shares: the `Decoder` that
    implements that contract, attention, the feed-forward, RMS norm and RoPE.
    `rusticide-llama` reads llama and qwen2 hyperparameters and weights by
-   tensor name and loads them into a `Decoder`. It does not register itself: the CLI registers
-   it in `crates/rusticide/src/cli/registry.rs`, one line in one place.
+   tensor name and loads them into a `Decoder`. It does not register
+   itself: the CLI registers it in `crates/rusticide/src/cli/registry.rs`,
+   one line in one place.
 6. **Facade.** `rusticide` re-exports the public API of the layers below
    behind feature gates and embeds the CLI. Only `rusticide-core` is a
    non-optional dependency, so a library consumer never builds `clap`.

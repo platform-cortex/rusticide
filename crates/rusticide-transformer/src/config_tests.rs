@@ -83,7 +83,33 @@ fn validate_rejects_an_odd_or_zero_head_dim() {
 
 #[test]
 fn validate_rejects_an_embedding_other_than_heads_times_head_dim() {
-    let reason = "embedding length must equal the head count times the head dimension";
+    let reason = "embedding length must be divisible by the head count: it must equal the head count times the head dimension";
     invalid(&heads(1, 1, 2), reason);
     invalid(&heads(1 << 40, 1, 1 << 40), reason);
+}
+
+#[test]
+fn validate_rejects_a_zero_block_count_feed_forward_or_context() {
+    let reason = "block count, feed-forward length and context length must be non-zero";
+    invalid(
+        &DecoderConfig {
+            block_count: 0,
+            ..config()
+        },
+        reason,
+    );
+    invalid(
+        &DecoderConfig {
+            feed_forward_length: 0,
+            ..config()
+        },
+        reason,
+    );
+    invalid(
+        &DecoderConfig {
+            context_length: 0,
+            ..config()
+        },
+        reason,
+    );
 }

@@ -95,12 +95,6 @@ impl LlamaConfig {
         let mut config = Self::read(source.metadata(), variant)?;
         config.decoder().validate()?;
         ensure(
-            config.block_count != 0
-                && config.feed_forward_length != 0
-                && config.context_length != 0,
-            "block count, feed-forward length and context length must be non-zero",
-        )?;
-        ensure(
             sizes_fit(
                 config.embedding_length,
                 config.feed_forward_length,

@@ -79,7 +79,7 @@ type Edit = fn(&mut DecoderConfig);
 #[test]
 fn new_rejects_a_config_attention_cannot_run_instead_of_panicking() {
     let kv = "kv head count must be non-zero and divide the head count";
-    let cases: [(Edit, &str); 4] = [
+    let cases: [(Edit, &str); 5] = [
         (|config| config.head_count_kv = 0, kv),
         (|config| config.head_count_kv = 3, kv),
         (
@@ -87,8 +87,12 @@ fn new_rejects_a_config_attention_cannot_run_instead_of_panicking() {
             "head dimension must be even and non-zero",
         ),
         (
+            |config| config.feed_forward_length = 0,
+            "block count, feed-forward length and context length must be non-zero",
+        ),
+        (
             |config| config.embedding_length = 6,
-            "embedding length must equal the head count times the head dimension",
+            "embedding length must be divisible by the head count: it must equal the head count times the head dimension",
         ),
     ];
     for (edit, expected) in cases {

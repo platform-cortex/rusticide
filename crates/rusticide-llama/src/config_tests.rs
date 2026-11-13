@@ -83,7 +83,7 @@ fn config_rejects_zero_heads() {
 fn config_rejects_embedding_not_divisible_by_heads() {
     invalid(
         &with("llama.embedding_length", 5),
-        "embedding length must equal the head count times the head dimension",
+        "embedding length must be divisible by the head count: it must equal the head count times the head dimension",
     );
 }
 
