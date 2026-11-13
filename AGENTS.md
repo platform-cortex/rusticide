@@ -14,13 +14,13 @@ file; edit here, never there.
 - Pure-Rust deep learning framework modelled on PyTorch's design (tensor core,
   torchgen-style operator schemas, a dispatch table routing ops to kernels).
   No C, C++, Python, BLAS or bindgen of vendored C.
-- Spec: `docs/plan/2026-08-21-rusticide-framework-design.md`. Current plan:
-  `docs/plan/2026-11-12-rusticide-bitnet-plan.md` (design:
-  `docs/plan/2026-11-12-rusticide-bitnet-design.md`), milestone 3 of
-  `rusticide run`; attention and RoPE (Milestone B in the runtime adapters
-  design) come after it.
-  Consult the spec for architecture decisions and update it when they
-  change.
+- Spec: `docs/plan/2026-08-21-rusticide-framework-design.md`. Last plan:
+  `docs/plan/2026-11-12-rusticide-bitnet-plan.md` (done; results in
+  `docs/plan/2026-11-12-rusticide-bitnet-design.md`). Next step: attention
+  and RoPE, Milestone B in
+  `docs/plan/2026-11-02-rusticide-runtime-adapters-design.md` (owner's
+  ordering, 2026-11-12). Consult the spec for architecture decisions and
+  update it when they change.
 - Plans are executed task-by-task with `superpowers:subagent-driven-development`;
   progress lives in `.superpowers/sdd/<plan>/progress.md`.
 
@@ -83,7 +83,8 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
   `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`,
   `qwen2.5-0.5b-instruct-q4_k_m.gguf` and `bitnet-b1.58-2b-4t-i2_s.gguf`; the
   bare `cargo test` skips them when it is unset or the build is unoptimized,
-  `mise run test:reference` fails fast instead. `mise run test` unsets it. Model files are never committed.
+  `mise run test:reference` fails fast instead. `mise run test` unsets it.
+  Model files are never committed.
 - Run `mise run bench:gate` before merging any change to kernels, scheduling
   or the forward pass; rewriting a baseline is a reviewed change. Baselines
   live in `crates/rusticide-bench/baselines/<machine>.json`; results go to

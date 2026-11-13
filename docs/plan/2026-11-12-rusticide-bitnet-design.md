@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # BitNet b1.58: milestone 3 of `rusticide run` (Design)
 
-Status: draft, 2026-11-12. Refines milestone 3 of the
+Status: done, 2026-11-13. Refines milestone 3 of the
 [`rusticide run` design](2026-10-22-rusticide-run-design.md), which still
 holds for what this milestone delivers; this document records what has
 changed since and the calls made for it. Branch `feat/bitnet`.
@@ -209,4 +209,116 @@ file:line references.
 
 ## Results
 
-Filled in by the milestone's last task.
+Done 2026-11-13 on `feat/bitnet`.
+
+### Parity with bitnet.cpp
+
+`mise run test:reference` against the fixture captured from bitnet.cpp
+`1876a3e` (32 greedy ids per prompt, BOS 128000 in the prompt ids):
+
+- "The capital of France is": 32/32 tokens.
+- "def fibonacci(n):": 32/32 tokens.
+- The Portuguese prompt about the capital of Brazil (non-ASCII in the
+  fixture): 32/32 tokens.
+- Same result on the M1 Pro (`neon` adapter and
+  `RUSTICIDE_KERNELS=portable`) and on the iMac Pro (`avx2` and
+  `portable`). Every prompt tokenizes to bitnet.cpp's ids; no near tie
+  was needed anywhere.
+- Near-tie threshold: the harness uses 0.25 (`NEAR_TIE` in
+  `crates/rusticide/tests/reference.rs`, since `12c2290`, 2026-10-31,
+  because llama.cpp's own backends disagree on Qwen2.5), not the 0.1 this
+  design's Goals and the run design state. BitNet used no near tie.
+  TinyLlama matches 3/3 prompts in full; Qwen2.5 stops at near ties with
+  margins 0.0764, 0.0276, 0.0300 and 0.0280, all below 0.1 as well.
+- Reference commit: the design first named bitnet.cpp `3b04140`; its
+  submodule (`355c0c4d1`) builds the FFN with SiLU, so the reference is
+  `1876a3e` with submodule `1f86f058d`, the last squared-ReLU pin
+  (corrected in `aca6c4c`; the plan text still says `3b04140` and is
+  superseded).
+
+### Refactor checks
+
+- Logit digest: per reference prompt, a hash of the f32 logit bits for
+  TinyLlama and Qwen2.5 after a one-shot prefill, after a two-chunk
+  prefill (second chunk at `start > 0`) and after 8 decode steps,
+  recorded on the M1 (`neon`) at `f87fd24` before the first move. Tasks
+  3, 4, 5, 9 and 10 each matched it bit for bit; the chunked and one-shot
+  prefill hashes are equal on every line.
+- `test:reference` for TinyLlama and Qwen2.5 is unchanged by the move.
+- `bench:gate` against the pre-milestone baselines, every existing row
+  within tolerance (exit 0): iMac Pro at the end of the refactor (Task 5)
+  and again in Task 12 (1-min load 1.95); M1 Pro on a quiet machine in
+  Task 12 before any baseline was re-recorded (1-min load 1.40, AC).
+  M1 e2e rows, baseline -> measured tokens/s: TinyLlama prefill 470.73 ->
+  472.18, decode 105.54 -> 109.67; Qwen2.5 prefill 993.77 -> 993.07,
+  decode 144.57 -> 145.65.
+
+### Speed
+
+Tokens/s from the re-recorded baselines (median of three sessions' bests).
+The bench decodes 64 tokens after "The history of the Roman Empire" and
+prefills a fixed paragraph of 143 BitNet tokens. Threads: rayon's default,
+one per logical CPU (8 on the M1 Pro, 20 on the iMac Pro). `i2_s` runs the
+portable kernel under every adapter.
+
+- M1 Pro (`neon`): BitNet decode 8.65, prefill 10.92. The 2 tokens/s
+  decode target is met (7.94 at the Task 10 checkpoint).
+- iMac Pro, Xeon W-2150B (`avx2`): BitNet decode 13.22, prefill
+  26.81. An outside service on the iMac Pro (a launchd job restarting a
+  node process at up to 150% CPU) depressed some sessions: a first
+  back-to-back `bench:baseline` drifted 25-30% down from its first
+  session, so the baseline was recorded with `rusticide-bench baseline`
+  from three clean sessions (1-min load under 2.5 and no process above
+  50% CPU at start); one disturbed session was discarded.
+- bitnet.cpp on the iMac Pro (`1876a3e`, the fixture build, Apple clang
+  17, CPU only, x86 `i2_s` mad kernel), 1-min load 1.91 at start:
+  `llama-bench -m bitnet-b1.58-2b-4t-i2_s.gguf -p 143 -n 64 -t 10,20 -r 5`.
+  `-t 10`: pp143 252.46 +- 54.77, tg64 42.24 +- 3.54. `-t 20`: pp143
+  230.47 +- 86.10, tg64 29.55 +- 13.34. A second run on a quiet machine
+  (load 0.82): `-t 10` pp143 204.18 +- 48.55, tg64 42.34 +- 3.04; `-t 20`
+  pp143 192.99 +- 95.54, tg64 30.56 +- 12.69. Decode is stable; prefill
+  spreads widely in both runs.
+- Against bitnet.cpp's best (`-t 10`, the higher pp143), rusticide
+  reaches 31% of its decode and 11% of its prefill on the iMac Pro.
+- There is no bitnet.cpp figure for the M1: the published file is the
+  x86 128-weight `i2_s` layout, the legacy fork's ARM path reads another
+  layout, and HEAD's ARM path is broken (see "Reference: which bitnet.cpp").
+- Kernel rows (G weights/s, one thread): `I2_S` row 3.73 on the M1 Pro and
+  8.68 on the iMac Pro, against `Q8_0` row 59.69 and 30.10 with
+  their SIMD kernels; `rows8` is no faster than `row`, which is why
+  prefill barely beats decode.
+- Peak memory on the M1 Pro: 4.4 GB (Task 10 checkpoint).
+
+### Follow-ups
+
+- SIMD `i2_s` kernels (NEON `dotprod`, AVX2) with a multi-row path:
+  the gap to bitnet.cpp above is the kernel.
+- Attention and RoPE: Milestone B of the runtime adapters design, the
+  next step (owner's ordering, 2026-11-12).
+- Align the near-tie threshold stated in the designs (0.1) with the
+  harness (0.25), or tighten the harness.
+- Deferred minors for the final review to triage (from the task ledger):
+  - `Decoder::new` does not cross-check `DecoderWeights` shapes against
+    the config (the loaders do).
+  - Error order for multi-fault metadata changed; a `1 << 40` test
+    assumes a 64-bit `usize`; a zero token count into `layout.rs` is not
+    checked.
+  - Docs: `round_row_to_i8`'s parity bound (`|x*s| <= 4194303`, default
+    NaNs); `Q8Input.kind` "set by quantize"; `Weights::Ternary` row bytes
+    are a multiple of 32; `Q8Kind::Row` takes its max over whole blocks
+    (equal for BitNet widths).
+  - `Ternary` `copy_row` scales the whole `out` and repeats
+    `apply_trailer`'s loop; a misleading `InvalidTensor` message for a
+    short buffer (unreachable through `rusticide-io`).
+  - Upstream `dequantize_row_i2_s` maps code 3 to 0 while its mad kernel
+    gives +2; rusticide gives +2 everywhere (real files have no code 3).
+  - Two sources for the metadata key prefix (`Family.architecture` and
+    `general.architecture`); the transformer's hyperparameter reader and
+    loader are tested only through `llama` and `bitnet`; `LlamaConfig`
+    mirrors `DecoderConfig`; no `bitnet` test loads a real `i2_s` tensor.
+  - `mise run fuzz run <target> -- -max_total_time=60` drops the inner
+    `--`.
+  - Lines over 80 columns: `docs/ARCHITECTURE.md:167` and the
+    `llama_load.rs` fuzz target doc.
+  - `rusticide-bench` composes the `llama` + `bitnet` registry itself,
+    the same line as the facade's `models::registry()`.
