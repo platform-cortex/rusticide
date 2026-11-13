@@ -177,26 +177,30 @@ fn attention_rejects_an_invalid_config_instead_of_panicking() {
 
 #[test]
 fn attn_sub_norm_normalizes_each_token_over_all_heads_before_the_output() {
-    let config = config(4, 2, 1);
+    let config = config(4, 2, 2);
     let weight = vec![1.0, 2.0, 3.0, 4.0];
     let mut block = block(Projections {
         query: zeros(&[4, 4]),
-        key: picker(2, 4, &[(0, 0), (1, 1)]),
-        value: picker(2, 4, &[(0, 0), (1, 1)]),
+        key: identity(4),
+        value: identity(4),
         output: identity(4),
         biases: [None, None, None],
     });
     block.attn_sub_norm = Some(weight.clone());
     let (first, second) = ([1.0, 2.0, 3.0, 4.0], [5.0, -1.0, 0.5, 2.0]);
     let mut attention = Attention::new(&config).unwrap();
-    let mut cache = KvCache::new(1, 2, config.context_length);
+    let mut cache = KvCache::new(1, 4, config.context_length);
     let input: Vec<f32> = first.iter().chain(&second).copied().collect();
     let mut output = vec![0.0; input.len()];
     attention
         .forward(&block, &mut cache, 0, 0, &input, &mut output)
         .unwrap();
-    let mean = [f32::midpoint(1.0, 5.0), f32::midpoint(2.0, -1.0)];
-    let expected: Vec<f32> = [[1.0, 2.0, 1.0, 2.0], [mean[0], mean[1], mean[0], mean[1]]]
+    let mean: Vec<f32> = first
+        .iter()
+        .zip(&second)
+        .map(|(a, b)| f32::midpoint(*a, *b))
+        .collect();
+    let expected: Vec<f32> = [first.to_vec(), mean]
         .iter()
         .flat_map(|mixed| {
             let norm = normed(mixed);

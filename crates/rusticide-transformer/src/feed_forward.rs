@@ -10,7 +10,7 @@ use crate::layout::to_token_major;
 use crate::norm::normalize_rows;
 use crate::weights::BlockWeights;
 
-/// The `SwiGLU` feed-forward network for a batch of tokens, with reusable
+/// The gated feed-forward network for a batch of tokens, with reusable
 /// scratch buffers. `gate`, `up` and `down` are laid out by weight row.
 #[derive(Debug)]
 pub struct FeedForward {

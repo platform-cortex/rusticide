@@ -96,6 +96,7 @@ model:
           - "crates/rusticide-io/**/*"
           - "crates/rusticide-tokenizer/**/*"
           - "crates/rusticide-transformer/**/*"
+          - "crates/rusticide-bitnet/**/*"
 
 inference:
   - changed-files:

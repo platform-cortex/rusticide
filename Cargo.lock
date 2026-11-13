@@ -296,6 +296,7 @@ version = "0.9.0"
 dependencies = [
  "anyhow",
  "clap",
+ "rusticide-bitnet",
  "rusticide-core",
  "rusticide-dispatch",
  "rusticide-io",
@@ -328,6 +329,18 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "rusticide-bitnet"
+version = "0.9.0"
+dependencies = [
+ "half",
+ "rusticide-core",
+ "rusticide-io",
+ "rusticide-llama",
+ "rusticide-model",
+ "rusticide-transformer",
 ]
 
 [[package]]

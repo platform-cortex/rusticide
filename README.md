@@ -65,6 +65,8 @@ Everything lives under `crates/`:
   families: the `Decoder` forward pass, attention, feed-forward, norm and RoPE.
 - `rusticide-llama` -- the llama model family: configuration and weights by
   tensor name, loaded into a `rusticide-transformer` `Decoder`.
+- `rusticide-bitnet` -- the BitNet b1.58 family (`bitnet-b1.58`): squared
+  ReLU, sub-norms and ternary `i2_s` weights on the same `Decoder`.
 - `rusticide-fuzz` -- libFuzzer targets for the GGUF reader, the tokenizer and
   loading a llama model (`llama_load`); its own workspace, not published.
 

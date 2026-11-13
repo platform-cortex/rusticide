@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Greedy parity with llama.cpp on the canonical `TinyLlama` and Qwen2.5
-//! models. Skips unless `RUSTICIDE_MODELS` names a directory holding the
-//! model files, and in unoptimized builds, where a real model is too slow.
+//! models, and the `BitNet` b1.58 prompts tokenized as bitnet.cpp does.
+//! Skips unless `RUSTICIDE_MODELS` names a directory holding the model
+//! files, and in unoptimized builds, where a real model is too slow.
 
 use std::error::Error;
 use std::path::PathBuf;
@@ -17,6 +18,7 @@ use serde::Deserialize;
 
 const TINYLLAMA: &str = include_str!("fixtures/tinyllama-1.1b-chat-v1.0.Q4_K_M.json");
 const QWEN2: &str = include_str!("fixtures/qwen2.5-0.5b-instruct-q4_k_m.json");
+const BITNET: &str = include_str!("fixtures/bitnet-b1.58-2b-4t-i2_s.json");
 /// A logit gap below this is quantization noise, not a disagreement. Both
 /// engines multiply weights against activations rounded to 8 bits (ggml
 /// `Q8_0`/`Q8_K`), and llama.cpp's own CPU and Metal backends already pick
@@ -58,13 +60,18 @@ fn top_two(logits: &[f32]) -> ((usize, f32), f32) {
     (best, second)
 }
 
-fn check_case(model: &mut dyn Model, tokenizer: &Tokenizer, case: &Case) -> TestResult {
+fn check_prompt_tokens(tokenizer: &Tokenizer, case: &Case) -> TestResult {
     assert_eq!(
         tokenizer.encode(&case.prompt)?,
         case.prompt_tokens,
         "prompt tokens for {:?}",
         case.prompt
     );
+    Ok(())
+}
+
+fn check_case(model: &mut dyn Model, tokenizer: &Tokenizer, case: &Case) -> TestResult {
+    check_prompt_tokens(tokenizer, case)?;
     model.reset();
     let mut logits = Vec::new();
     for (position, &token) in case.prompt_tokens.iter().enumerate() {
@@ -145,4 +152,18 @@ fn tinyllama_matches_llama_cpp_greedy() -> TestResult {
 #[test]
 fn qwen2_matches_llama_cpp_greedy() -> TestResult {
     check_fixture(QWEN2)
+}
+
+#[test]
+fn bitnet_prompts_tokenize_like_bitnet_cpp() -> TestResult {
+    let Some(models) = models_dir() else {
+        return Ok(());
+    };
+    let fixture: Fixture = serde_json::from_str(BITNET)?;
+    let source = GgufFile::load(models.join(&fixture.model.file))?;
+    let tokenizer = Tokenizer::from_gguf(source.metadata())?;
+    for case in &fixture.cases {
+        check_prompt_tokens(&tokenizer, case)?;
+    }
+    Ok(())
 }

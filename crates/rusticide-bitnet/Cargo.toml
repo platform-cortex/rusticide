@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+authors.workspace = true
+categories = ["algorithms"]
+description = "BitNet b1.58 architecture for rusticide: ternary weights, squared ReLU and sub-norms, loaded into the shared transformer decoder"
+edition.workspace = true
+keywords = ["llm", "bitnet", "inference", "gguf", "ternary"]
+license.workspace = true
+name = "rusticide-bitnet"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+rusticide-model.workspace = true
+rusticide-transformer.workspace = true
+
+[dev-dependencies]
+half.workspace = true
+rusticide-core.workspace = true
+rusticide-io.workspace = true
+rusticide-llama = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

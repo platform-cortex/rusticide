@@ -129,6 +129,21 @@ impl TinySource {
         self
     }
 
+    /// Renames the model to `architecture`: sets `general.architecture` and
+    /// moves every stock `llama.*` hyperparameter under the new prefix.
+    #[must_use]
+    pub fn with_architecture(self, architecture: &str) -> Self {
+        let mut source = self.with_metadata("general.architecture", text(architecture));
+        for (key, value) in metadata_pairs() {
+            if let Some(suffix) = key.strip_prefix("llama.") {
+                source = source
+                    .without_metadata(&key)
+                    .with_metadata(&format!("{architecture}.{suffix}"), value);
+            }
+        }
+        source
+    }
+
     /// Replaces (or adds) a tensor.
     #[must_use]
     pub fn with_tensor(mut self, name: &str, tensor: Tensor) -> Self {

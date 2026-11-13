@@ -108,11 +108,11 @@ impl Attention {
         })
     }
 
-    /// Writes `attn_output(sub_norm(attention(input)))` for the tokens of `input`, one
-    /// row each, at positions `start..`, storing their keys and values in
-    /// `cache` under `layer`. Each token attends only to the rows cached up
-    /// to and including its own. The sub-norm applies to each token's mixed
-    /// heads only when the block has one.
+    /// Writes `attn_output(sub_norm(attention(input)))` for the tokens of
+    /// `input`, one row each, at positions `start..`, storing their keys and
+    /// values in `cache` under `layer`. Each token attends only to the rows
+    /// cached up to and including its own. The sub-norm applies to each
+    /// token's mixed heads only when the block has one.
     ///
     /// # Errors
     ///

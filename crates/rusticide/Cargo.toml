@@ -30,6 +30,7 @@ dispatch = ["dep:rusticide-dispatch"]
 io = ["dep:rusticide-io"]
 models = [
   "io",
+  "dep:rusticide-bitnet",
   "dep:rusticide-model",
   "dep:rusticide-llama",
   "dep:rusticide-tokenizer",
@@ -40,6 +41,7 @@ schema = ["dep:rusticide-schema"]
 [dependencies]
 anyhow = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
+rusticide-bitnet = { workspace = true, optional = true }
 rusticide-core.workspace = true
 rusticide-dispatch = { workspace = true, optional = true }
 rusticide-io = { workspace = true, optional = true }

@@ -91,6 +91,7 @@ regex-automata = { version = ">=0.4,<0.5" }
 reqwest = { version = ">=0,<1.0.0", features = ["json", "__tls"] }
 ### Workspaced Crates
 rusticide-alloc = { path = "crates/rusticide-alloc", version = "0.9.0" }
+rusticide-bitnet = { path = "crates/rusticide-bitnet", version = "0.9.0" }
 rusticide-core = { path = "crates/rusticide-core", version = "0.9.0" }
 rusticide-dispatch = { path = "crates/rusticide-dispatch", version = "0.9.0" }
 rusticide-ggml = { path = "crates/rusticide-ggml", version = "0.9.0" }

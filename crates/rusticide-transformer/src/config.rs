@@ -80,7 +80,7 @@ impl DecoderConfig {
     }
 }
 
-const fn ensure(condition: bool, reason: &'static str) -> Result<()> {
+pub(crate) const fn ensure(condition: bool, reason: &'static str) -> Result<()> {
     if condition {
         Ok(())
     } else {

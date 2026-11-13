@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_transformer::RopeStyle;
+use rusticide_transformer::{Activation, Family, RopeStyle};
 
 /// A model family sharing the llama forward pass.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +34,19 @@ impl Variant {
     pub const fn requires_attention_bias(self) -> bool {
         matches!(self, Self::Qwen2)
     }
+
+    /// The shared decoder's view of this family: a gated `SiLU`
+    /// feed-forward and no sub-norms.
+    #[must_use]
+    pub const fn family(self) -> Family {
+        Family {
+            architecture: self.architecture(),
+            rope: self.rope(),
+            activation: Activation::Silu,
+            requires_attention_bias: self.requires_attention_bias(),
+            sub_norms: false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -48,5 +61,24 @@ mod tests {
         assert_eq!(Variant::Qwen2.rope(), RopeStyle::HalfSplit);
         assert!(!Variant::Llama.requires_attention_bias());
         assert!(Variant::Qwen2.requires_attention_bias());
+    }
+
+    #[test]
+    fn variants_describe_their_decoder_family() {
+        let family = |architecture, rope, requires_attention_bias| Family {
+            architecture,
+            rope,
+            activation: Activation::Silu,
+            requires_attention_bias,
+            sub_norms: false,
+        };
+        assert_eq!(
+            Variant::Llama.family(),
+            family("llama", RopeStyle::Adjacent, false)
+        );
+        assert_eq!(
+            Variant::Qwen2.family(),
+            family("qwen2", RopeStyle::HalfSplit, true)
+        );
     }
 }

@@ -5,6 +5,9 @@
 use super::registry;
 
 #[test]
-fn registry_lists_llama_and_qwen2() {
-    assert_eq!(registry().architectures(), vec!["llama", "qwen2"]);
+fn registry_lists_llama_qwen2_and_bitnet() {
+    assert_eq!(
+        registry().architectures(),
+        vec!["llama", "qwen2", "bitnet-b1.58"]
+    );
 }

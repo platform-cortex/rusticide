@@ -27,6 +27,7 @@ rusticide (facade)
   |-- rusticide-tokenizer                 feature "models"
   |-- rusticide-sampling                  feature "models"
   |-- rusticide-model, rusticide-llama    feature "models"
+  |-- rusticide-bitnet                    feature "models"
   `-- clap, anyhow                        feature "cli"
 
 rusticide-core -> rusticide-alloc
@@ -40,8 +41,9 @@ rusticide-tokenizer -> rusticide-io
 
 rusticide-kernels  -> (no workspace crates)
 rusticide-model    -> core, io, kernels, sampling, tokenizer
-rusticide-transformer -> kernels, model
+rusticide-transformer -> io, kernels, model
 rusticide-llama    -> core, io, model, transformer
+rusticide-bitnet   -> model, transformer
 rusticide-ggml     -> core, kernels
 
 rusticide-fuzz (own workspace) -> io, llama, model, tokenizer
@@ -73,11 +75,13 @@ From the bottom up:
    defines the `Model` contract, the architecture registry, the KV cache and
    the streaming `generate` loop. `rusticide-transformer` holds the
    decoder-only transformer every family shares: the `Decoder` that
-   implements that contract, attention, the feed-forward, RMS norm and RoPE.
-   `rusticide-llama` reads llama and qwen2 hyperparameters and weights by
-   tensor name and loads them into a `Decoder`. It does not register
-   itself: the CLI registers it in `crates/rusticide/src/cli/registry.rs`,
-   one line in one place.
+   implements that contract, attention, the feed-forward, RMS norm and RoPE,
+   plus the reader of the common hyperparameters and the weight loader by
+   tensor name, both driven by a family's `Family` description.
+   `rusticide-llama` (llama, qwen2) and `rusticide-bitnet` (`bitnet-b1.58`:
+   squared ReLU, sub-norms, ternary `i2_s` weights) are thin families over
+   it. Neither registers itself: the facade registers both in
+   `crates/rusticide/src/models.rs`, one line per family.
 6. **Facade.** `rusticide` re-exports the public API of the layers below
    behind feature gates and embeds the CLI. Only `rusticide-core` is a
    non-optional dependency, so a library consumer never builds `clap`.
@@ -127,6 +131,7 @@ The crates fall in two groups.
 - `rusticide-model`
 - `rusticide-transformer`
 - `rusticide-llama`
+- `rusticide-bitnet`
 
 **Legacy crates, rewired onto the new core:**
 

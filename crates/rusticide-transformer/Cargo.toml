@@ -17,12 +17,12 @@ version.workspace = true
 
 [dependencies]
 rayon.workspace = true
+rusticide-io.workspace = true
 rusticide-kernels.workspace = true
 rusticide-model.workspace = true
 
 [dev-dependencies]
 rusticide-core.workspace = true
-rusticide-io.workspace = true
 
 [lints]
 workspace = true

@@ -14,15 +14,6 @@ const BOS: u32 = 256;
 const EOS: u32 = 257;
 const VOCAB: usize = BYTE_TOKENS + 2;
 
-const HYPERPARAMETERS: [(&str, u32); 6] = [
-    ("context_length", 16),
-    ("embedding_length", 4),
-    ("block_count", 1),
-    ("feed_forward_length", 8),
-    ("attention.head_count", 2),
-    ("attention.head_count_kv", 1),
-];
-
 const BIASES: [(&str, usize); 3] = [
     ("blk.0.attn_q.bias", 4),
     ("blk.0.attn_k.bias", 2),
@@ -61,12 +52,7 @@ impl TinySource {
     /// `<|endoftext|>` (BOS) and `<|im_end|>` (EOS), with no merges.
     #[must_use]
     pub fn qwen2() -> Self {
-        let mut source = Self::new().with_metadata("general.architecture", text("qwen2"));
-        for (suffix, value) in HYPERPARAMETERS {
-            source = source
-                .without_metadata(&format!("llama.{suffix}"))
-                .with_metadata(&format!("qwen2.{suffix}"), GGUFValue::Uint32(value));
-        }
+        let mut source = Self::new().with_architecture("qwen2");
         for key in DROPPED_TOKENIZER_KEYS {
             source = source.without_metadata(key);
         }

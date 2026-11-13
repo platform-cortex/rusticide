@@ -76,7 +76,7 @@ fn reports_an_unknown_architecture() {
     let error = run_source(&source, &args(Some(1)), &mut Vec::new(), &mut Vec::new()).unwrap_err();
     assert_eq!(
         format!("{error:#}"),
-        "unknown architecture gptj; supported: llama, qwen2"
+        "unknown architecture gptj; supported: llama, qwen2, bitnet-b1.58"
     );
 }
 
