@@ -3,83 +3,83 @@
   "adapter": "avx2",
   "metrics": {
     "e2e/bitnet/decode": {
-      "best": 13.21683885456251,
+      "best": 13.577599240084174,
       "tolerance": 0.05
     },
     "e2e/bitnet/prefill": {
-      "best": 26.80771345762991,
+      "best": 26.501298720791873,
       "tolerance": 0.05
     },
     "e2e/qwen2.5/decode": {
-      "best": 56.41056167366047,
+      "best": 56.656289839967144,
       "tolerance": 0.05
     },
     "e2e/qwen2.5/prefill": {
-      "best": 654.0965915215475,
+      "best": 585.1358580797314,
       "tolerance": 0.05
     },
     "e2e/tinyllama/decode": {
-      "best": 43.04690688266636,
+      "best": 42.48428144814978,
       "tolerance": 0.05
     },
     "e2e/tinyllama/prefill": {
-      "best": 403.0206270838247,
+      "best": 345.53126962915394,
       "tolerance": 0.05
     },
     "kernel/I2_S/row": {
-      "best": 8681026663.7376,
+      "best": 7991923385.371898,
       "tolerance": 0.05
     },
     "kernel/I2_S/rows8": {
-      "best": 8803641553.280836,
+      "best": 8385828139.9007635,
       "tolerance": 0.05
     },
     "kernel/Q4_0/row": {
-      "best": 6599475264.212527,
+      "best": 5597311625.043299,
       "tolerance": 0.05
     },
     "kernel/Q4_0/rows8": {
-      "best": 6352939138.9498,
+      "best": 5474878226.034223,
       "tolerance": 0.05
     },
     "kernel/Q4_K/row": {
-      "best": 41058532064.5298,
+      "best": 37920518054.35546,
       "tolerance": 0.05
     },
     "kernel/Q4_K/rows8": {
-      "best": 65508146849.17349,
+      "best": 63372077882.78162,
       "tolerance": 0.05
     },
     "kernel/Q5_0/row": {
-      "best": 21497495731.64338,
+      "best": 20311126090.509727,
       "tolerance": 0.05
     },
     "kernel/Q5_0/rows8": {
-      "best": 41837971355.10291,
+      "best": 40463293984.51627,
       "tolerance": 0.05
     },
     "kernel/Q6_K/row": {
-      "best": 18385487568.296513,
+      "best": 16386115835.584517,
       "tolerance": 0.05
     },
     "kernel/Q6_K/rows8": {
-      "best": 46477921151.30729,
+      "best": 42704581284.86362,
       "tolerance": 0.05
     },
     "kernel/Q8_0/row": {
-      "best": 30095480176.29739,
+      "best": 29560242992.381702,
       "tolerance": 0.05
     },
     "kernel/Q8_0/rows8": {
-      "best": 45566646671.66231,
+      "best": 43273517851.71361,
       "tolerance": 0.05
     },
     "kernel/q8/block": {
-      "best": 378150446.8761791,
+      "best": 376115901.9452962,
       "tolerance": 0.05
     },
     "kernel/q8/superblock": {
-      "best": 465965079.9660424,
+      "best": 431936930.98545337,
       "tolerance": 0.05
     }
   }
