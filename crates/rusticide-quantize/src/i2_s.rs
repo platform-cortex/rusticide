@@ -29,11 +29,16 @@ pub fn i2_s_scale(trailer: &[u8]) -> Option<f32> {
         .map(|bytes| f32::from_le_bytes(*bytes))
 }
 
+/// Multiplies dequantized `I2_S` codes by the tensor's weight scale.
+pub fn i2_s_apply_scale(values: &mut [f32], scale: f32) {
+    for value in values {
+        *value *= scale;
+    }
+}
+
 pub(crate) fn apply_trailer(trailer: &[u8], values: &mut [f32]) {
     if let Some(scale) = i2_s_scale(trailer) {
-        for value in values {
-            *value *= scale;
-        }
+        i2_s_apply_scale(values, scale);
     }
 }
 

@@ -5,7 +5,7 @@
 use half::f16;
 use rusticide_core::{DType, Tensor};
 use rusticide_kernels::{Adapter, QuantKernel, Weights, active, matvec_batch};
-use rusticide_quantize::{BlockFormat, i2_s_scale};
+use rusticide_quantize::{BlockFormat, i2_s_apply_scale, i2_s_scale};
 
 use crate::error::{ModelError, Result};
 use crate::source::ModelSource;
@@ -43,8 +43,8 @@ impl Matrix {
     /// `MissingTensor` or `ShapeMismatch` when the source lacks the tensor or
     /// its shape is not `[rows, cols]`, `InvalidConfig` when `cols` is zero,
     /// `MissingKernel` when no kernel reads its block format,
-    /// `InvalidTensor` when a ternary tensor's scale is not finite, and a
-    /// tensor error for unsupported dtypes.
+    /// `InvalidTensor` when a ternary tensor's scale is missing or not
+    /// finite, and a tensor error for unsupported dtypes.
     pub fn load(source: &dyn ModelSource, name: &str, rows: usize, cols: usize) -> Result<Self> {
         Self::load_on(source, name, rows, cols, active())
     }
@@ -139,10 +139,10 @@ impl Matrix {
             } => {
                 let row = data.chunks_exact(*row_bytes).nth(index);
                 row.map(|row| {
-                    format.dequantize_row(row, out);
-                    for value in out.iter_mut() {
-                        *value *= scale;
-                    }
+                    let span = self.cols.min(out.len());
+                    let written = &mut out[..span];
+                    format.dequantize_row(row, written);
+                    i2_s_apply_scale(written, *scale);
                 })
                 .is_some()
             }
@@ -188,12 +188,17 @@ impl Matrix {
 /// A ternary tensor's weight scale, read from its trailer once at load: a
 /// non-finite one would turn every product into NaN.
 fn ternary_scale(name: &str, trailer: &[u8]) -> Result<f32> {
-    i2_s_scale(trailer)
-        .filter(|scale| scale.is_finite())
-        .ok_or_else(|| ModelError::InvalidTensor {
-            name: name.to_owned(),
-            reason: "its scale is missing or not finite",
-        })
+    let invalid = |reason| ModelError::InvalidTensor {
+        name: name.to_owned(),
+        reason,
+    };
+    let scale =
+        i2_s_scale(trailer).ok_or_else(|| invalid("its data is too short to hold its scale"))?;
+    if scale.is_finite() {
+        Ok(scale)
+    } else {
+        Err(invalid("its scale is not finite"))
+    }
 }
 
 fn require_kernel(

@@ -36,7 +36,8 @@ pub enum Weights<'a> {
         row_bytes: usize,
     },
     /// `I2_S` ternary rows of `row_bytes` bytes each, row-major, and the
-    /// tensor's weight scale.
+    /// tensor's weight scale. `row_bytes` is a multiple of 32: a row is
+    /// whole 128-weight blocks.
     Ternary {
         data: &'a [u8],
         row_bytes: usize,

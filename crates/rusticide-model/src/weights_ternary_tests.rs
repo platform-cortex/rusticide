@@ -55,6 +55,15 @@ fn copy_row_decodes_code_minus_one_times_the_scale() {
     assert!(!matrix.copy_row(2, &mut row));
 }
 
+#[test]
+fn copy_row_scales_only_the_values_it_writes() {
+    let matrix = Matrix::load(&i2_s_source(SCALE), "b", 2, 128).unwrap();
+    let mut out = vec![7.0; 130];
+    assert!(matrix.copy_row(0, &mut out));
+    assert_eq!(out[..128], lanes([SCALE; 4])[..]);
+    assert_eq!(out[128..], [7.0, 7.0]);
+}
+
 /// Activations `k / 2` with `max |k| = 127`: the row divisor is exactly 2
 /// and every quant is `k`; the integer dot is exact in `f32` here.
 #[test]
@@ -86,12 +95,12 @@ fn a_non_finite_scale_is_an_invalid_tensor() {
         let error = Matrix::load(&i2_s_source(scale), "b", 2, 128).unwrap_err();
         assert!(matches!(
             &error,
-            ModelError::InvalidTensor { name, reason: "its scale is missing or not finite" }
+            ModelError::InvalidTensor { name, reason: "its scale is not finite" }
                 if name == "b"
         ));
         assert_eq!(
             error.to_string(),
-            "tensor b is invalid: its scale is missing or not finite"
+            "tensor b is invalid: its scale is not finite"
         );
     }
 }
@@ -100,7 +109,10 @@ fn a_non_finite_scale_is_an_invalid_tensor() {
 fn a_trailer_too_short_for_a_scale_is_an_invalid_tensor() {
     assert!(matches!(
         ternary_scale("t", &[0; 3]),
-        Err(ModelError::InvalidTensor { name, .. }) if name == "t"
+        Err(ModelError::InvalidTensor {
+            name,
+            reason: "its data is too short to hold its scale",
+        }) if name == "t"
     ));
     assert_eq!(ternary_scale("t", &2.5_f32.to_le_bytes()).unwrap(), 2.5);
 }

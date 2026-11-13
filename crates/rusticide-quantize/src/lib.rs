@@ -18,5 +18,5 @@ mod q8_0;
 pub use error::QuantizeError;
 pub use format::{BlockFormat, block_format, formats};
 pub use half_bits::read_f16_le;
-pub use i2_s::i2_s_scale;
+pub use i2_s::{i2_s_apply_scale, i2_s_scale};
 pub use q4_0::Quantizer;
