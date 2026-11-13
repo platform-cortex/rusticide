@@ -84,7 +84,7 @@ fn check_case(model: &mut dyn Model, tokenizer: &Tokenizer, case: &Case) -> Test
             let margin = top1_logit - top2_logit;
             assert!(
                 margin < NEAR_TIE,
-                "{:?}: step {step} got {top1}, llama.cpp {expected}, margin {margin}",
+                "{:?}: step {step} got {top1}, reference {expected}, margin {margin}",
                 case.prompt
             );
             println!(
@@ -99,7 +99,7 @@ fn check_case(model: &mut dyn Model, tokenizer: &Tokenizer, case: &Case) -> Test
         let ((top1, _), _) = top_two(&logits);
         assert!(
             tokenizer.is_end_of_generation(u32::try_from(top1)?),
-            "{:?}: llama.cpp stopped, rusticide continues with {top1}",
+            "{:?}: the reference stopped, rusticide continues with {top1}",
             case.prompt
         );
     }
