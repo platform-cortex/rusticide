@@ -21,8 +21,9 @@ const QWEN2: &str = include_str!("fixtures/qwen2.5-0.5b-instruct-q4_k_m.json");
 const BITNET: &str = include_str!("fixtures/bitnet-b1.58-2b-4t-i2_s.json");
 /// A logit gap below this is quantization noise, not a disagreement. Both
 /// engines multiply weights against activations rounded to 8 bits (ggml
-/// `Q8_0`/`Q8_K`), and llama.cpp's own CPU and Metal backends already pick
-/// different Qwen2.5 tokens within three steps on two of these prompts.
+/// `Q8_0`/`Q8_K`; bitnet.cpp's `I8_S` for `BitNet`), and llama.cpp's own CPU
+/// and Metal backends already pick different Qwen2.5 tokens within three
+/// steps on two of these prompts.
 const NEAR_TIE: f32 = 0.25;
 const N_PREDICT: usize = 32;
 

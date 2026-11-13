@@ -14,6 +14,8 @@ pub const Q8_BLOCK: usize = 32;
 /// scale, its values rounded to `i8`, and the sum of those `i8` values.
 #[derive(Debug, Default, Clone)]
 pub struct Q8Input {
+    /// The scheme of the last [`Self::quantize`], which sets it; it tells
+    /// [`Self::dequantize`] how to read the scales.
     pub(crate) kind: Q8Kind,
     pub(crate) scales: Vec<f32>,
     pub(crate) quants: Vec<i8>,
@@ -42,6 +44,8 @@ pub enum Q8Kind {
     /// bitnet.cpp's legacy `I8_S`: one f32 divisor `127 / max|x|` for the
     /// whole row, its `max` taken in f64 from `1e-5`, stored once per 32
     /// elements; quants span `[-128, 127]`, so no group kernel reads them.
+    /// The `max` covers the whole blocks only; the C takes it over all `n`
+    /// elements, the same value for `BitNet`'s widths (multiples of 32).
     Row,
 }
 

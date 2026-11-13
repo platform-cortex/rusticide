@@ -115,6 +115,11 @@ const fn round_to_i8(value: f32) -> i8 {
     value.round_ties_even().clamp(-127.0, 127.0) as i8
 }
 
+/// Rounds half to even and saturates to `[-128, 127]`. This equals the
+/// reference's `nearest_int` and clamp for `|value| <= 4194303`, where its
+/// `+ 12582912.f` trick is exact, a bound a row's scaled values (near
+/// `[-127, 127]`) never reach. A NaN gives 0, as `nearest_int` gives for
+/// the default quiet NaN.
 #[expect(
     clippy::cast_possible_truncation,
     reason = "the saturating cast is the reference's clamp to [-128, 127], and \

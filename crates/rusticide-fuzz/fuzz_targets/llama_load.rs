@@ -7,8 +7,9 @@
 //!
 //! `rusticide_llama::load`, `load_qwen2` and `rusticide_bitnet::load` trust
 //! hyperparameters and tensor shapes from an untrusted file: dimensions may
-//! be zero, overflow, or disagree with the tensors. Loading must return a `ModelError` rather than
-//! panic, and a model that does load must survive one forward pass.
+//! be zero, overflow, or disagree with the tensors. Loading must return a
+//! `ModelError` rather than panic, and a model that does load must survive
+//! one forward pass.
 
 #![no_main]
 

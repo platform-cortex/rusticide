@@ -169,8 +169,8 @@ The data-access methods (`from_slice`, `get`, `set`, `to_vec`, `ndim`,
 core's construction and inspection API (the analogue of `torch.tensor`,
 `.item` and `.tolist`). They are reachable through the facade, used by
 `rusticide-io`, `rusticide-quantize`, `rusticide-sampling` and
-`rusticide-ggml`, and SP2 keeps them. The binding rulings are recorded in the "Rulings that bind
-later work" section of the
+`rusticide-ggml`, and SP2 keeps them. The binding rulings are recorded in the
+"Rulings that bind later work" section of the
 [foundation plan](plan/2026-08-21-rusticide-foundation-plan.md).
 
 ## Workspace mechanics
