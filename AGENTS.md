@@ -100,7 +100,9 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 
 ## CI/CD and releases
 
-- `.github/workflows/cicd.yml` runs on every push and pull request: `version`
+- `.github/workflows/cicd.yml` runs on a push or pull request to `main` and
+  on `workflow_dispatch` -- a push to a feature branch runs nothing, so
+  prove a branch with `gh workflow run cicd.yml --ref <branch>`: `version`
   (GitVersion, `version.yml`), then `gates` (`mise run ci:quick`, then on
   an x86_64 runner `rusticide version` must print `kernels: avx2`), `arm`
   (the same gate on Linux arm64 with no `+dotprod`: adapters are selected at
