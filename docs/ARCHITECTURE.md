@@ -46,7 +46,7 @@ rusticide-llama    -> core, io, model, transformer
 rusticide-bitnet   -> model, transformer
 rusticide-ggml     -> core, kernels
 
-rusticide-fuzz (own workspace) -> io, llama, model, tokenizer
+rusticide-fuzz (own workspace) -> bitnet, io, llama, model, tokenizer
 ```
 
 The `cli` feature enables `schema`, `dispatch` and `models`; `models` enables

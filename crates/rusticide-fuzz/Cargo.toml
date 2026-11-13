@@ -23,6 +23,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+rusticide-bitnet = { path = "../rusticide-bitnet" }
 rusticide-io = { path = "../rusticide-io" }
 rusticide-llama = { path = "../rusticide-llama" }
 rusticide-model = { path = "../rusticide-model" }

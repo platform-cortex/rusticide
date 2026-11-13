@@ -68,7 +68,8 @@ Everything lives under `crates/`:
 - `rusticide-bitnet` -- the BitNet b1.58 family (`bitnet-b1.58`): squared
   ReLU, sub-norms and ternary `i2_s` weights on the same `Decoder`.
 - `rusticide-fuzz` -- libFuzzer targets for the GGUF reader, the tokenizer and
-  loading a llama model (`llama_load`); its own workspace, not published.
+  loading a llama, qwen2 or bitnet-b1.58 model (`llama_load`); its own
+  workspace, not published.
 
 ## Getting started
 
