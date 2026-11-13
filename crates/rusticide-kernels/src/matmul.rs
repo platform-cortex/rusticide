@@ -10,6 +10,7 @@ use rayon::prelude::*;
 
 use crate::facade::dot;
 use crate::group_views::GroupViews;
+use crate::portable::ternary::dot_ternary_matrix;
 use crate::q8_input::{Q8Input, Q8Kind};
 use crate::quant_kernel::QuantKernel;
 
@@ -34,6 +35,13 @@ pub enum Weights<'a> {
         data: &'a [u8],
         row_bytes: usize,
     },
+    /// `I2_S` ternary rows of `row_bytes` bytes each, row-major, and the
+    /// tensor's weight scale.
+    Ternary {
+        data: &'a [u8],
+        row_bytes: usize,
+        scale: f32,
+    },
 }
 
 impl Weights<'_> {
@@ -43,6 +51,9 @@ impl Weights<'_> {
         let (len, width) = match self {
             Self::Dense { data, cols } => (data.len(), *cols),
             Self::Blocks {
+                data, row_bytes, ..
+            }
+            | Self::Ternary {
                 data, row_bytes, ..
             } => (data.len(), *row_bytes),
         };
@@ -55,7 +66,7 @@ impl Weights<'_> {
     /// Rows a task must keep together: every run starts on a group.
     fn group_rows(&self) -> usize {
         match self {
-            Self::Dense { .. } => 1,
+            Self::Dense { .. } | Self::Ternary { .. } => 1,
             Self::Blocks { kernel, .. } => kernel.group_rows(),
         }
     }
@@ -64,6 +75,7 @@ impl Weights<'_> {
         match self {
             Self::Dense { .. } => None,
             Self::Blocks { kernel, .. } => Some(kernel.activation()),
+            Self::Ternary { .. } => Some(Q8Kind::Row),
         }
     }
 
@@ -101,6 +113,15 @@ impl Weights<'_> {
             } => {
                 let quantized = input.quantized(kernel.activation());
                 kernel.compute_rows(data, *row_bytes, first_row, quantized, views, out);
+            }
+            Self::Ternary {
+                data,
+                row_bytes,
+                scale,
+            } => {
+                let rows = data.get(first_row.saturating_mul(*row_bytes)..);
+                let quantized = input.quantized(Q8Kind::Row);
+                dot_ternary_matrix(rows.unwrap_or_default(), *row_bytes, *scale, quantized, out);
             }
         }
     }
@@ -232,3 +253,7 @@ mod tests;
 #[cfg(test)]
 #[path = "matmul_group_tests.rs"]
 mod group_tests;
+
+#[cfg(test)]
+#[path = "matmul_ternary_tests.rs"]
+mod ternary_tests;

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
-use rusticide_kernels::{Q8Input, Q8Kind, QuantKernel, active};
+use rusticide_kernels::{Q8Input, Q8Kind, QuantKernel, active, dot_ternary_matrix};
 use rusticide_quantize::{BlockFormat, formats};
 
 use crate::{BenchError, Plan, Sample, throughput};
@@ -72,12 +72,33 @@ fn synthetic(format: &BlockFormat, blocks: usize) -> Result<Vec<u8>, BenchError>
         })
 }
 
+/// The single-thread product that reads a benchmark matrix.
+#[derive(Debug, Clone, Copy)]
+enum Product {
+    Blocks(&'static QuantKernel),
+    /// A format with a trailer: ternary rows at unit weight scale.
+    Ternary,
+}
+
+impl Product {
+    const fn activation(self) -> Q8Kind {
+        match self {
+            Self::Blocks(kernel) => kernel.activation(),
+            Self::Ternary => Q8Kind::Row,
+        }
+    }
+
+    fn run(self, matrix: &[u8], row_bytes: usize, inputs: &[Q8Input], out: &mut [f32]) {
+        match self {
+            Self::Blocks(kernel) => kernel.dot_matrix(matrix, row_bytes, inputs, out),
+            Self::Ternary => dot_ternary_matrix(matrix, row_bytes, 1.0, inputs, out),
+        }
+    }
+}
+
 /// A synthetic `ROWS` x `columns` matrix of `format`, prepared for the
-/// active adapter, its row length in bytes, and the kernels that read it.
-fn layout(
-    format: &BlockFormat,
-    columns: u32,
-) -> Result<(Vec<u8>, usize, &'static QuantKernel), BenchError> {
+/// active adapter, its row length in bytes, and the product that reads it.
+fn layout(format: &BlockFormat, columns: u32) -> Result<(Vec<u8>, usize, Product), BenchError> {
     let columns = count(columns);
     let row_bytes = format
         .row_bytes(columns)
@@ -86,31 +107,38 @@ fn layout(
             columns,
         })?;
     let mut matrix = synthetic(format, count(ROWS) * columns / format.block_size())?;
+    if format.trailer_bytes() > 0 {
+        return Ok((matrix, row_bytes, Product::Ternary));
+    }
     let kernel = active().prepare_matrix(format.type_id(), &mut matrix, row_bytes);
-    Ok((matrix, row_bytes, require_kernel(format, kernel)?))
+    Ok((
+        matrix,
+        row_bytes,
+        Product::Blocks(require_kernel(format, kernel)?),
+    ))
 }
 
 fn row_metric(format: &BlockFormat, plan: &Plan) -> Result<Sample, BenchError> {
-    let (matrix, row_bytes, kernel) = layout(format, COLUMNS)?;
-    let input = [quantized(kernel.activation(), 2)];
+    let (matrix, row_bytes, product) = layout(format, COLUMNS)?;
+    let input = [quantized(product.activation(), 2)];
     let mut out = [0.0_f32; count(ROWS)];
     plan.sample(|| {
         sustained(plan.budget, row_work(), || {
-            kernel.dot_matrix(black_box(&matrix), row_bytes, black_box(&input), &mut out);
+            product.run(black_box(&matrix), row_bytes, black_box(&input), &mut out);
             black_box(&out);
         })
     })
 }
 
 fn rows8_metric(format: &BlockFormat, plan: &Plan) -> Result<Sample, BenchError> {
-    let (matrix, row_bytes, kernel) = layout(format, COLUMNS)?;
+    let (matrix, row_bytes, product) = layout(format, COLUMNS)?;
     let inputs: Vec<Q8Input> = (3..3 + BATCH)
-        .map(|seed| quantized(kernel.activation(), seed))
+        .map(|seed| quantized(product.activation(), seed))
         .collect();
     let mut out = [0.0_f32; count(ROWS * BATCH)];
     plan.sample(|| {
         sustained(plan.budget, row_work() * f64::from(BATCH), || {
-            kernel.dot_matrix(black_box(&matrix), row_bytes, black_box(&inputs), &mut out);
+            product.run(black_box(&matrix), row_bytes, black_box(&inputs), &mut out);
             black_box(&out);
         })
     })
@@ -127,8 +155,8 @@ fn quantize_metric(kind: Q8Kind, plan: &Plan) -> Result<Sample, BenchError> {
     })
 }
 
-/// Single-thread kernel throughputs for every block format with a kernel
-/// and both activation quantizers.
+/// Single-thread kernel throughputs for every block format and the block
+/// and super-block activation quantizers.
 ///
 /// # Errors
 ///
@@ -137,11 +165,7 @@ pub fn kernel_metrics(plan: &Plan) -> Result<BTreeMap<String, Sample>, BenchErro
     let mut metrics = BTreeMap::new();
     for format in formats() {
         let name = format.name();
-        let row = match row_metric(format, plan) {
-            Err(BenchError::MissingKernel { .. }) => continue,
-            row => row?,
-        };
-        metrics.insert(format!("kernel/{name}/row"), row);
+        metrics.insert(format!("kernel/{name}/row"), row_metric(format, plan)?);
         metrics.insert(format!("kernel/{name}/rows8"), rows8_metric(format, plan)?);
     }
     metrics.insert(

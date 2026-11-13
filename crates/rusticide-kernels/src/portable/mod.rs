@@ -7,6 +7,7 @@ pub(crate) mod int_dot;
 mod norm;
 mod q8;
 mod rope;
+pub(crate) mod ternary;
 
 use rusticide_simd::float;
 

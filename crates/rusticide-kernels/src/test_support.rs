@@ -78,3 +78,33 @@ pub(crate) fn pseudo_random_values(len: usize, seed: u32) -> Vec<f32> {
         })
         .collect()
 }
+
+/// Deterministic `I2_S` rows of `blocks` blocks, every code in every lane.
+#[cfg(test)]
+pub(crate) fn ternary_rows(blocks: usize, seed: u32) -> Vec<u8> {
+    let mut state = seed;
+    (0..blocks * 32)
+        .map(|_| {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            state.to_be_bytes()[0]
+        })
+        .collect()
+}
+
+/// `sum((code - 1) * q)` of an `I2_S` row, from the format's own decoder.
+#[cfg(test)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "decoded weights are the small integers -1..=2"
+)]
+pub(crate) fn naive_ternary_dot(row: &[u8], input: &Q8Input) -> i32 {
+    let mut values = vec![0.0; row.len() * 4];
+    rusticide_quantize::block_format(36)
+        .unwrap()
+        .dequantize_row(row, &mut values);
+    values
+        .iter()
+        .zip(&input.quants)
+        .map(|(&value, &q)| value as i32 * i32::from(q))
+        .sum()
+}

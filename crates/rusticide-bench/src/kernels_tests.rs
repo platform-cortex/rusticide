@@ -6,7 +6,9 @@ use std::time::Duration;
 
 use rusticide_quantize::block_format;
 
-use super::{kernel_metrics, layout, require_kernel, synthetic};
+use rusticide_kernels::Q8Kind;
+
+use super::{Product, kernel_metrics, layout, require_kernel, synthetic};
 use crate::{BenchError, Plan};
 
 #[test]
@@ -18,7 +20,7 @@ fn kernel_metrics_cover_every_format_and_both_activations() {
     let metrics = kernel_metrics(&plan).unwrap();
     let mut keys: Vec<&str> = metrics.keys().map(String::as_str).collect();
     keys.sort_unstable();
-    let mut expected: Vec<String> = ["Q4_0", "Q5_0", "Q8_0", "Q4_K", "Q6_K"]
+    let mut expected: Vec<String> = ["Q4_0", "Q5_0", "Q8_0", "Q4_K", "Q6_K", "I2_S"]
         .iter()
         .flat_map(|name| [format!("kernel/{name}/row"), format!("kernel/{name}/rows8")])
         .chain(["kernel/q8/block".into(), "kernel/q8/superblock".into()])
@@ -71,7 +73,9 @@ fn synthetic_data_too_large_for_memory_is_an_error() {
 #[test]
 fn the_matrix_is_prepared_for_the_active_adapter() {
     let format = block_format(12).unwrap();
-    let (matrix, _, kernel) = layout(format, 256).unwrap();
+    let (matrix, _, Product::Blocks(kernel)) = layout(format, 256).unwrap() else {
+        panic!("not a block kernel");
+    };
     let active = rusticide_kernels::active();
     assert!(std::ptr::eq(kernel, active.quant_kernel(12).unwrap()));
     let row_major = synthetic(format, matrix.len() / format.block_bytes()).unwrap();
@@ -79,4 +83,14 @@ fn the_matrix_is_prepared_for_the_active_adapter() {
         matrix == row_major,
         !matches!(active.name(), "neon" | "avx2")
     );
+}
+
+#[test]
+fn a_ternary_matrix_stays_row_major_and_takes_row_activations() {
+    let format = block_format(36).unwrap();
+    let (matrix, row_bytes, product) = layout(format, 256).unwrap();
+    assert!(matches!(product, Product::Ternary));
+    assert_eq!(product.activation(), Q8Kind::Row);
+    assert_eq!(row_bytes, 64);
+    assert_eq!(matrix, synthetic(format, matrix.len() / 32).unwrap());
 }

@@ -27,6 +27,8 @@ pub enum ModelError {
     MissingKernel { format: &'static str },
     #[error("invalid config: {reason}")]
     InvalidConfig { reason: &'static str },
+    #[error("tensor {name} is invalid: {reason}")]
+    InvalidTensor { name: String, reason: &'static str },
     #[error("tensor {name} has shape {got:?}, expected {expected:?}")]
     ShapeMismatch {
         name: String,

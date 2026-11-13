@@ -5,7 +5,7 @@
 use half::f16;
 use rusticide_core::{DType, Tensor};
 use rusticide_kernels::{Adapter, QuantKernel, Weights, active, matvec_batch};
-use rusticide_quantize::BlockFormat;
+use rusticide_quantize::{BlockFormat, i2_s_scale};
 
 use crate::error::{ModelError, Result};
 use crate::source::ModelSource;
@@ -29,6 +29,12 @@ enum Storage {
         data: Vec<u8>,
         row_bytes: usize,
     },
+    Ternary {
+        format: &'static BlockFormat,
+        data: Vec<u8>,
+        row_bytes: usize,
+        scale: f32,
+    },
 }
 
 impl Matrix {
@@ -36,8 +42,9 @@ impl Matrix {
     ///
     /// `MissingTensor` or `ShapeMismatch` when the source lacks the tensor or
     /// its shape is not `[rows, cols]`, `InvalidConfig` when `cols` is zero,
-    /// `MissingKernel` when no kernel reads its block format, and a tensor
-    /// error for unsupported dtypes.
+    /// `MissingKernel` when no kernel reads its block format,
+    /// `InvalidTensor` when a ternary tensor's scale is not finite, and a
+    /// tensor error for unsupported dtypes.
     pub fn load(source: &dyn ModelSource, name: &str, rows: usize, cols: usize) -> Result<Self> {
         Self::load_on(source, name, rows, cols, active())
     }
@@ -60,6 +67,17 @@ impl Matrix {
             .quantized_tensor(name)?
             .and_then(|(format, data)| Some((format, data, format.row_bytes(cols)?)));
         let storage = match blocks {
+            Some((format, data, row_bytes)) if format.trailer_bytes() > 0 => {
+                let (data, trailer) = data
+                    .split_at_checked(rows.saturating_mul(row_bytes))
+                    .unwrap_or((data, &[]));
+                Storage::Ternary {
+                    format,
+                    data: data.to_vec(),
+                    row_bytes,
+                    scale: ternary_scale(name, trailer)?,
+                }
+            }
             Some((format, data, row_bytes)) => {
                 let mut data = data.to_vec();
                 let kernel = adapter.prepare_matrix(format.type_id(), &mut data, row_bytes);
@@ -92,7 +110,10 @@ impl Matrix {
     /// Whether the weights are held block-quantized.
     #[must_use]
     pub const fn is_quantized(&self) -> bool {
-        matches!(self.storage, Storage::Blocks { .. })
+        matches!(
+            self.storage,
+            Storage::Blocks { .. } | Storage::Ternary { .. }
+        )
     }
 
     /// Decodes row `index` into `out`; `false` when the row does not exist.
@@ -110,6 +131,21 @@ impl Matrix {
             } => kernel.visit_row(data, *row_bytes, index, |row| {
                 format.dequantize_row(row, out);
             }),
+            Storage::Ternary {
+                format,
+                data,
+                row_bytes,
+                scale,
+            } => {
+                let row = data.chunks_exact(*row_bytes).nth(index);
+                row.map(|row| {
+                    format.dequantize_row(row, out);
+                    for value in out.iter_mut() {
+                        *value *= scale;
+                    }
+                })
+                .is_some()
+            }
         }
     }
 
@@ -135,8 +171,29 @@ impl Matrix {
                 data,
                 row_bytes: *row_bytes,
             },
+            Storage::Ternary {
+                data,
+                row_bytes,
+                scale,
+                ..
+            } => Weights::Ternary {
+                data,
+                row_bytes: *row_bytes,
+                scale: *scale,
+            },
         }
     }
+}
+
+/// A ternary tensor's weight scale, read from its trailer once at load: a
+/// non-finite one would turn every product into NaN.
+fn ternary_scale(name: &str, trailer: &[u8]) -> Result<f32> {
+    i2_s_scale(trailer)
+        .filter(|scale| scale.is_finite())
+        .ok_or_else(|| ModelError::InvalidTensor {
+            name: name.to_owned(),
+            reason: "its scale is missing or not finite",
+        })
 }
 
 fn require_kernel(
@@ -187,3 +244,7 @@ fn widen(tensor: &Tensor) -> Result<Vec<f32>> {
 #[cfg(test)]
 #[path = "weights_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "weights_ternary_tests.rs"]
+mod ternary_tests;

@@ -12,9 +12,12 @@ fn kernel(format: &BlockFormat) -> &'static QuantKernel {
     active().quant_kernel(format.type_id()).unwrap()
 }
 
-/// Every format with a row kernel; `I2_S` has none until its product lands.
+/// Every format a [`QuantKernel`] reads: a format with a trailer is
+/// ternary and multiplies through `Weights::Ternary` instead.
 fn kernel_formats() -> impl Iterator<Item = &'static BlockFormat> {
-    formats().iter().filter(|format| format.name() != "I2_S")
+    formats()
+        .iter()
+        .filter(|format| format.trailer_bytes() == 0)
 }
 
 fn quantized(len: usize, seed: u32, kind: Q8Kind) -> Q8Input {
@@ -28,7 +31,7 @@ fn reference_dot(values: &[f32], input: &[f32]) -> f32 {
 }
 
 #[test]
-fn portable_has_a_kernel_for_every_block_format_but_i2_s() {
+fn portable_has_a_kernel_for_every_format_but_the_ternary_one() {
     let found: Vec<(&str, Option<(u32, Q8Kind)>)> = formats()
         .iter()
         .map(|format| {

@@ -70,6 +70,7 @@ fn reference(weights: &Weights<'_>, input: &[f32]) -> Vec<f32> {
             let rows = data.chunks_exact(*row_bytes);
             rows.map(|row| kernel.dot_row(row, &quantized)).collect()
         }
+        Weights::Ternary { .. } => unreachable!("see matmul_ternary_tests"),
     }
 }
 

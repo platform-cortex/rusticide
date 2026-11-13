@@ -45,5 +45,6 @@ pub use facade::{
     silu_assign, softmax,
 };
 pub use matmul::{Weights, matmul_batch, matvec_batch};
+pub use portable::ternary::dot_ternary_matrix;
 pub use q8_input::{Q8_BLOCK, Q8Input, Q8Kind};
 pub use quant_kernel::QuantKernel;

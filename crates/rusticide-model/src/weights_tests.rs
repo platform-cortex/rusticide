@@ -177,14 +177,6 @@ fn i2_s_source(shape: &[usize]) -> InMemorySource {
 }
 
 #[test]
-fn an_i2_s_matrix_has_no_kernel_yet() {
-    assert!(matches!(
-        Matrix::load(&i2_s_source(&[1, 128]), "b", 1, 128),
-        Err(ModelError::MissingKernel { format: "I2_S" })
-    ));
-}
-
-#[test]
 fn an_i2_s_matrix_whose_rows_split_blocks_is_widened_and_scaled() {
     let matrix = Matrix::load(&i2_s_source(&[2, 64]), "b", 2, 64).unwrap();
     assert!(!matrix.is_quantized());
