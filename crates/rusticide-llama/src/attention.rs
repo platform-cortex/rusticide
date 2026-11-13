@@ -5,11 +5,9 @@
 use rayon::prelude::*;
 use rusticide_kernels::{add_assign, dot_rows, matmul_batch, mix_rows, softmax};
 use rusticide_model::{KvCache, Result};
+use rusticide_transformer::{PARALLEL_MIN_TOKENS, RopeStyle, to_token_major};
 
-use crate::batch::PARALLEL_MIN_TOKENS;
 use crate::config::LlamaConfig;
-use crate::layout::to_token_major;
-use crate::variant::RopeStyle;
 use crate::weights::BlockWeights;
 
 /// The head layout of grouped-query attention.

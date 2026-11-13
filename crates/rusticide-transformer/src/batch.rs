@@ -9,10 +9,10 @@ use rayon::prelude::*;
 
 /// The smallest batch whose per-token work runs on the pool; a single
 /// decode token always stays on the calling thread.
-pub(crate) const PARALLEL_MIN_TOKENS: usize = 2;
+pub const PARALLEL_MIN_TOKENS: usize = 2;
 
 /// Calls `op(token, row)` for each `width`-wide row of `rows`.
-pub(crate) fn for_each_row(
+pub fn for_each_row(
     rows: &mut [f32],
     width: usize,
     tokens: usize,
@@ -31,7 +31,7 @@ pub(crate) fn for_each_row(
 
 /// Calls `op(row, matching)` for each `width`-wide row of `rows` and the
 /// row of `other` at the same index.
-pub(crate) fn zip_rows(
+pub fn zip_rows(
     rows: &mut [f32],
     other: &[f32],
     width: usize,

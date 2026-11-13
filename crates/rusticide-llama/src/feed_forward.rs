@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_kernels::{matmul_batch, mul_assign, silu_assign};
+use rusticide_transformer::{to_token_major, zip_rows};
 
-use crate::batch::zip_rows;
 use crate::config::LlamaConfig;
-use crate::layout::to_token_major;
 use crate::weights::BlockWeights;
 
 /// The `SwiGLU` feed-forward network for a batch of tokens, with reusable

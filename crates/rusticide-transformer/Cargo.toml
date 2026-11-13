@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior and contributors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+authors.workspace = true
+categories = ["algorithms"]
+description = "Decoder-only transformer building blocks for rusticide: batch helpers, RoPE styles and normalization"
+edition.workspace = true
+keywords = ["llm", "transformer", "inference", "rope", "normalization"]
+license.workspace = true
+name = "rusticide-transformer"
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+rayon.workspace = true
+rusticide-kernels.workspace = true
+
+[lints]
+workspace = true

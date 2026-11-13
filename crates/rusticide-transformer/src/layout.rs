@@ -6,7 +6,7 @@ use crate::batch::for_each_row;
 
 /// Rewrites a [`rusticide_kernels::matmul_batch`] output, `by_row[row *
 /// tokens + token]`, as one row per token into `by_token`.
-pub(crate) fn to_token_major(by_row: &[f32], tokens: usize, by_token: &mut [f32]) {
+pub fn to_token_major(by_row: &[f32], tokens: usize, by_token: &mut [f32]) {
     if tokens == 1 {
         // The decode path: both layouts agree, and a plain copy is several
         // times faster than the strided gather below.

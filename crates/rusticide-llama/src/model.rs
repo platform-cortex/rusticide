@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use rusticide_kernels::{add_assign, mul_assign, rms_norm};
+use rusticide_kernels::add_assign;
 use rusticide_model::{KvCache, Model, ModelError, ModelSource, Result};
+use rusticide_transformer::{normalize, normalize_rows, zip_rows};
 
 use crate::attention::Attention;
-use crate::batch::zip_rows;
 use crate::config::LlamaConfig;
 use crate::feed_forward::FeedForward;
 use crate::variant::Variant;
@@ -45,13 +45,6 @@ impl Llama {
             weights,
         })
     }
-}
-
-/// Writes `rms_norm(input) * weight` into `output`.
-fn normalize(input: &[f32], weight: &[f32], eps: f32, output: &mut [f32]) {
-    output.copy_from_slice(input);
-    rms_norm(output, eps);
-    mul_assign(output, weight);
 }
 
 impl Model for Llama {
@@ -143,13 +136,6 @@ impl Llama {
         }
         Ok(())
     }
-}
-
-/// [`normalize`] applied to each `weight`-wide row of `input`.
-fn normalize_rows(input: &[f32], weight: &[f32], eps: f32, tokens: usize, output: &mut [f32]) {
-    zip_rows(output, input, weight.len(), tokens, |out, row| {
-        normalize(row, weight, eps, out);
-    });
 }
 
 /// The registry [`rusticide_model::Loader`] for the `llama` architecture.

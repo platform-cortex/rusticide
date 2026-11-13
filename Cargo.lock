@@ -388,6 +388,7 @@ dependencies = [
  "rusticide-kernels",
  "rusticide-model",
  "rusticide-tokenizer",
+ "rusticide-transformer",
 ]
 
 [[package]]
@@ -446,6 +447,14 @@ dependencies = [
  "regex-automata",
  "rusticide-io",
  "thiserror",
+]
+
+[[package]]
+name = "rusticide-transformer"
+version = "0.9.0"
+dependencies = [
+ "rayon",
+ "rusticide-kernels",
 ]
 
 [[package]]
