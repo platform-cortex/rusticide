@@ -245,18 +245,18 @@ execucao portavel com 2.47.
 - Q8_0: row 59.60 vs 35.41 (1.7x), rows8 96.93 vs 35.71 (2.7x).
 - Qwen2.5 prefill 962.4 vs 416.4 (2.3x); decode 135.9 vs 124.9.
 - TinyLlama prefill 459.9 vs 166.1 (2.8x); decode 102.4 vs 90.7.
-- Contra o baseline anterior (gravado em `44ff283`) toda linha de kernel
-  fica dentro de 0.5%, e as linhas e2e ficam 2-7% abaixo: decode do
-  Qwen2.5 145.9 -> 135.9. Um A/B na mesma sessao de `44ff283` contra a
-  arvore final, tres execucoes alternadas de cada, da o mesmo decode
-  (melhor 140.1 vs 139.6), entao a queda e a carga de fundo deste desktop
-  naquele dia, nao o codigo. A selecao em tempo de execucao nao custa
-  nada mensuravel ao M1, como [Sequencia](#sequencia) pretendia.
+- Contra o baseline anterior (gravado em `44ff283`) toda linha de kernel fica
+  dentro de 1.5% (os kernels de formato dentro de 0.8%), e as linhas e2e ficam
+  2-7% abaixo: decode do Qwen2.5 145.9 -> 135.9. Um A/B na mesma sessao de
+  `44ff283` contra a arvore final, tres execucoes alternadas de cada, da o mesmo
+  decode (melhor 140.1 vs 139.6), entao a queda e a carga de fundo deste desktop
+  naquele dia, nao o codigo. A selecao em tempo de execucao nao custa nada
+  mensuravel ao M1, como [Sequencia](#sequencia) pretendia.
 - O llama.cpp nao foi remedido no M1; vale a referencia do adaptador NEON
   (`llama-bench -ngl 0 -t 6 -p 128,512 -n 0 -r 5`, BLAS e Metal
   carregados): TinyLlama pp128 318.2, Qwen2.5 pp128 599.3 e pp512 722.8.
-  O prefill de hoje e 145% do pp128 do TinyLlama e 133% do pp512 do
-  Qwen2.5.
+  Contra o numero mais rapido do llama.cpp para cada modelo (pp128 para
+  o TinyLlama, pp512 para o Qwen2.5), o prefill de hoje e 145% e 133%.
 
 ### iMac Pro, Xeon W-2150B (10 nucleos / 20 threads), `avx2`
 
@@ -297,9 +297,11 @@ tamanhos de prompt iguais ao prompt do bench contados pelo
   -DGGML_BLAS=OFF -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON
   -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_METAL=OFF -DLLAMA_CURL=OFF`),
   medido com `llama-bench -m <gguf> -t 20 -p <161|142> -n 0 -r 10
-  -o json`. No mesmo dia, carga 1.81-1.91: TinyLlama melhor 465 (as
-  amostras se dividem entre cerca de 220 e cerca de 450), Qwen2.5 melhor
-  560 (media 512).
+  -o json`. No mesmo dia: Qwen2.5 melhor 560.0, media 512.4 (carga
+  1.91). A primeira execucao do TinyLlama (carga 1.95) ficou em cerca de
+  220 em toda amostra, melhor 228, metade de toda execucao anterior; foi
+  descartada. A nova execucao (carga 1.81) deu melhor 465, media 381.8,
+  com as amostras divididas entre cerca de 220 e cerca de 450.
 - Prefill contra ele, mediana do baseline sobre o melhor do llama.cpp:
   TinyLlama 367.7 / 465 = **79%**, Qwen2.5 561.0 / 560 = **100%**. Melhor
   contra melhor numa mesma sessao (Tarefa 8, depois da ultima mudanca):
@@ -313,6 +315,19 @@ tamanhos de prompt iguais ao prompt do bench contados pelo
   -n 64 -r 5`: TinyLlama pp161 167.3 e tg64 18.1, Qwen2.5 pp142 310.1 e
   tg64 13.7. Com `-ub 31`, que mantem todo produto no backend de CPU
   SSE3: 24.6 e 24.2.
+
+### Desvio do nao-objetivo f32
+
+A rodada de otimizacao da Tarefa 8, a mudanca que fechou o piso de 65% no
+TinyLlama, adicionou corpos AVX2+FMA para os produtos `f32` de dot e mix
+da atencao (`avx2::float`); um profile tinha posto cerca de 32% do
+prefill do TinyLlama ali. Eles sao identicos bit a bit ao portavel so
+para entradas que nao sao NaN (`f6db6d9`; o portavel calcula o mesmo
+`mul_add` fundido, via `fmaf` da libm no x86_64). Isso se desvia do
+[Nao-objetivo](#nao-objetivos) "todo adaptador mantem o conjunto `f32`
+portavel" e estreita o [Objetivo](#objetivos) de identidade bit a bit
+"para toda entrada" para entradas que nao sao NaN nesses dois produtos.
+Os kernels quantizados mantem a identidade bit a bit completa.
 
 ### Paridade com a referencia
 
@@ -345,24 +360,29 @@ trabalho AVX2 e `f32` ao redor, e o Qwen2.5 passa mais do prefill fora do
 `Q4_K`. A resposta de CI que o spike propos: um passo do Miri compilado
 com `-C target-feature=+avx512f,+avx512bw,+avx512vl` e um `cfg` para o
 Miri executar os corpos SIMD reais, mais um job isolado com Intel SDE
-(SHA-256 fixado, sem permissoes); os runners hospedados do GitHub nao
+(SHA-256 fixado, sem permissoes; licenca de aceite por clique,
+redistribuicao incerta); os runners hospedados do GitHub nao
 garantem AVX-512, o QEMU nao tem, e um runner self-hosted e inseguro para
 um repositorio publico.
 
 **Achado sobre deteccao no macOS.** No iMac Pro, o
 `is_x86_feature_detected!` do std informa `avx512f`, `avx512bw` e
 `avx512vl` como ausentes, enquanto `sysctl hw.optional.avx512f` (e `bw`,
-`vl`) informam 1. O Darwin habilita o estado dos registradores AVX-512
-sob demanda, no primeiro uso, entao o XCR0 nao tem os bits de opmask e
-ZMM que a deteccao do std exige. Um adaptador AVX-512 detectado so pelo
-std nunca seria ativado no macOS; o spike precisou de um fallback com
-`sysctlbyname` no macOS.
+`vl`) informam 1; essas duas respostas sao o que foi observado. O
+mecanismo e o comportamento conhecido do Darwin, nao medido aqui: ele
+habilita o estado dos registradores AVX-512 sob demanda, no primeiro uso,
+entao o XCR0 nao tem os bits de opmask e ZMM que a deteccao do std exige.
+Um adaptador AVX-512 detectado so pelo std nunca seria ativado no macOS.
+Com um fallback via `sysctlbyname` no macOS, os testes AVX-512 do spike
+rodaram no hardware e passaram (7 + 9, 0 pulados).
 
 ### Trabalho futuro
 
 - AVX-512: reabrir so com um fallback de deteccao via `sysctl` no macOS,
   a resposta de CI acima, e uma medicao em Ice Lake ou posterior (sem
-  queda forte de clock). O spike fica fora da arvore como patch.
+  queda forte de clock). O spike fica em
+  `.superpowers/sdd/2026-11-02-rusticide-runtime-adapters-plan/t9-out/spike-3aa66d9.patch`
+  e `spike-macos-detection.diff` ao lado, so local (ignorado pelo git).
 - O binario de release Linux aarch64 ganhar `neon` e provado so pelo job
   `arm` do CI; rodar o workflow da branch uma vez antes do merge (com o
   job `Gates` x86_64, que prova a afirmacao `avx2` nos runners do
@@ -376,6 +396,14 @@ std nunca seria ativado no macOS; o spike precisou de um fallback com
 - Herdado das revisoes das tarefas: nenhum teste envia uma ativacao
   `-128` pelos caminhos de entrada unica e na pilha; as checagens de
   endereco impar nunca deslocam as ativacoes; `Q5_0` rows8 no NEON fica
-  cerca de 1% abaixo da 0.8.0.
-- Atencao e RoPE (`f32`) continuam sendo o proximo marco de desempenho,
-  como em [Nao-objetivos](#nao-objetivos).
+  cerca de 1% abaixo da 0.8.0; o ganho do `#[inline(never)]` no chunk do
+  `Q4_K` depende do layout do codegen; `samples::format` esta copiado tres
+  vezes (so em testes); `avx2/q5_0.rs` e `avx2/q8_0.rs` sao quase copias
+  (um bloco `unsafe` por ponto de entrada); nenhum teste pega a perda de
+  um `#[inline(always)]` nos corpos AVX2 `f32` (os bits sao os mesmos,
+  entao so as linhas de prefill do bench o guardam).
+- A diferenca no iMac Pro entre `mise run bench:baseline` e execucoes
+  diretas na linha portavel `Q4_0` (acima) segue sem explicacao.
+- Release 0.9.0 depois do merge ([Sequencia](#sequencia), passo 4).
+- O resto da atencao e do RoPE (`f32`) continua sendo o proximo marco de
+  desempenho.
