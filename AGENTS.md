@@ -68,7 +68,7 @@ mise run lint           # l   fmt:check + clippy
 mise run test           # t   cargo-tarpaulin, 100% coverage gate, includes doctests
 mise run ci:quick       # ciq the same gate CI runs (slow: tarpaulin)
 mise run pr:ready       # format, then the full check
-mise run test:reference # tref greedy parity with llama.cpp; needs RUSTICIDE_MODELS
+mise run test:reference # tref greedy parity with llama.cpp/bitnet.cpp; needs RUSTICIDE_MODELS
 mise run bench          # bn  kernels (and tokens/s with RUSTICIDE_MODELS): table
 mise run bench:gate     # bng measure, compare with the machine's baseline (exit 1 regress, 2 no baseline)
 mise run bench:baseline # bnb measure, rewrite the machine's baseline
@@ -78,11 +78,12 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 ```
 
 - One test: `cargo test -p <crate> <test_name_substring>`.
-- Reference tests compare against llama.cpp. `RUSTICIDE_MODELS` names a
-  directory holding `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf` and
-  `qwen2.5-0.5b-instruct-q4_k_m.gguf`; the bare `cargo test` skips them when
-  it is unset or the build is unoptimized, `mise run test:reference` fails
-  fast instead. `mise run test` unsets it. Model files are never committed.
+- Reference tests compare against llama.cpp and bitnet.cpp.
+  `RUSTICIDE_MODELS` names a directory holding
+  `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`,
+  `qwen2.5-0.5b-instruct-q4_k_m.gguf` and `bitnet-b1.58-2b-4t-i2_s.gguf`; the
+  bare `cargo test` skips them when it is unset or the build is unoptimized,
+  `mise run test:reference` fails fast instead. `mise run test` unsets it. Model files are never committed.
 - Run `mise run bench:gate` before merging any change to kernels, scheduling
   or the forward pass; rewriting a baseline is a reviewed change. Baselines
   live in `crates/rusticide-bench/baselines/<machine>.json`; results go to

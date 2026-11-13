@@ -1543,7 +1543,7 @@ arg "[args]" var=#true help="Extra arguments forwarded to cargo-tarpaulin (e.g. 
 alias = ["tref"]
 depends = []
 depends_post = []
-description = "Check greedy-token parity with llama.cpp on TinyLlama 1.1B and Qwen2.5 0.5B (the reference models in $RUSTICIDE_MODELS). Fails fast when it is unset, where the bare cargo test would silently skip."
+description = "Check greedy-token parity with llama.cpp on TinyLlama 1.1B and Qwen2.5 0.5B, and with bitnet.cpp on BitNet b1.58 2B (the reference models in $RUSTICIDE_MODELS). Fails fast when it is unset, where the bare cargo test would silently skip."
 run = '''
 #!/usr/bin/env bash
 

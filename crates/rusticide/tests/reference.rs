@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Greedy parity with llama.cpp on the canonical `TinyLlama` and Qwen2.5
-//! models, and the `BitNet` b1.58 prompts tokenized as bitnet.cpp does.
+//! models, and with bitnet.cpp on `BitNet` b1.58.
 //! Skips unless `RUSTICIDE_MODELS` names a directory holding the model
 //! files, and in unoptimized builds, where a real model is too slow.
 
@@ -155,15 +155,6 @@ fn qwen2_matches_llama_cpp_greedy() -> TestResult {
 }
 
 #[test]
-fn bitnet_prompts_tokenize_like_bitnet_cpp() -> TestResult {
-    let Some(models) = models_dir() else {
-        return Ok(());
-    };
-    let fixture: Fixture = serde_json::from_str(BITNET)?;
-    let source = GgufFile::load(models.join(&fixture.model.file))?;
-    let tokenizer = Tokenizer::from_gguf(source.metadata())?;
-    for case in &fixture.cases {
-        check_prompt_tokens(&tokenizer, case)?;
-    }
-    Ok(())
+fn bitnet_matches_bitnet_cpp_greedy() -> TestResult {
+    check_fixture(BITNET)
 }
