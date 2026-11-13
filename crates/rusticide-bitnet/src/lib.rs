@@ -17,3 +17,7 @@ mod testing;
 #[cfg(test)]
 #[path = "forward_tests.rs"]
 mod forward_tests;
+
+#[cfg(test)]
+#[path = "i2_s_tests.rs"]
+mod i2_s_tests;

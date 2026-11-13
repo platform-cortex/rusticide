@@ -341,6 +341,7 @@ dependencies = [
  "rusticide-io",
  "rusticide-llama",
  "rusticide-model",
+ "rusticide-quantize",
  "rusticide-transformer",
 ]
 

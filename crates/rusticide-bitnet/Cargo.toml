@@ -24,6 +24,7 @@ half.workspace = true
 rusticide-core.workspace = true
 rusticide-io.workspace = true
 rusticide-llama = { workspace = true, features = ["testing"] }
+rusticide-quantize.workspace = true
 
 [lints]
 workspace = true
