@@ -53,7 +53,7 @@ env:
 jobs:
   check:
     name: Check version and gates
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.RUNS_ON || 'ubuntu-latest' }}
     permissions:
       contents: read
     outputs:
