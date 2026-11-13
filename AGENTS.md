@@ -15,12 +15,10 @@ file; edit here, never there.
   torchgen-style operator schemas, a dispatch table routing ops to kernels).
   No C, C++, Python, BLAS or bindgen of vendored C.
 - Spec: `docs/plan/2026-08-21-rusticide-framework-design.md`. Current plan:
-  none. The last one, runtime adapters
-  (`docs/plan/2026-11-02-rusticide-runtime-adapters-design.md`), is done.
-  The next step is milestone 3 of `rusticide run` (BitNet b1.58,
-  `docs/plan/2026-10-22-rusticide-run-design.md`), which has no plan yet;
-  attention and RoPE (Milestone B in the runtime adapters design) come
-  after it.
+  `docs/plan/2026-11-12-rusticide-bitnet-plan.md` (design:
+  `docs/plan/2026-11-12-rusticide-bitnet-design.md`), milestone 3 of
+  `rusticide run`; attention and RoPE (Milestone B in the runtime adapters
+  design) come after it.
   Consult the spec for architecture decisions and update it when they
   change.
 - Plans are executed task-by-task with `superpowers:subagent-driven-development`;
