@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2026-11-13
+
+### Features
+
+- **kernels:** quantize activations per row
+- **quantize:** read the i2_s format
+- **kernels:** run i2_s products portably
+- **transformer:** add squared ReLU and sub-norms
+- **bitnet:** add the bitnet-b1.58 family
+- **bench:** measure BitNet prefill and decode
+
+### Bug Fixes
+
+- **transformer:** reject zero decoder sizes
+- **model:** scale only the ternary row it writes
+
+### Refactor
+
+- **transformer:** host the decoder helpers
+- **transformer:** host attention and the feed-forward
+- **transformer:** host the decoder model
+
+### Documentation
+
+- state when the CICD workflow runs
+- draft the BitNet design
+- plan the BitNet milestone
+- name the bitnet.cpp commit the fixtures come from
+- **plan:** record the shared family loader
+- record the BitNet results
+- state how the iMac baseline was picked
+- document I8_S rounding, rewrap long lines
+- **readme:** describe milestone 3 and BitNet
+- complete the iMac Pro BitNet results
+- list only the open BitNet follow-ups
+- update the iMac Pro BitNet results
+
+### Performance
+
+- **bench:** re-record the M1 baseline
+- **bench:** re-record the iMac Pro baseline
+- **bench:** re-record the iMac Pro baseline
+
+### Testing
+
+- **bitnet:** capture the bitnet.cpp fixtures
+- run the reference parity from the facade
+- **fuzz:** fuzz the bitnet-b1.58 loader
+- **bitnet:** check greedy parity with bitnet.cpp
+- **reference:** name the reference in failures
+- **bitnet:** load i2_s projections in a model
+
+### Miscellaneous Tasks
+
+- pick the publish check runner by variable
 ## [0.9.0] - 2026-11-13
 
 ### Features
@@ -50,7 +105,6 @@ All notable changes to this project will be documented in this file.
 - **bench:** re-record the M1 baseline
 - **bench:** re-record the iMac Pro baseline
 - **bench:** re-record the M1 baseline quietly
-
 ## [0.8.0] - 2026-11-02
 
 ### Features
@@ -102,7 +156,6 @@ All notable changes to this project will be documented in this file.
 - gate Miri and arm64
 - apply final review findings
 - fix the arm64 and portable coverage gates
-
 ## [0.7.1] - 2026-11-02
 
 ### Bug Fixes
@@ -115,7 +168,6 @@ All notable changes to this project will be documented in this file.
 ### Testing
 
 - **io:** drop the unreachable overlap helper arm
-
 ## [0.7.0] - 2026-11-01
 
 ### Features
@@ -151,7 +203,6 @@ All notable changes to this project will be documented in this file.
 - close the kernel facade milestone
 - correct the facade results
 - record the SHA-pinned actions policy
-
 ## [0.6.0] - 2026-11-01
 
 ### Features
@@ -179,7 +230,6 @@ All notable changes to this project will be documented in this file.
 
 - **quantize:** vary every quant bit in the kernel checks
 - **model:** cover raw block access on every source
-
 ## [0.5.0] - 2026-10-31
 
 ### Features
@@ -218,13 +268,11 @@ All notable changes to this project will be documented in this file.
 ### Miscellaneous Tasks
 
 - **coverage:** raise tarpaulin's test timeout
-
 ## [0.4.1] - 2026-10-31
 
 ### Bug Fixes
 
 - **deny:** check all features, trim licenses
-
 ## [0.4.0] - 2026-10-31
 
 ### Features
@@ -277,7 +325,6 @@ All notable changes to this project will be documented in this file.
 - raise the MSRV to 1.96
 - **hooks:** use the hk 2.10.0 config schema
 - **release:** refresh the v0.4.0 changelog
-
 ## [0.3.0] - 2026-10-23
 
 ### Features
@@ -308,7 +355,6 @@ All notable changes to this project will be documented in this file.
 
 - **llama:** pin greedy parity with llama.cpp on TinyLlama
 - **llama:** pin the embedding overflow checks
-
 ## [0.2.0] - 2026-10-23
 
 ### Features
@@ -373,7 +419,6 @@ All notable changes to this project will be documented in this file.
 
 - **dispatch:** prove slot indexing and entry reuse
 - **core:** pin matmul and broadcast index order
-
 ## [0.1.0] - 2026-10-22
 
 ### Features
