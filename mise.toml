@@ -1554,7 +1554,7 @@ if [ "${usage_verbose:-false}" = "true" ]; then set -x; fi
 : "${RUSTICIDE_MODELS:?set RUSTICIDE_MODELS to the directory holding the reference models}"
 export RUSTICIDE_MODELS
 
-cargo test --release -p rusticide-llama --test reference -- --nocapture
+cargo test --release -p rusticide --features models --test reference -- --nocapture
 '''
 shell = "bash -c"
 usage = '''

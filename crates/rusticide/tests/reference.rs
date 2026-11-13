@@ -9,8 +9,9 @@
 use std::error::Error;
 use std::path::PathBuf;
 
-use rusticide_io::GgufFile;
-use rusticide_model::{Model, Registry};
+use rusticide::io::GgufFile;
+use rusticide::model::Model;
+use rusticide::models::registry;
 use rusticide_tokenizer::Tokenizer;
 use serde::Deserialize;
 
@@ -129,10 +130,7 @@ fn check_fixture(fixture: &str) -> TestResult {
     );
     let source = GgufFile::load(models.join(&fixture.model.file))?;
     let tokenizer = Tokenizer::from_gguf(source.metadata())?;
-    let registry = Registry::new()
-        .with("llama", rusticide_llama::load)
-        .with("qwen2", rusticide_llama::load_qwen2);
-    let mut model = registry.load(&source)?;
+    let mut model = registry().load(&source)?;
     for case in &fixture.cases {
         check_case(model.as_mut(), &tokenizer, case)?;
     }

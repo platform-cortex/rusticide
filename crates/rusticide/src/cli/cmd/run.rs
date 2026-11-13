@@ -66,7 +66,7 @@ pub(crate) fn run_source(
 
 fn build(source: &dyn ModelSource) -> anyhow::Result<(Tokenizer, Box<dyn Model>)> {
     let tokenizer = Tokenizer::from_gguf(source.metadata())?;
-    let model = rusticide_llama::registry().load(source)?;
+    let model = crate::models::registry().load(source)?;
     Ok((tokenizer, model))
 }
 

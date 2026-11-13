@@ -305,6 +305,8 @@ dependencies = [
  "rusticide-sampling",
  "rusticide-schema",
  "rusticide-tokenizer",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -386,8 +388,6 @@ dependencies = [
  "rusticide-kernels",
  "rusticide-model",
  "rusticide-tokenizer",
- "serde",
- "serde_json",
 ]
 
 [[package]]

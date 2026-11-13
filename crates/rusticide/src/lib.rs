@@ -31,6 +31,8 @@ pub use rusticide_dispatch as dispatch;
 pub use rusticide_io as io;
 #[cfg(feature = "models")]
 pub use rusticide_model as model;
+#[cfg(feature = "models")]
+pub mod models;
 #[cfg(feature = "schema")]
 pub use rusticide_schema as schema;
 

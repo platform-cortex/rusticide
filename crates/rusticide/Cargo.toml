@@ -52,11 +52,17 @@ rusticide-tokenizer = { workspace = true, optional = true }
 
 [dev-dependencies]
 rusticide-llama = { workspace = true, features = ["testing"] }
+serde.workspace = true
+serde_json.workspace = true
 
 [[bin]]
 name = "rusticide"
 path = "src/main.rs"
 required-features = ["cli"]
+
+[[test]]
+name = "reference"
+required-features = ["models"]
 
 [lints]
 workspace = true
