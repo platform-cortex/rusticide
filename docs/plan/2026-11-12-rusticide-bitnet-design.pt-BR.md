@@ -302,21 +302,25 @@ padrao do rayon, uma por CPU logica (8 no M1 Pro, 20 no iMac Pro). O
   - as tres sessoes de uma segunda tentativa (so checagem de carga)
     foram descartadas.
   Seis de nove sessoes foram descartadas. Escolher pelo resultado puxa a
-  baseline para cima: o prefill do TinyLlama e 403.02, 13% acima da
-  rodada do gate da Task 12 (357.07) e 10% acima da baseline anterior
-  (367.66), e os kernels de linha `Q4_0`, `Q6_K` e `Q8_0` estao 8-15%
-  acima da baseline anterior sem mudanca nesses kernels (em linha com a
-  rodada do gate). Os valores sao um teto de maquina quieta ainda nao
-  mostrado reproduzivel; um gate futuro no iMac Pro pode falhar nessas
-  linhas enquanto o servico rodar.
-- bitnet.cpp no iMac Pro (`1876a3e`, o build das fixtures, Apple clang
-  17, so CPU, kernel mad `i2_s` x86), carga de 1 min 1.91 no inicio:
+  baseline para cima: o prefill do TinyLlama e 403.02, 13% acima da rodada
+  do gate da Task 12 (357.07) e 10% acima da baseline anterior (367.66). O
+  prefill do Qwen2.5 e 654.10, 16.6% acima da baseline anterior (561.02),
+  o maior salto, e em linha com a rodada do gate (658.26). Os kernels de
+  linha `Q4_0`, `Q6_K` e `Q8_0` estao 8-15% acima da baseline anterior sem
+  mudanca nesses kernels, e em linha com a rodada do gate (G/s, baseline
+  contra gate: 6.60 e 6.75, 18.39 e 18.44, 30.10 e 30.01; baseline
+  anterior 5.76, 16.97 e 27.61). Os valores sao um teto de maquina quieta
+  ainda nao mostrado reproduzivel; um gate futuro no iMac Pro pode falhar
+  nessas linhas enquanto o servico rodar.
+- bitnet.cpp no iMac Pro (`1876a3e`, o build das fixtures, Apple clang 17,
+  so CPU, kernel mad `i2_s` x86), carga de 1 min 1.91 no inicio:
   `llama-bench -m bitnet-b1.58-2b-4t-i2_s.gguf -p 143 -n 64 -t 10,20 -r 5`.
   `-t 10`: pp143 252.46 +- 54.77, tg64 42.24 +- 3.54. `-t 20`: pp143
-  230.47 +- 86.10, tg64 29.55 +- 13.34. Uma segunda rodada com a maquina
-  quieta (carga 0.82): `-t 10` pp143 204.18 +- 48.55, tg64 42.34 +- 3.04;
-  `-t 20` pp143 192.99 +- 95.54, tg64 30.56 +- 12.69. O decode e estavel;
-  o prefill varia muito nas duas rodadas.
+  230.47 +- 86.10, tg64 29.55 +- 13.34. Uma segunda rodada (cargas de 1, 5
+  e 15 min 0.82, 3.06 e 5.12, node a 31.9% de CPU no inicio): `-t 10`
+  pp143 204.18 +- 48.55, tg64 42.34 +- 3.04; `-t 20` pp143 192.99 +-
+  95.54, tg64 30.56 +- 12.69. O decode e estavel; o prefill varia muito
+  nas duas rodadas.
 - Contra o melhor do bitnet.cpp (`-t 10`, o maior pp143), o rusticide
   chega a 31% do decode e 11% do prefill dele no iMac Pro.
 - Nao ha numero do bitnet.cpp para o M1: o arquivo publicado usa o
@@ -324,9 +328,11 @@ padrao do rayon, uma por CPU logica (8 no M1 Pro, 20 no iMac Pro). O
   layout, e o caminho ARM do HEAD esta quebrado (ver "Referencia: qual
   bitnet.cpp").
 - Linhas de kernel (G pesos/s, uma thread): `I2_S` row 3.73 no M1 Pro e
-  8.68 no iMac Pro, contra `Q8_0` row 59.69 e 30.10 com seus
-  kernels SIMD; `rows8` nao e mais rapido que `row`, por isso o prefill
-  mal supera o decode.
+  8.68 no iMac Pro, contra `Q8_0` row 59.69 e 30.10 com seus kernels SIMD;
+  `rows8` nao e mais rapido que `row` (3.73 no M1 Pro, 8.80 no iMac Pro).
+  No M1 Pro e por isso que o prefill mal supera o decode (10.92 contra
+  8.65); no iMac Pro o prefill e cerca do dobro do decode (26.81 contra
+  13.22).
 - Pico de memoria no M1 Pro: 4.4 GB (checkpoint da Task 10).
 
 ### Proximos passos

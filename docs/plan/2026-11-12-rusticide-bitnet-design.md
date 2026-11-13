@@ -278,29 +278,35 @@ portable kernel under every adapter.
   - all three sessions of a second attempt (load check only) were
     dropped.
   Six of nine sessions were dropped. Choosing by result biases the
-  baseline upward: TinyLlama prefill is 403.02, 13% above the Task 12
-  gate run (357.07) and 10% above the previous baseline (367.66), and
-  the `Q4_0`, `Q6_K` and `Q8_0` row kernels are 8-15% above the previous
-  baseline with no change to those kernels (in line with the gate run).
-  The values are a quiet-machine ceiling not yet shown reproducible; a
-  future iMac Pro gate may trip on those rows while the service runs.
+  baseline upward: TinyLlama prefill is 403.02, 13% above the Task 12 gate
+  run (357.07) and 10% above the previous baseline (367.66). Qwen2.5
+  prefill is 654.10, 16.6% above the previous baseline (561.02), the
+  largest jump, and in line with the gate run (658.26). The `Q4_0`, `Q6_K`
+  and `Q8_0` row kernels are 8-15% above the previous baseline with no
+  change to those kernels, and in line with the gate run (G/s, baseline
+  against gate: 6.60 and 6.75, 18.39 and 18.44, 30.10 and 30.01; previous
+  baseline 5.76, 16.97 and 27.61). The values are a quiet-machine ceiling
+  not yet shown reproducible; a future iMac Pro gate may trip on those
+  rows while the service runs.
 - bitnet.cpp on the iMac Pro (`1876a3e`, the fixture build, Apple clang
   17, CPU only, x86 `i2_s` mad kernel), 1-min load 1.91 at start:
   `llama-bench -m bitnet-b1.58-2b-4t-i2_s.gguf -p 143 -n 64 -t 10,20 -r 5`.
   `-t 10`: pp143 252.46 +- 54.77, tg64 42.24 +- 3.54. `-t 20`: pp143
-  230.47 +- 86.10, tg64 29.55 +- 13.34. A second run on a quiet machine
-  (load 0.82): `-t 10` pp143 204.18 +- 48.55, tg64 42.34 +- 3.04; `-t 20`
-  pp143 192.99 +- 95.54, tg64 30.56 +- 12.69. Decode is stable; prefill
-  spreads widely in both runs.
+  230.47 +- 86.10, tg64 29.55 +- 13.34. A second run (1-, 5- and 15-min
+  loads 0.82, 3.06 and 5.12, node at 31.9% CPU at start): `-t 10` pp143
+  204.18 +- 48.55, tg64 42.34 +- 3.04; `-t 20` pp143 192.99 +- 95.54, tg64
+  30.56 +- 12.69. Decode is stable; prefill spreads widely in both runs.
 - Against bitnet.cpp's best (`-t 10`, the higher pp143), rusticide
   reaches 31% of its decode and 11% of its prefill on the iMac Pro.
 - There is no bitnet.cpp figure for the M1: the published file is the
   x86 128-weight `i2_s` layout, the legacy fork's ARM path reads another
   layout, and HEAD's ARM path is broken (see "Reference: which bitnet.cpp").
 - Kernel rows (G weights/s, one thread): `I2_S` row 3.73 on the M1 Pro and
-  8.68 on the iMac Pro, against `Q8_0` row 59.69 and 30.10 with
-  their SIMD kernels; `rows8` is no faster than `row`, which is why
-  prefill barely beats decode.
+  8.68 on the iMac Pro, against `Q8_0` row 59.69 and 30.10 with their SIMD
+  kernels; `rows8` is no faster than `row` (3.73 on the M1 Pro, 8.80 on
+  the iMac Pro). On the M1 Pro that is why prefill barely beats decode
+  (10.92 against 8.65); on the iMac Pro prefill is about twice decode
+  (26.81 against 13.22).
 - Peak memory on the M1 Pro: 4.4 GB (Task 10 checkpoint).
 
 ### Follow-ups
