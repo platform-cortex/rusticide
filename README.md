@@ -147,8 +147,8 @@ products; F32 and F16 tensors are held as f32.
     `--prompt "Once upon a time," -n 64 --temperature 0`).
   - BitNet b1.58 2B 4T `i2_s`, from the bench baselines (64 decoded
     tokens; `i2_s` runs a portable kernel, no SIMD yet): Apple M1 Pro
-    decode 8.65 tokens/s, prefill 10.92; Intel Xeon W-2150B decode 13.22,
-    prefill 26.81 (see the Results of the
+    decode 8.65 tokens/s, prefill 10.92; Intel Xeon W-2150B decode 13.58,
+    prefill 26.50 (see the Results of the
     [BitNet design](docs/plan/2026-11-12-rusticide-bitnet-design.md)). Run
     it as above:
 

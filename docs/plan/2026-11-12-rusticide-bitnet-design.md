@@ -263,31 +263,16 @@ portable kernel under every adapter.
 
 - M1 Pro (`neon`): BitNet decode 8.65, prefill 10.92. The 2 tokens/s
   decode target is met (7.94 at the Task 10 checkpoint).
-- iMac Pro, Xeon W-2150B (`avx2`): BitNet decode 13.22, prefill
-  26.81. An outside service on the iMac Pro (a launchd job restarting a
-  node process at up to 150% CPU) disturbed many sessions, so the
-  baseline is not a plain `bench:baseline`. Nine sessions ran in three
-  attempts; the baseline is `rusticide-bench baseline` over three of
-  them, picked after looking at their results:
-  - session 1 of a back-to-back `bench:baseline` (1-min load 1.77 at
-    start, no CPU check); its sessions 2 and 3 drifted 25-30% down and
-    were dropped;
-  - sessions 2 and 3 of a third attempt, each started at 1-min load 2.19
-    but with node at 46.5% and 64.1% CPU (the second fails the attempt's
-    own "no process above 50%" check); its session 1 was dropped;
-  - all three sessions of a second attempt (load check only) were
-    dropped.
-  Six of nine sessions were dropped. Choosing by result biases the
-  baseline upward: TinyLlama prefill is 403.02, 13% above the Task 12 gate
-  run (357.07) and 10% above the previous baseline (367.66). Qwen2.5
-  prefill is 654.10, 16.6% above the previous baseline (561.02), the
-  largest jump, and in line with the gate run (658.26). The `Q4_0`, `Q6_K`
-  and `Q8_0` row kernels are 8-15% above the previous baseline with no
-  change to those kernels, and in line with the gate run (G/s, baseline
-  against gate: 6.60 and 6.75, 18.39 and 18.44, 30.10 and 30.01; previous
-  baseline 5.76, 16.97 and 27.61). The values are a quiet-machine ceiling
-  not yet shown reproducible; a future iMac Pro gate may trip on those
-  rows while the service runs.
+- iMac Pro, Xeon W-2150B (`avx2`): BitNet decode 13.58, prefill
+  26.50. Recorded with a plain `bench:baseline` (1-min load 1.41 at
+  start, AC power) after the owner removed an outside service (a launchd
+  job restarting a node process at up to 150% CPU) that had disturbed
+  the first attempts. The three back-to-back sessions still drift down:
+  Qwen2.5 prefill 660.79, 585.14 and 551.33; TinyLlama prefill 407.33,
+  345.53 and 326.99; row kernels by up to 22%. The drift is the machine
+  under sustained load (no thermal warning is recorded), not the
+  service. The baseline is the median of the three bests, mostly
+  session 2's values.
 - bitnet.cpp on the iMac Pro (`1876a3e`, the fixture build, Apple clang
   17, CPU only, x86 `i2_s` mad kernel), 1-min load 1.91 at start:
   `llama-bench -m bitnet-b1.58-2b-4t-i2_s.gguf -p 143 -n 64 -t 10,20 -r 5`.
@@ -297,16 +282,16 @@ portable kernel under every adapter.
   204.18 +- 48.55, tg64 42.34 +- 3.04; `-t 20` pp143 192.99 +- 95.54, tg64
   30.56 +- 12.69. Decode is stable; prefill spreads widely in both runs.
 - Against bitnet.cpp's best (`-t 10`, the higher pp143), rusticide
-  reaches 31% of its decode and 11% of its prefill on the iMac Pro.
+  reaches 32% of its decode and 10% of its prefill on the iMac Pro.
 - There is no bitnet.cpp figure for the M1: the published file is the
   x86 128-weight `i2_s` layout, the legacy fork's ARM path reads another
   layout, and HEAD's ARM path is broken (see "Reference: which bitnet.cpp").
 - Kernel rows (G weights/s, one thread): `I2_S` row 3.73 on the M1 Pro and
-  8.68 on the iMac Pro, against `Q8_0` row 59.69 and 30.10 with their SIMD
-  kernels; `rows8` is no faster than `row` (3.73 on the M1 Pro, 8.80 on
+  7.99 on the iMac Pro, against `Q8_0` row 59.69 and 29.56 with their SIMD
+  kernels; `rows8` is no faster than `row` (3.73 on the M1 Pro, 8.39 on
   the iMac Pro). On the M1 Pro that is why prefill barely beats decode
   (10.92 against 8.65); on the iMac Pro prefill is about twice decode
-  (26.81 against 13.22).
+  (26.50 against 13.58).
 - Peak memory on the M1 Pro: 4.4 GB (Task 10 checkpoint).
 
 ### Follow-ups
@@ -317,8 +302,6 @@ portable kernel under every adapter.
   next step (owner's ordering, 2026-11-12).
 - Align the near-tie threshold stated in the designs (0.1) with the
   harness (0.25), or tighten the harness.
-- Open (owner, at merge time): accept the iMac Pro baseline above or
-  re-record it after the openclaw service is stopped.
 - Open minors (from the task ledger and the final review):
   - `Decoder::new` does not cross-check `DecoderWeights` shapes against
     the config (the loaders do).

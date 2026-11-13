@@ -286,32 +286,16 @@ padrao do rayon, uma por CPU logica (8 no M1 Pro, 20 no iMac Pro). O
 
 - M1 Pro (`neon`): BitNet decode 8.65, prefill 10.92. A meta de 2
   tokens/s de decode foi atingida (7.94 no checkpoint da Task 10).
-- iMac Pro, Xeon W-2150B (`avx2`): BitNet decode 13.22, prefill
-  26.81. Um servico externo no iMac Pro (um job do launchd que reinicia
-  um processo node a ate 150% de CPU) perturbou muitas sessoes, entao a
-  baseline nao e um `bench:baseline` simples. Nove sessoes rodaram em
-  tres tentativas; a baseline e o `rusticide-bench baseline` sobre tres
-  delas, escolhidas depois de ver seus resultados:
-  - a sessao 1 de um `bench:baseline` em sequencia (carga de 1 min 1.77
-    no inicio, sem checagem de CPU); suas sessoes 2 e 3 cairam 25-30% e
-    foram descartadas;
-  - as sessoes 2 e 3 de uma terceira tentativa, cada uma iniciada com
-    carga de 1 min 2.19 mas com o node a 46.5% e 64.1% de CPU (a segunda
-    falha a propria checagem "nenhum processo acima de 50%" da
-    tentativa); sua sessao 1 foi descartada;
-  - as tres sessoes de uma segunda tentativa (so checagem de carga)
-    foram descartadas.
-  Seis de nove sessoes foram descartadas. Escolher pelo resultado puxa a
-  baseline para cima: o prefill do TinyLlama e 403.02, 13% acima da rodada
-  do gate da Task 12 (357.07) e 10% acima da baseline anterior (367.66). O
-  prefill do Qwen2.5 e 654.10, 16.6% acima da baseline anterior (561.02),
-  o maior salto, e em linha com a rodada do gate (658.26). Os kernels de
-  linha `Q4_0`, `Q6_K` e `Q8_0` estao 8-15% acima da baseline anterior sem
-  mudanca nesses kernels, e em linha com a rodada do gate (G/s, baseline
-  contra gate: 6.60 e 6.75, 18.39 e 18.44, 30.10 e 30.01; baseline
-  anterior 5.76, 16.97 e 27.61). Os valores sao um teto de maquina quieta
-  ainda nao mostrado reproduzivel; um gate futuro no iMac Pro pode falhar
-  nessas linhas enquanto o servico rodar.
+- iMac Pro, Xeon W-2150B (`avx2`): BitNet decode 13.58, prefill
+  26.50. Gravada com um `bench:baseline` simples (carga de 1 min 1.41 no
+  inicio, na tomada) depois que o dono removeu um servico externo (um job
+  do launchd que reiniciava um processo node a ate 150% de CPU) que tinha
+  perturbado as primeiras tentativas. As tres sessoes em sequencia ainda
+  caem: prefill do Qwen2.5 660.79, 585.14 e 551.33; prefill do TinyLlama
+  407.33, 345.53 e 326.99; kernels de linha ate 22%. A queda e da maquina
+  sob carga continua (nenhum aviso termico registrado), nao do servico.
+  A baseline e a mediana dos tres melhores, quase sempre os valores da
+  sessao 2.
 - bitnet.cpp no iMac Pro (`1876a3e`, o build das fixtures, Apple clang 17,
   so CPU, kernel mad `i2_s` x86), carga de 1 min 1.91 no inicio:
   `llama-bench -m bitnet-b1.58-2b-4t-i2_s.gguf -p 143 -n 64 -t 10,20 -r 5`.
@@ -322,17 +306,17 @@ padrao do rayon, uma por CPU logica (8 no M1 Pro, 20 no iMac Pro). O
   95.54, tg64 30.56 +- 12.69. O decode e estavel; o prefill varia muito
   nas duas rodadas.
 - Contra o melhor do bitnet.cpp (`-t 10`, o maior pp143), o rusticide
-  chega a 31% do decode e 11% do prefill dele no iMac Pro.
+  chega a 32% do decode e 10% do prefill dele no iMac Pro.
 - Nao ha numero do bitnet.cpp para o M1: o arquivo publicado usa o
   layout `i2_s` x86 de 128 pesos, o caminho ARM do fork legado le outro
   layout, e o caminho ARM do HEAD esta quebrado (ver "Referencia: qual
   bitnet.cpp").
 - Linhas de kernel (G pesos/s, uma thread): `I2_S` row 3.73 no M1 Pro e
-  8.68 no iMac Pro, contra `Q8_0` row 59.69 e 30.10 com seus kernels SIMD;
-  `rows8` nao e mais rapido que `row` (3.73 no M1 Pro, 8.80 no iMac Pro).
+  7.99 no iMac Pro, contra `Q8_0` row 59.69 e 29.56 com seus kernels SIMD;
+  `rows8` nao e mais rapido que `row` (3.73 no M1 Pro, 8.39 no iMac Pro).
   No M1 Pro e por isso que o prefill mal supera o decode (10.92 contra
-  8.65); no iMac Pro o prefill e cerca do dobro do decode (26.81 contra
-  13.22).
+  8.65); no iMac Pro o prefill e cerca do dobro do decode (26.50 contra
+  13.58).
 - Pico de memoria no M1 Pro: 4.4 GB (checkpoint da Task 10).
 
 ### Proximos passos
@@ -343,8 +327,6 @@ padrao do rayon, uma por CPU logica (8 no M1 Pro, 20 no iMac Pro). O
   proximo passo (ordem do dono, 2026-11-12).
 - Alinhar o limiar de quase-empate declarado nos designs (0.1) com o do
   harness (0.25), ou apertar o harness.
-- Em aberto (dono, no merge): aceitar a baseline do iMac Pro acima ou
-  regrava-la depois que o servico openclaw for parado.
 - Minors em aberto (do ledger das tasks e da revisao final):
   - `Decoder::new` nao confere os formatos de `DecoderWeights` contra a
     config (os loaders conferem).
