@@ -320,6 +320,7 @@ version = "0.9.0"
 dependencies = [
  "anyhow",
  "clap",
+ "rusticide-bitnet",
  "rusticide-io",
  "rusticide-kernels",
  "rusticide-llama",

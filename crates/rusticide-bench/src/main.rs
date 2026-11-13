@@ -15,9 +15,10 @@ use rusticide_bench::{
 use rusticide_io::GgufFile;
 use rusticide_tokenizer::Tokenizer;
 
-const REFERENCE_MODELS: [(&str, &str); 2] = [
+const REFERENCE_MODELS: [(&str, &str); 3] = [
     ("tinyllama", "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"),
     ("qwen2.5", "qwen2.5-0.5b-instruct-q4_k_m.gguf"),
+    ("bitnet", "bitnet-b1.58-2b-4t-i2_s.gguf"),
 ];
 const MISSING_BASELINE: u8 = 2;
 
@@ -82,7 +83,9 @@ fn measure_model(
 ) -> anyhow::Result<std::collections::BTreeMap<String, rusticide_bench::Sample>> {
     let source = GgufFile::load(file).with_context(|| format!("cannot load {}", file.display()))?;
     let tokenizer = Tokenizer::from_gguf(source.metadata())?;
-    let mut model = rusticide_llama::registry().load(&source)?;
+    let mut model = rusticide_llama::registry()
+        .with(rusticide_bitnet::ARCHITECTURE, rusticide_bitnet::load)
+        .load(&source)?;
     let decode = tokenizer.encode(DECODE_PROMPT)?;
     let prefill = tokenizer.encode(PREFILL_PROMPT)?;
     Ok(e2e_metrics(name, model.as_mut(), &decode, &prefill, plan)?)

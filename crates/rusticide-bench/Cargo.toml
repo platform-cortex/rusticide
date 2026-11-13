@@ -19,6 +19,7 @@ version.workspace = true
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
+rusticide-bitnet.workspace = true
 rusticide-io.workspace = true
 rusticide-kernels.workspace = true
 rusticide-llama.workspace = true
