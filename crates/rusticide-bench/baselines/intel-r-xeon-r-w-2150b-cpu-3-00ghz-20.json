@@ -2,68 +2,84 @@
   "machine": "intel-r-xeon-r-w-2150b-cpu-3-00ghz-20",
   "adapter": "avx2",
   "metrics": {
+    "e2e/bitnet/decode": {
+      "best": 13.21683885456251,
+      "tolerance": 0.05
+    },
+    "e2e/bitnet/prefill": {
+      "best": 26.80771345762991,
+      "tolerance": 0.05
+    },
     "e2e/qwen2.5/decode": {
-      "best": 56.84598159251262,
+      "best": 56.41056167366047,
       "tolerance": 0.05
     },
     "e2e/qwen2.5/prefill": {
-      "best": 561.0220814063822,
+      "best": 654.0965915215475,
       "tolerance": 0.05
     },
     "e2e/tinyllama/decode": {
-      "best": 42.99712857986761,
+      "best": 43.04690688266636,
       "tolerance": 0.05
     },
     "e2e/tinyllama/prefill": {
-      "best": 367.6614061147449,
+      "best": 403.0206270838247,
+      "tolerance": 0.05
+    },
+    "kernel/I2_S/row": {
+      "best": 8681026663.7376,
+      "tolerance": 0.05
+    },
+    "kernel/I2_S/rows8": {
+      "best": 8803641553.280836,
       "tolerance": 0.05
     },
     "kernel/Q4_0/row": {
-      "best": 5763322394.315781,
+      "best": 6599475264.212527,
       "tolerance": 0.05
     },
     "kernel/Q4_0/rows8": {
-      "best": 6138817069.763903,
+      "best": 6352939138.9498,
       "tolerance": 0.05
     },
     "kernel/Q4_K/row": {
-      "best": 39529576293.938835,
+      "best": 41058532064.5298,
       "tolerance": 0.05
     },
     "kernel/Q4_K/rows8": {
-      "best": 63312009103.55934,
+      "best": 65508146849.17349,
       "tolerance": 0.05
     },
     "kernel/Q5_0/row": {
-      "best": 21752948495.551796,
+      "best": 21497495731.64338,
       "tolerance": 0.05
     },
     "kernel/Q5_0/rows8": {
-      "best": 41931217702.824776,
+      "best": 41837971355.10291,
       "tolerance": 0.05
     },
     "kernel/Q6_K/row": {
-      "best": 16973337027.923391,
+      "best": 18385487568.296513,
       "tolerance": 0.05
     },
     "kernel/Q6_K/rows8": {
-      "best": 43414365849.42206,
+      "best": 46477921151.30729,
       "tolerance": 0.05
     },
     "kernel/Q8_0/row": {
-      "best": 27612017218.708298,
+      "best": 30095480176.29739,
       "tolerance": 0.05
     },
     "kernel/Q8_0/rows8": {
-      "best": 45567341869.03853,
+      "best": 45566646671.66231,
       "tolerance": 0.05
     },
     "kernel/q8/block": {
-      "best": 373058548.5796643,
+      "best": 378150446.8761791,
       "tolerance": 0.05
     },
     "kernel/q8/superblock": {
-      "best": 464038876.7786219,
+      "best": 465965079.9660424,
       "tolerance": 0.05
     }
   }
