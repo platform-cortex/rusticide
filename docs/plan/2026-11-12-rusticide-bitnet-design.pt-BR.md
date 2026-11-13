@@ -116,9 +116,13 @@ atual (`0b341e5`, submodulo llama.cpp movido para
 `isHuangXin/llama.cpp@390c307` em 2026-07-15) monta o FFN do BitNet com
 SiLU em vez de ReLU ao quadrado e nao tem caminho NEON para `i2_s`, com
 um fallback escalar que le outro layout. O submodulo legado
-(`Eddie-Wang1120/llama.cpp`, BitNet em ou antes de `3b04140`) implementa
-o modelo como publicado. Decisao (autor do design): as fixtures vem do
-fork legado, compilado no iMac Pro (AVX2, clang 23, cmake presente),
+(`Eddie-Wang1120/llama.cpp` em `1f86f058d`, BitNet `1876a3e`,
+2026-01-27; o commit seguinte do BitNet, `69bf64d`, move o submodulo para
+uma versao com SiLU) implementa o modelo como publicado. Decisao (autor
+do design): as fixtures vem do fork legado, compilado no iMac Pro
+(compilado e capturado em 2026-11-12: Apple clang 17, BLAS e Metal
+desligados, um patch so de tipo (`const`) que o clang exige; veja o bloco
+`reference` da fixture),
 carregando o arquivo publicado sem mudanca. A fixture registra os commits
 do BitNet e do submodulo. Se essa compilacao nao funcionar, a alternativa
 e o BitNet `765741d` (2025-05) no M1; seu caminho NEON le o mesmo layout

@@ -104,10 +104,13 @@ Recon of `microsoft/BitNet` (2026-11-12) found that its current HEAD
 (`0b341e5`, llama.cpp submodule moved to `isHuangXin/llama.cpp@390c307`
 on 2026-07-15) builds the BitNet FFN with SiLU instead of squared ReLU and
 has no NEON `i2_s` path, its scalar fallback reading another layout. The
-legacy submodule (`Eddie-Wang1120/llama.cpp`, BitNet at or before
-`3b04140`) implements the model as published. Decision (design author):
-fixtures come from the legacy fork, built on the iMac Pro (AVX2, clang
-23, cmake present), loading the published file unchanged. The fixture
+legacy submodule (`Eddie-Wang1120/llama.cpp` at `1f86f058d`, BitNet
+`1876a3e`, 2026-01-27; the next BitNet commit, `69bf64d`, moves the
+submodule to a SiLU build) implements the model as published. Decision
+(design author): fixtures come from the legacy fork, built on the iMac
+Pro, loading the published file unchanged (built and captured
+2026-11-12: Apple clang 17, BLAS and Metal off, one type-only `const`
+patch that clang needs; see the fixture's `reference` block). The fixture
 records the BitNet and submodule commits. If that build cannot be made to
 work, BitNet `765741d` (2025-05) on the M1 is the fallback; its NEON path
 reads the same 128 layout (inferred from source, untested).
