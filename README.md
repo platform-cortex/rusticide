@@ -13,14 +13,14 @@ operators to kernels. No C, C++, Python, BLAS or vendored bindings.
 [![MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 ![Rust Stable](https://img.shields.io/badge/rust-stable-purple)
 ![Unsafe Denied](https://img.shields.io/badge/unsafe-denied-red)
-![Status: run milestone 2](https://img.shields.io/badge/status-run%20milestone%202-yellow)
+![Status: run milestone 3](https://img.shields.io/badge/status-run%20milestone%203-yellow)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/platform-cortex/rusticide/badge)](https://securityscorecards.dev/viewer/?uri=github.com/platform-cortex/rusticide)
 
 ## Status
 
-rusticide has finished **SP1, the foundation sub-project**, and **milestone 2
+rusticide has finished **SP1, the foundation sub-project**, and **milestone 3
 of `rusticide run`**: end-to-end text generation from a GGUF model, for
-TinyLlama and Qwen2.5 0.5B Instruct. What exists:
+TinyLlama, Qwen2.5 0.5B Instruct and BitNet b1.58 2B 4T. What exists:
 
 - the tensor core (dtypes, devices, shapes, strides, storage) and the dispatch
   key algebra;
@@ -30,14 +30,16 @@ TinyLlama and Qwen2.5 0.5B Instruct. What exists:
 - a GGUF file reader and a tokenizer built from GGUF metadata;
 - shared f32 kernels, a model contract with an architecture registry, a KV
   cache and a streaming generation loop;
-- the `llama` and `qwen2` model families (TinyLlama and Qwen2.5 are tested),
-  running on the CPU;
+- the `llama`, `qwen2` and `bitnet-b1.58` model families (TinyLlama,
+  Qwen2.5 and BitNet b1.58 2B 4T are tested), running on the CPU;
 - the facade crate with an embedded CLI, including `rusticide run`.
 
 Operators are not generated, there is no autograd and no GPU backend, and the
-legacy eager tensor API is slated for removal in SP2. The next milestone of
-`rusticide run` adds BitNet. See the
-[run design](docs/plan/2026-10-22-rusticide-run-design.md) and the
+legacy eager tensor API is slated for removal in SP2. The next step is
+attention and RoPE, Milestone B of the
+[runtime adapters design](docs/plan/2026-11-02-rusticide-runtime-adapters-design.md).
+See the [run design](docs/plan/2026-10-22-rusticide-run-design.md), the
+[BitNet design](docs/plan/2026-11-12-rusticide-bitnet-design.md) and the
 [framework design](docs/plan/2026-08-21-rusticide-framework-design.md) for the
 roadmap, and [ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the crates fit
 together.
@@ -52,7 +54,8 @@ Everything lives under `crates/`:
 - `rusticide-dispatch` -- the operator dispatcher and boxed calling convention.
 - `rusticide-schema` -- port of torchgen's operator schema data model.
 - `rusticide-io` -- GGUF model file reader.
-- `rusticide-quantize` -- quantization formats (Q4_0, Q4_K, Q6_K).
+- `rusticide-quantize` -- quantization formats (Q4_0, Q4_K, Q5_0, Q6_K,
+  Q8_0 and BitNet's ternary I2_S).
 - `rusticide-ggml` -- legacy GGML-style compute graph over core tensors.
 - `rusticide-sampling` -- token sampling (greedy, top-k, top-p, temperature).
 - `rusticide-tokenizer` -- BPE and SentencePiece tokenizer from GGUF metadata.
@@ -115,17 +118,22 @@ cargo run --release -p rusticide --features cli -- run \
 
 Options: `-n/--max-tokens` (default 128), `--temperature` (default 0.8; 0
 means greedy), `--top-k` (default 40), `--top-p` (default 0.95) and `--seed`
-(random when absent). Weights are dequantized to f32 once at load and the
-file is read whole.
+(random when absent). The file is read whole. Quantized weights stay
+quantized in memory and are decoded a block at a time inside the matrix
+products; F32 and F16 tensors are held as f32.
 
-- **Supported families:** `llama` and `qwen2` (a variant of the llama
-  implementation: half-split RoPE and Q/K/V biases). Tested models:
-  `TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF` (`Q4_K_M`) and
-  `Qwen/Qwen2.5-0.5B-Instruct-GGUF` (`qwen2.5-0.5b-instruct-q4_k_m.gguf`).
-- **Parity:** all 32 greedy tokens match llama.cpp on the fixture prompts,
-  including a Portuguese one. TinyLlama: llama-server 0.5.0, build 11146, 3
-  prompts. Qwen2.5: llama-server 0.8.0, build 11960 (commit 8642541b2), 4
-  prompts, one of them a newline and digits prompt. Run it with
+- **Supported families:** `llama`, `qwen2` (a variant of the llama
+  implementation: half-split RoPE and Q/K/V biases) and `bitnet-b1.58`
+  (squared ReLU, sub-norms and ternary `i2_s` weights on the same decoder).
+  Tested models: `TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF` (`Q4_K_M`),
+  `Qwen/Qwen2.5-0.5B-Instruct-GGUF` (`qwen2.5-0.5b-instruct-q4_k_m.gguf`)
+  and `microsoft/bitnet-b1.58-2B-4T-gguf` (`ggml-model-i2_s.gguf`).
+- **Parity:** all 32 greedy tokens match the reference engine (llama.cpp,
+  or bitnet.cpp for BitNet) on the fixture prompts, including a Portuguese
+  one. TinyLlama: llama-server 0.5.0, build 11146, 3 prompts. Qwen2.5:
+  llama-server 0.8.0, build 11960 (commit 8642541b2), 4 prompts, one of
+  them a newline and digits prompt. BitNet b1.58 2B 4T: bitnet.cpp
+  `1876a3e`, 3 prompts x 32 tokens. Run it with
   `mise run test:reference` and `RUSTICIDE_MODELS` set.
 - **Speed**, with the command above (the design's target is 2 tokens/s; it
   is a target, not a release blocker):
@@ -137,6 +145,18 @@ file is read whole.
   - Qwen2.5 0.5B `Q4_K_M` on the Apple M1 Pro (8 cores, 32 GiB, macOS
     arm64): about 34 tokens/s (33.94, 34.75 and 33.50 over three runs of
     `--prompt "Once upon a time," -n 64 --temperature 0`).
+  - BitNet b1.58 2B 4T `i2_s`, from the bench baselines (64 decoded
+    tokens; `i2_s` runs a portable kernel, no SIMD yet): Apple M1 Pro
+    decode 8.65 tokens/s, prefill 10.92; Intel Xeon W-2150B decode 13.22,
+    prefill 26.81 (see the Results of the
+    [BitNet design](docs/plan/2026-11-12-rusticide-bitnet-design.md)). Run
+    it as above:
+
+    ```sh
+    cargo run --release -p rusticide --features cli -- run \
+      ggml-model-i2_s.gguf \
+      --prompt "The capital of France is" -n 32 --temperature 0
+    ```
 
 ### Reading a GGUF file
 
