@@ -1,0 +1,29 @@
+{
+  "model": {
+    "repo": "microsoft/bitnet-b1.58-2B-4T-gguf",
+    "file": "bitnet-b1.58-2b-4t-i2_s.gguf",
+    "sha256": "4221b252fdd5fd25e15847adfeb5ee88886506ba50b8a34548374492884c2162"
+  },
+  "reference": {
+    "tool": "bitnet.cpp llama-cli",
+    "version": "BitNet 1876a3e, llama.cpp submodule Eddie-Wang1120/llama.cpp 1f86f058d (last FFN with squared ReLU)",
+    "settings": "temperature 0, n_predict 33 (the first 32 generated ids, read from the -v eval log), -t 10, -c 2048, -ngl 0, BOS prepended (prompt_tokens include 128000); x86_64 i2_s build (BITNET_X86_TL2=OFF, GGML_BLAS=OFF, GGML_METAL=OFF, Apple clang 17) on a Xeon W-2150B; local type-only patch: src/ggml-bitnet-mad.cpp:811 int8_t* -> const int8_t*"
+  },
+  "cases": [
+    {
+      "prompt": "The capital of France is",
+      "prompt_tokens": [128000, 791, 6864, 315, 9822, 374],
+      "generated_tokens": [12366, 13, 12366, 374, 264, 3363, 430, 374, 3967, 369, 1202, 9257, 3925, 11, 7829, 11, 323, 18112, 13, 1102, 374, 1101, 264, 3682, 4219, 369, 1989, 11, 11401, 11, 323, 36105]
+    },
+    {
+      "prompt": "def fibonacci(n):",
+      "prompt_tokens": [128000, 755, 76798, 7, 77, 1680],
+      "generated_tokens": [720, 262, 422, 308, 2717, 220, 15, 512, 286, 471, 220, 15, 198, 262, 4508, 308, 624, 220, 16, 512, 286, 471, 220, 16, 198, 262, 775, 512, 286, 471, 76798, 1471]
+    },
+    {
+      "prompt": "A capital do Brasil \u00e9 Bras\u00edlia, e a maior cidade \u00e9",
+      "prompt_tokens": [128000, 32, 6864, 656, 43025, 4046, 62224, 76472, 11, 384, 264, 46591, 56184, 4046],
+      "generated_tokens": [48790, 38026, 13, 4072, 64, 4046, 10832, 6754, 272, 13910, 10071, 95551, 3067, 98192, 656, 46962, 13, 507, 6864, 656, 43025, 4046, 264, 56184, 409, 62224, 76472, 11, 384, 264, 46591, 56184]
+    }
+  ]
+}
