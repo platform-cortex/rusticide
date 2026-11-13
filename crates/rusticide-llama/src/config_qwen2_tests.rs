@@ -4,6 +4,7 @@
 
 use rusticide_io::GGUFValue;
 use rusticide_model::{InMemorySource, ModelError};
+use rusticide_transformer::RopeStyle;
 
 use super::LlamaConfig;
 use crate::Variant;
@@ -25,6 +26,7 @@ fn qwen2_config_reads_qwen2_keys() {
     assert_eq!(config.embedding_length, 4);
     assert_eq!((config.head_count, config.head_count_kv), (2, 1));
     assert_eq!(config.context_length, 16);
+    assert_eq!(config.decoder().rope, RopeStyle::HalfSplit);
 }
 
 #[test]

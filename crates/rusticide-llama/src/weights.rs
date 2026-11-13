@@ -3,25 +3,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_model::{Matrix, ModelSource, Result, load_vector};
+use rusticide_transformer::BlockWeights;
 
 use crate::config::LlamaConfig;
-
-/// The weights of one transformer block.
-#[derive(Debug)]
-pub struct BlockWeights {
-    pub attn_norm: Vec<f32>,
-    pub attn_q: Matrix,
-    pub attn_k: Matrix,
-    pub attn_v: Matrix,
-    pub attn_q_bias: Option<Vec<f32>>,
-    pub attn_k_bias: Option<Vec<f32>>,
-    pub attn_v_bias: Option<Vec<f32>>,
-    pub attn_output: Matrix,
-    pub ffn_norm: Vec<f32>,
-    pub ffn_gate: Matrix,
-    pub ffn_up: Matrix,
-    pub ffn_down: Matrix,
-}
 
 /// Every weight of a llama model; `output` is `None` when tied to `token_embd`.
 #[derive(Debug)]
@@ -41,7 +25,7 @@ impl LlamaWeights {
         let embedding = config.embedding_length;
         let mut blocks = Vec::new();
         for index in 0..config.block_count {
-            blocks.push(BlockWeights::load(source, config, index)?);
+            blocks.push(load_block(source, config, index)?);
         }
         let output = if source.tensor_shape("output.weight").is_some() {
             Some(Matrix::load(
@@ -62,37 +46,42 @@ impl LlamaWeights {
     }
 }
 
-impl BlockWeights {
-    fn load(source: &dyn ModelSource, config: &LlamaConfig, index: usize) -> Result<Self> {
-        let embedding = config.embedding_length;
-        let feed_forward = config.feed_forward_length;
-        let kv_dim = config.kv_dim()?;
-        let name = |part: &str| format!("blk.{index}.{part}.weight");
-        let matrix =
-            |part: &str, rows: usize, cols: usize| Matrix::load(source, &name(part), rows, cols);
-        let bias = |part: &str, len: usize| {
-            let name = format!("blk.{index}.{part}.bias");
-            if source.tensor_shape(&name).is_some() || config.variant.requires_attention_bias() {
-                load_vector(source, &name, len).map(Some)
-            } else {
-                Ok(None)
-            }
-        };
-        Ok(Self {
-            attn_norm: load_vector(source, &name("attn_norm"), embedding)?,
-            attn_q: matrix("attn_q", embedding, embedding)?,
-            attn_k: matrix("attn_k", kv_dim, embedding)?,
-            attn_v: matrix("attn_v", kv_dim, embedding)?,
-            attn_q_bias: bias("attn_q", embedding)?,
-            attn_k_bias: bias("attn_k", kv_dim)?,
-            attn_v_bias: bias("attn_v", kv_dim)?,
-            attn_output: matrix("attn_output", embedding, embedding)?,
-            ffn_norm: load_vector(source, &name("ffn_norm"), embedding)?,
-            ffn_gate: matrix("ffn_gate", feed_forward, embedding)?,
-            ffn_up: matrix("ffn_up", feed_forward, embedding)?,
-            ffn_down: matrix("ffn_down", embedding, feed_forward)?,
-        })
-    }
+/// Loads block `index` by its llama tensor names.
+fn load_block(
+    source: &dyn ModelSource,
+    config: &LlamaConfig,
+    index: usize,
+) -> Result<BlockWeights> {
+    let embedding = config.embedding_length;
+    let feed_forward = config.feed_forward_length;
+    let kv_dim = config.decoder().kv_dim()?;
+    let name = |part: &str| format!("blk.{index}.{part}.weight");
+    let matrix =
+        |part: &str, rows: usize, cols: usize| Matrix::load(source, &name(part), rows, cols);
+    let bias = |part: &str, len: usize| {
+        let name = format!("blk.{index}.{part}.bias");
+        if source.tensor_shape(&name).is_some() || config.variant.requires_attention_bias() {
+            load_vector(source, &name, len).map(Some)
+        } else {
+            Ok(None)
+        }
+    };
+    Ok(BlockWeights {
+        attn_norm: load_vector(source, &name("attn_norm"), embedding)?,
+        attn_q: matrix("attn_q", embedding, embedding)?,
+        attn_k: matrix("attn_k", kv_dim, embedding)?,
+        attn_v: matrix("attn_v", kv_dim, embedding)?,
+        attn_q_bias: bias("attn_q", embedding)?,
+        attn_k_bias: bias("attn_k", kv_dim)?,
+        attn_v_bias: bias("attn_v", kv_dim)?,
+        attn_output: matrix("attn_output", embedding, embedding)?,
+        ffn_norm: load_vector(source, &name("ffn_norm"), embedding)?,
+        ffn_gate: matrix("ffn_gate", feed_forward, embedding)?,
+        ffn_up: matrix("ffn_up", feed_forward, embedding)?,
+        ffn_down: matrix("ffn_down", embedding, feed_forward)?,
+        attn_sub_norm: None,
+        ffn_sub_norm: None,
+    })
 }
 
 #[cfg(test)]

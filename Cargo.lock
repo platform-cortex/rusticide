@@ -454,7 +454,10 @@ name = "rusticide-transformer"
 version = "0.9.0"
 dependencies = [
  "rayon",
+ "rusticide-core",
+ "rusticide-io",
  "rusticide-kernels",
+ "rusticide-model",
 ]
 
 [[package]]

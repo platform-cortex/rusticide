@@ -5,9 +5,11 @@
 use rayon::prelude::*;
 use rusticide_kernels::{add_assign, dot_rows, matmul_batch, mix_rows, softmax};
 use rusticide_model::{KvCache, Result};
-use rusticide_transformer::{PARALLEL_MIN_TOKENS, RopeStyle, to_token_major};
 
-use crate::config::LlamaConfig;
+use crate::batch::PARALLEL_MIN_TOKENS;
+use crate::config::DecoderConfig;
+use crate::layout::to_token_major;
+use crate::rope::RopeStyle;
 use crate::weights::BlockWeights;
 
 /// The head layout of grouped-query attention.
@@ -58,7 +60,7 @@ impl Heads {
 /// scratch buffers. Rows named `*_rows` are laid out by weight row, the
 /// rest token after token.
 #[derive(Debug)]
-pub(crate) struct Attention {
+pub struct Attention {
     heads: Heads,
     width: usize,
     query_rows: Vec<f32>,
@@ -71,7 +73,10 @@ pub(crate) struct Attention {
 }
 
 impl Attention {
-    pub(crate) fn new(config: &LlamaConfig) -> Result<Self> {
+    /// # Errors
+    ///
+    /// `InvalidConfig` when the key-value width overflows.
+    pub fn new(config: &DecoderConfig) -> Result<Self> {
         #[expect(
             clippy::cast_precision_loss,
             reason = "head dimensions are far below 2^24, where f32 is exact"
@@ -83,7 +88,7 @@ impl Attention {
             kv_dim: config.kv_dim()?,
             scale: head_dim.sqrt(),
             rope_freq_base: config.rope_freq_base,
-            rope: config.variant.rope(),
+            rope: config.rope,
         };
         Ok(Self {
             heads,
@@ -102,7 +107,11 @@ impl Attention {
     /// row each, at positions `start..`, storing their keys and values in
     /// `cache` under `layer`. Each token attends only to the rows cached up
     /// to and including its own.
-    pub(crate) fn forward(
+    ///
+    /// # Errors
+    ///
+    /// Any error storing the keys and values in `cache`.
+    pub fn forward(
         &mut self,
         block: &BlockWeights,
         cache: &mut KvCache,

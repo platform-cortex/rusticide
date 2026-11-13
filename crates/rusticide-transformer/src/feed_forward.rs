@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use rusticide_kernels::{matmul_batch, mul_assign, silu_assign};
-use rusticide_transformer::{to_token_major, zip_rows};
 
-use crate::config::LlamaConfig;
+use crate::batch::zip_rows;
+use crate::config::DecoderConfig;
+use crate::layout::to_token_major;
 use crate::weights::BlockWeights;
 
 /// The `SwiGLU` feed-forward network for a batch of tokens, with reusable
 /// scratch buffers. `gate`, `up` and `down` are laid out by weight row.
 #[derive(Debug)]
-pub(crate) struct FeedForward {
+pub struct FeedForward {
     width: usize,
     length: usize,
     gate: Vec<f32>,
@@ -21,7 +22,8 @@ pub(crate) struct FeedForward {
 }
 
 impl FeedForward {
-    pub(crate) const fn new(config: &LlamaConfig) -> Self {
+    #[must_use]
+    pub const fn new(config: &DecoderConfig) -> Self {
         Self {
             width: config.embedding_length,
             length: config.feed_forward_length,
@@ -34,7 +36,7 @@ impl FeedForward {
 
     /// Writes `ffn_down(silu(ffn_gate(input)) * ffn_up(input))` for the
     /// tokens of `input`, one row each.
-    pub(crate) fn forward(&mut self, block: &BlockWeights, input: &[f32], output: &mut [f32]) {
+    pub fn forward(&mut self, block: &BlockWeights, input: &[f32], output: &mut [f32]) {
         let tokens = input.len() / self.width;
         let len = self.length * tokens;
         for buffer in [&mut self.gate, &mut self.up, &mut self.hidden] {

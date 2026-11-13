@@ -4,6 +4,7 @@
 
 use rusticide_io::{GGUFValue, Metadata};
 use rusticide_model::{ModelError, ModelSource, Result};
+use rusticide_transformer::{Activation, DecoderConfig};
 
 use crate::variant::Variant;
 
@@ -144,15 +145,23 @@ impl LlamaConfig {
         })
     }
 
-    /// Width of one key or value row: `head_count_kv * head_dim`.
-    ///
-    /// # Errors
-    ///
-    /// `InvalidConfig` when the product overflows.
-    pub fn kv_dim(&self) -> Result<usize> {
-        self.head_count_kv
-            .checked_mul(self.head_dim)
-            .ok_or(ModelError::InvalidConfig { reason: TOO_LARGE })
+    /// The family-neutral decoder hyperparameters of this model.
+    #[must_use]
+    pub const fn decoder(&self) -> DecoderConfig {
+        DecoderConfig {
+            embedding_length: self.embedding_length,
+            block_count: self.block_count,
+            feed_forward_length: self.feed_forward_length,
+            head_count: self.head_count,
+            head_count_kv: self.head_count_kv,
+            head_dim: self.head_dim,
+            context_length: self.context_length,
+            vocab_size: self.vocab_size,
+            rope_freq_base: self.rope_freq_base,
+            rms_norm_eps: self.rms_norm_eps,
+            rope: self.variant.rope(),
+            activation: Activation::Silu,
+        }
     }
 }
 

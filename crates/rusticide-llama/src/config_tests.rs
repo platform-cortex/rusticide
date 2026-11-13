@@ -5,6 +5,7 @@
 use rusticide_core::Tensor;
 use rusticide_io::GGUFValue;
 use rusticide_model::{InMemorySource, ModelError};
+use rusticide_transformer::{Activation, DecoderConfig, RopeStyle};
 
 use super::LlamaConfig;
 use crate::Variant;
@@ -217,19 +218,22 @@ fn config_requires_the_token_embedding() {
 }
 
 #[test]
-fn kv_dim_is_kv_heads_times_head_dim() {
-    let config = LlamaConfig::from_source(&tiny_source(), Variant::Llama).unwrap();
-    assert_eq!(config.kv_dim().unwrap(), 2);
-}
-
-#[test]
-fn kv_dim_reports_an_overflow() {
+fn decoder_carries_every_hyperparameter() {
     let mut config = LlamaConfig::from_source(&tiny_source(), Variant::Llama).unwrap();
-    config.head_count_kv = usize::MAX;
-    match config.kv_dim() {
-        Err(ModelError::InvalidConfig { reason }) => {
-            assert_eq!(reason, "model dimensions are too large");
-        }
-        other => panic!("unexpected: {other:?}"),
-    }
+    (config.rope_freq_base, config.rms_norm_eps) = (500.0, 1e-6);
+    let expected = DecoderConfig {
+        embedding_length: 4,
+        block_count: 1,
+        feed_forward_length: 8,
+        head_count: 2,
+        head_count_kv: 1,
+        head_dim: 2,
+        context_length: 16,
+        vocab_size: TINY_VOCAB,
+        rope_freq_base: 500.0,
+        rms_norm_eps: 1e-6,
+        rope: RopeStyle::Adjacent,
+        activation: Activation::Silu,
+    };
+    assert_eq!(config.decoder(), expected);
 }

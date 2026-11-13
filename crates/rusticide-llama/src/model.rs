@@ -4,11 +4,9 @@
 
 use rusticide_kernels::add_assign;
 use rusticide_model::{KvCache, Model, ModelError, ModelSource, Result};
-use rusticide_transformer::{normalize, normalize_rows, zip_rows};
+use rusticide_transformer::{Attention, FeedForward, normalize, normalize_rows, zip_rows};
 
-use crate::attention::Attention;
 use crate::config::LlamaConfig;
-use crate::feed_forward::FeedForward;
 use crate::variant::Variant;
 use crate::weights::LlamaWeights;
 
@@ -34,10 +32,11 @@ impl Llama {
     pub fn from_source(source: &dyn ModelSource, variant: Variant) -> Result<Self> {
         let config = LlamaConfig::from_source(source, variant)?;
         let weights = LlamaWeights::load(source, &config)?;
+        let decoder = config.decoder();
         Ok(Self {
-            cache: KvCache::new(config.block_count, config.kv_dim()?, config.context_length),
-            attention: Attention::new(&config)?,
-            feed_forward: FeedForward::new(&config),
+            cache: KvCache::new(config.block_count, decoder.kv_dim()?, config.context_length),
+            attention: Attention::new(&decoder)?,
+            feed_forward: FeedForward::new(&decoder),
             hidden: Vec::new(),
             normed: Vec::new(),
             delta: Vec::new(),
@@ -167,3 +166,7 @@ mod batch_tests;
 #[cfg(test)]
 #[path = "model_error_tests.rs"]
 mod error_tests;
+
+#[cfg(test)]
+#[path = "model_attention_tests.rs"]
+mod attention_tests;

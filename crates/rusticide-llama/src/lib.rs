@@ -4,9 +4,7 @@
 
 //! Llama-family architecture: configuration, weights and the forward pass.
 
-mod attention;
 mod config;
-mod feed_forward;
 mod model;
 mod registry;
 mod variant;
@@ -21,6 +19,6 @@ mod test_support;
 pub use config::LlamaConfig;
 pub use model::{Llama, load, load_qwen2};
 pub use registry::registry;
-pub use rusticide_transformer::RopeStyle;
+pub use rusticide_transformer::{BlockWeights, RopeStyle};
 pub use variant::Variant;
-pub use weights::{BlockWeights, LlamaWeights};
+pub use weights::LlamaWeights;
