@@ -13,6 +13,8 @@ pub const DIMENSIONS_TOO_LARGE: &str = "model dimensions are too large";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Activation {
     Silu,
+    /// `max(x, 0)^2`, used by `BitNet`.
+    ReluSquared,
 }
 
 /// Hyperparameters of a decoder-only transformer, shared by every family.

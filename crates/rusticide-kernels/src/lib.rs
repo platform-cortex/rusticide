@@ -41,8 +41,8 @@ pub mod test_support;
 
 pub use adapter::{Adapter, active};
 pub use facade::{
-    add_assign, dot, dot_rows, mix_rows, mul_assign, rms_norm, rope_adjacent, rope_half_split,
-    silu_assign, softmax,
+    add_assign, dot, dot_rows, mix_rows, mul_assign, relu_squared_assign, rms_norm, rope_adjacent,
+    rope_half_split, silu_assign, softmax,
 };
 pub use matmul::{Weights, matmul_batch, matvec_batch};
 pub use portable::ternary::dot_ternary_matrix;

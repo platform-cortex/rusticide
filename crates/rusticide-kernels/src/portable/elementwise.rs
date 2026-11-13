@@ -13,6 +13,14 @@ pub(super) fn silu_assign(values: &mut [f32]) {
     }
 }
 
+/// In-place `max(x, 0)^2`; negative and `-0.0` inputs give `+0.0`.
+pub(super) fn relu_squared_assign(values: &mut [f32]) {
+    for value in values {
+        let positive = value.max(0.0);
+        *value = positive * positive;
+    }
+}
+
 /// Element-wise `target *= factor`; the shorter slice bounds the work.
 pub(super) fn mul_assign(target: &mut [f32], factor: &[f32]) {
     for (slot, &by) in target.iter_mut().zip(factor) {
@@ -44,6 +52,16 @@ mod tests {
         let mut values = [2.0, 2.0];
         silu_assign(&mut values);
         assert_eq!(values, [expected, expected]);
+    }
+
+    #[test]
+    fn relu_squared_assign_squares_positives_and_zeroes_the_rest() {
+        let mut values = [-2.0, -0.0, 0.0, 1.5, 3.0];
+        relu_squared_assign(&mut values);
+        assert_eq!(values, [0.0, 0.0, 0.0, 2.25, 9.0]);
+        for value in &values[..3] {
+            assert_eq!(value.to_bits(), 0.0_f32.to_bits());
+        }
     }
 
     #[test]

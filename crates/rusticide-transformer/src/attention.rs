@@ -9,6 +9,7 @@ use rusticide_model::{KvCache, Result};
 use crate::batch::PARALLEL_MIN_TOKENS;
 use crate::config::DecoderConfig;
 use crate::layout::to_token_major;
+use crate::norm::normalize_rows;
 use crate::rope::RopeStyle;
 use crate::weights::BlockWeights;
 
@@ -63,6 +64,7 @@ impl Heads {
 pub struct Attention {
     heads: Heads,
     width: usize,
+    eps: f32,
     query_rows: Vec<f32>,
     key_rows: Vec<f32>,
     value_rows: Vec<f32>,
@@ -95,6 +97,7 @@ impl Attention {
         Ok(Self {
             heads,
             width: config.embedding_length,
+            eps: config.rms_norm_eps,
             query_rows: Vec::new(),
             key_rows: Vec::new(),
             value_rows: Vec::new(),
@@ -105,10 +108,11 @@ impl Attention {
         })
     }
 
-    /// Writes `attn_output(attention(input))` for the tokens of `input`, one
+    /// Writes `attn_output(sub_norm(attention(input)))` for the tokens of `input`, one
     /// row each, at positions `start..`, storing their keys and values in
     /// `cache` under `layer`. Each token attends only to the rows cached up
-    /// to and including its own.
+    /// to and including its own. The sub-norm applies to each token's mixed
+    /// heads only when the block has one.
     ///
     /// # Errors
     ///
@@ -134,8 +138,15 @@ impl Attention {
             cache.store(layer, start + offset, key, value)?;
         }
         self.attend(cache.keys(layer), cache.values(layer), start);
+        let mixed = match &block.attn_sub_norm {
+            Some(sub_norm) => {
+                normalize_rows(&self.mixed, sub_norm, self.eps, tokens, &mut self.query);
+                &self.query
+            }
+            None => &self.mixed,
+        };
         let jobs = &mut [(block.attn_output.weights(), &mut self.query_rows[..])];
-        matmul_batch(&self.mixed, tokens, jobs);
+        matmul_batch(mixed, tokens, jobs);
         to_token_major(&self.query_rows, tokens, output);
         Ok(())
     }

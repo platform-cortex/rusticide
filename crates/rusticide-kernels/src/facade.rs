@@ -52,6 +52,11 @@ pub fn silu_assign(values: &mut [f32]) {
     (active().f32.silu_assign)(values);
 }
 
+/// In-place squared `ReLU`: `max(value, 0)^2` per element.
+pub fn relu_squared_assign(values: &mut [f32]) {
+    (active().f32.relu_squared_assign)(values);
+}
+
 /// Divides the row by `sqrt(mean(x^2) + eps)`. An empty row is a no-op.
 pub fn rms_norm(row: &mut [f32], eps: f32) {
     (active().f32.rms_norm)(row, eps);

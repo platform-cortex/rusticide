@@ -29,6 +29,7 @@ pub(crate) struct F32Kernels {
     pub(crate) add_assign: fn(&mut [f32], &[f32]),
     pub(crate) mul_assign: fn(&mut [f32], &[f32]),
     pub(crate) silu_assign: fn(&mut [f32]),
+    pub(crate) relu_squared_assign: fn(&mut [f32]),
     pub(crate) rms_norm: fn(&mut [f32], f32),
     pub(crate) softmax: fn(&mut [f32]),
     pub(crate) rope_adjacent: fn(&mut [f32], usize, f32, usize),

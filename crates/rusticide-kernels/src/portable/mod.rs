@@ -74,6 +74,7 @@ pub(crate) static ADAPTER: Adapter = Adapter {
         add_assign: elementwise::add_assign,
         mul_assign: elementwise::mul_assign,
         silu_assign: elementwise::silu_assign,
+        relu_squared_assign: elementwise::relu_squared_assign,
         rms_norm: norm::rms_norm,
         softmax: norm::softmax,
         rope_adjacent: rope::rope_adjacent,
