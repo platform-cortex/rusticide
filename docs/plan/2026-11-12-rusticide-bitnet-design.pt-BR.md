@@ -345,30 +345,25 @@ padrao do rayon, uma por CPU logica (8 no M1 Pro, 20 no iMac Pro). O
   harness (0.25), ou apertar o harness.
 - Em aberto (dono, no merge): aceitar a baseline do iMac Pro acima ou
   regrava-la depois que o servico openclaw for parado.
-- Minors adiados para a revisao final triar (do ledger das tasks):
+- Minors em aberto (do ledger das tasks e da revisao final):
   - `Decoder::new` nao confere os formatos de `DecoderWeights` contra a
     config (os loaders conferem).
   - A ordem dos erros para metadados com varias falhas mudou; um teste
-    com `1 << 40` assume `usize` de 64 bits; uma contagem zero de tokens
-    em `layout.rs` nao e verificada.
-  - Docs: o limite de paridade de `round_row_to_i8` (`|x*s| <= 4194303`,
-    NaNs padrao); `Q8Input.kind` "set by quantize"; os bytes por linha de
-    `Weights::Ternary` sao multiplo de 32; `Q8Kind::Row` tira o maximo
-    sobre blocos inteiros (igual para as larguras do BitNet).
-  - O `copy_row` de `Ternary` escala o `out` inteiro e repete o laco de
-    `apply_trailer`; uma mensagem `InvalidTensor` enganosa para buffer
-    curto (inalcancavel pelo `rusticide-io`).
+    com `1 << 40` assume `usize` de 64 bits e precisa de gate para alvos
+    de 32 bits; uma contagem zero de tokens em `layout.rs` nao e
+    verificada.
   - O `dequantize_row_i2_s` upstream mapeia o codigo 3 para 0 enquanto
     seu kernel mad da +2; o rusticide da +2 em todo lugar (arquivos reais
     nao tem codigo 3).
   - Duas fontes para o prefixo das chaves de metadados
     (`Family.architecture` e `general.architecture`); o leitor de
     hiperparametros e o loader do transformer so sao testados via `llama`
-    e `bitnet`; `LlamaConfig` espelha `DecoderConfig`; nenhum teste do
-    `bitnet` carrega um tensor `i2_s` real.
+    e `bitnet`; `LlamaConfig` espelha `DecoderConfig`.
+  - Mover o builder de teste `TinySource` do llama para uma feature de
+    testes do `rusticide-transformer`.
+  - Tornar opcionais as dependencias de `rusticide-llama`.
   - `mise run fuzz run <target> -- -max_total_time=60` perde o `--`
     interno.
-  - Linhas acima de 80 colunas: `docs/ARCHITECTURE.md:167` e a doc do
-    alvo de fuzz `llama_load.rs`.
   - O `rusticide-bench` monta o registro `llama` + `bitnet` ele mesmo, a
     mesma linha do `models::registry()` da fachada.
+  - `AGENTS.md:24` passa de 80 colunas.

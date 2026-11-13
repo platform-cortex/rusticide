@@ -319,28 +319,23 @@ portable kernel under every adapter.
   harness (0.25), or tighten the harness.
 - Open (owner, at merge time): accept the iMac Pro baseline above or
   re-record it after the openclaw service is stopped.
-- Deferred minors for the final review to triage (from the task ledger):
+- Open minors (from the task ledger and the final review):
   - `Decoder::new` does not cross-check `DecoderWeights` shapes against
     the config (the loaders do).
   - Error order for multi-fault metadata changed; a `1 << 40` test
-    assumes a 64-bit `usize`; a zero token count into `layout.rs` is not
-    checked.
-  - Docs: `round_row_to_i8`'s parity bound (`|x*s| <= 4194303`, default
-    NaNs); `Q8Input.kind` "set by quantize"; `Weights::Ternary` row bytes
-    are a multiple of 32; `Q8Kind::Row` takes its max over whole blocks
-    (equal for BitNet widths).
-  - `Ternary` `copy_row` scales the whole `out` and repeats
-    `apply_trailer`'s loop; a misleading `InvalidTensor` message for a
-    short buffer (unreachable through `rusticide-io`).
+    assumes a 64-bit `usize` and needs gating for 32-bit targets; a zero
+    token count into `layout.rs` is not checked.
   - Upstream `dequantize_row_i2_s` maps code 3 to 0 while its mad kernel
     gives +2; rusticide gives +2 everywhere (real files have no code 3).
   - Two sources for the metadata key prefix (`Family.architecture` and
     `general.architecture`); the transformer's hyperparameter reader and
     loader are tested only through `llama` and `bitnet`; `LlamaConfig`
-    mirrors `DecoderConfig`; no `bitnet` test loads a real `i2_s` tensor.
+    mirrors `DecoderConfig`.
+  - Move llama's `TinySource` test builder into a `rusticide-transformer`
+    testing feature.
+  - Make the `rusticide-llama` dependencies optional.
   - `mise run fuzz run <target> -- -max_total_time=60` drops the inner
     `--`.
-  - Lines over 80 columns: `docs/ARCHITECTURE.md:167` and the
-    `llama_load.rs` fuzz target doc.
   - `rusticide-bench` composes the `llama` + `bitnet` registry itself,
     the same line as the facade's `models::registry()`.
+  - `AGENTS.md:24` is over 80 columns.
