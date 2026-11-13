@@ -236,27 +236,27 @@ de tres sessoes); a coluna portavel e uma execucao do mesmo dia com
 
 ### Apple M1 Pro (8 nucleos), `neon`
 
-Baseline `apple-m1-pro-8.json`, gravado com carga de 1 minuto 2.45; a
-execucao portavel com 2.47.
+Baseline `apple-m1-pro-8.json`, gravado com a maquina quieta, carga de 1
+minuto 1.27. A coluna portavel e uma execucao anterior do mesmo dia, com
+carga 2.47, e nao foi repetida.
 
-- Q4_K: row 47.71 vs 29.69 (1.6x), rows8 91.86 vs 30.29 (3.0x).
-- Q6_K: row 28.74 vs 26.21 (1.1x), rows8 79.45 vs 27.21 (2.9x).
-- Q5_0: row 29.70 vs 20.46 (1.5x), rows8 80.73 vs 24.50 (3.3x).
-- Q8_0: row 59.60 vs 35.41 (1.7x), rows8 96.93 vs 35.71 (2.7x).
-- Qwen2.5 prefill 962.4 vs 416.4 (2.3x); decode 135.9 vs 124.9.
-- TinyLlama prefill 459.9 vs 166.1 (2.8x); decode 102.4 vs 90.7.
-- Contra o baseline anterior (gravado em `44ff283`) toda linha de kernel fica
-  dentro de 1.5% (os kernels de formato dentro de 0.8%), e as linhas e2e ficam
-  2-7% abaixo: decode do Qwen2.5 145.9 -> 135.9. Um A/B na mesma sessao de
-  `44ff283` contra a arvore final, tres execucoes alternadas de cada, da o mesmo
-  decode (melhor 140.1 vs 139.6), entao a queda e a carga de fundo deste desktop
-  naquele dia, nao o codigo. A selecao em tempo de execucao nao custa nada
-  mensuravel ao M1, como [Sequencia](#sequencia) pretendia.
+- Q4_K: row 47.53 vs 29.69 (1.6x), rows8 91.77 vs 30.29 (3.0x).
+- Q6_K: row 28.66 vs 26.21 (1.1x), rows8 80.61 vs 27.21 (3.0x).
+- Q5_0: row 29.83 vs 20.46 (1.5x), rows8 80.79 vs 24.50 (3.3x).
+- Q8_0: row 59.58 vs 35.41 (1.7x), rows8 96.99 vs 35.71 (2.7x).
+- Qwen2.5 prefill 993.8 vs 416.4 (2.4x); decode 144.6 vs 124.9.
+- TinyLlama prefill 470.7 vs 166.1 (2.8x); decode 105.5 vs 90.7.
+- Contra o baseline quieto anterior (gravado em `44ff283`) toda linha fica
+  dentro de 1.6%, entao a selecao em tempo de execucao nao custa nada
+  mensuravel ao M1, como [Sequencia](#sequencia) pretendia. Uma primeira
+  regravacao com carga 2.45 leu as linhas e2e 2-7% abaixo; um A/B na
+  mesma sessao contra `44ff283` mostrou o codigo igual, e este registro
+  quieto o substituiu.
 - O llama.cpp nao foi remedido no M1; vale a referencia do adaptador NEON
   (`llama-bench -ngl 0 -t 6 -p 128,512 -n 0 -r 5`, BLAS e Metal
   carregados): TinyLlama pp128 318.2, Qwen2.5 pp128 599.3 e pp512 722.8.
   Contra o numero mais rapido do llama.cpp para cada modelo (pp128 para
-  o TinyLlama, pp512 para o Qwen2.5), o prefill de hoje e 145% e 133%.
+  o TinyLlama, pp512 para o Qwen2.5), o prefill de hoje e 148% e 137%.
 
 ### iMac Pro, Xeon W-2150B (10 nucleos / 20 threads), `avx2`
 

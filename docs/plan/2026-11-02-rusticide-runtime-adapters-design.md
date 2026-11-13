@@ -223,27 +223,26 @@ sessions' bests); the portable column is a same-day run with
 
 ### Apple M1 Pro (8 cores), `neon`
 
-Baseline `apple-m1-pro-8.json`, recorded at 1-minute load 2.45; the
-portable run at 2.47.
+Baseline `apple-m1-pro-8.json`, recorded quietly at 1-minute load 1.27.
+The portable column is an earlier run of the same day, at load 2.47, and
+was not repeated.
 
-- Q4_K: row 47.71 vs 29.69 (1.6x), rows8 91.86 vs 30.29 (3.0x).
-- Q6_K: row 28.74 vs 26.21 (1.1x), rows8 79.45 vs 27.21 (2.9x).
-- Q5_0: row 29.70 vs 20.46 (1.5x), rows8 80.73 vs 24.50 (3.3x).
-- Q8_0: row 59.60 vs 35.41 (1.7x), rows8 96.93 vs 35.71 (2.7x).
-- Qwen2.5 prefill 962.4 vs 416.4 (2.3x); decode 135.9 vs 124.9.
-- TinyLlama prefill 459.9 vs 166.1 (2.8x); decode 102.4 vs 90.7.
-- Against the previous baseline (recorded at `44ff283`) every kernel row is
-  within 1.5% (the format kernels within 0.8%), and the e2e rows are 2-7% lower:
-  Qwen2.5 decode 145.9 -> 135.9. A same-session A/B of `44ff283` against the
-  final tree, three alternating runs each, gives the same decode (best 140.1 vs
-  139.6), so the drop is this desktop's background load that day, not the code.
-  The runtime selection costs the M1 nothing measurable, as
-  [Sequencing](#sequencing) intended.
+- Q4_K: row 47.53 vs 29.69 (1.6x), rows8 91.77 vs 30.29 (3.0x).
+- Q6_K: row 28.66 vs 26.21 (1.1x), rows8 80.61 vs 27.21 (3.0x).
+- Q5_0: row 29.83 vs 20.46 (1.5x), rows8 80.79 vs 24.50 (3.3x).
+- Q8_0: row 59.58 vs 35.41 (1.7x), rows8 96.99 vs 35.71 (2.7x).
+- Qwen2.5 prefill 993.8 vs 416.4 (2.4x); decode 144.6 vs 124.9.
+- TinyLlama prefill 470.7 vs 166.1 (2.8x); decode 105.5 vs 90.7.
+- Against the previous quiet baseline (recorded at `44ff283`) every row is
+  within 1.6%, so the runtime selection costs the M1 nothing measurable,
+  as [Sequencing](#sequencing) intended. A first re-record at load 2.45
+  read the e2e rows 2-7% low; a same-session A/B against `44ff283` showed
+  the code equal, and this quiet record replaced it.
 - llama.cpp was not re-measured on the M1; the NEON adapter's reference
   stands (`llama-bench -ngl 0 -t 6 -p 128,512 -n 0 -r 5`, BLAS and Metal
   loaded): TinyLlama pp128 318.2, Qwen2.5 pp128 599.3 and pp512 722.8.
   Against llama.cpp's faster figure for each model (pp128 for TinyLlama,
-  pp512 for Qwen2.5), today's prefill is 145% and 133%.
+  pp512 for Qwen2.5), today's prefill is 148% and 137%.
 
 ### iMac Pro, Xeon W-2150B (10 cores / 20 threads), `avx2`
 
