@@ -55,6 +55,7 @@ fn few_inputs_are_viewed_on_the_stack_with_their_refusals() {
                 views.superblocks().views().len(),
                 views.superblocks().refused().to_vec(),
             ),
+            Q8Kind::Row => unreachable!("not a grouped scheme"),
         });
         assert_eq!((len, refused), (3, vec![2]));
     }
@@ -67,7 +68,22 @@ fn many_inputs_are_viewed_on_the_heap_with_their_refusals() {
         let refused = visit_views(&inputs, kind, |views| match kind {
             Q8Kind::Block => views.blocks().refused().to_vec(),
             Q8Kind::SuperBlock => views.superblocks().refused().to_vec(),
+            Q8Kind::Row => unreachable!("not a grouped scheme"),
         });
         assert_eq!(refused, [TOKENS]);
+    }
+}
+
+#[test]
+fn row_inputs_have_no_group_views() {
+    for tokens in [1, TOKENS + 1] {
+        let inputs = inputs(Q8Kind::Row, tokens, &[]);
+        let lens = visit_views(&inputs, Q8Kind::Row, |views| {
+            (
+                views.blocks().views().len(),
+                views.superblocks().views().len(),
+            )
+        });
+        assert_eq!(lens, (0, 0));
     }
 }

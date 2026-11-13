@@ -87,19 +87,18 @@ impl<'a> GroupViews<'a> {
 
 /// Calls `body` with the views of `inputs`, a `kind` batch. Up to
 /// [`TOKENS`] inputs are viewed on the stack: a lone product of few
-/// tokens costs less than a heap allocation.
+/// tokens costs less than a heap allocation. A [`Q8Kind::Row`] batch has
+/// no views: its quants reach `-128`, and no group kernel reads it.
 pub(crate) fn visit_views<R>(
     inputs: &[Q8Input],
     kind: Q8Kind,
     body: impl FnOnce(&GroupViews<'_>) -> R,
 ) -> R {
-    if inputs.len() > TOKENS {
-        return match kind {
-            Q8Kind::Block => body(&GroupViews::new(inputs, &[])),
-            Q8Kind::SuperBlock => body(&GroupViews::new(&[], inputs)),
-        };
-    }
+    let heap = inputs.len() > TOKENS;
     match kind {
+        Q8Kind::Row => body(&GroupViews::default()),
+        Q8Kind::Block if heap => body(&GroupViews::new(inputs, &[])),
+        Q8Kind::SuperBlock if heap => body(&GroupViews::new(&[], inputs)),
         Q8Kind::Block => {
             let stack = Stacked::new(inputs, blocks_of);
             body(&GroupViews {

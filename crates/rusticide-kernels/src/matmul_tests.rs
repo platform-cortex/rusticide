@@ -15,6 +15,12 @@ fn kernel(type_id: u32) -> &'static QuantKernel {
     crate::portable::ADAPTER.quant_kernel(type_id).unwrap()
 }
 
+/// A row-major `Q8_0` kernel paired with per-row activations.
+static ROW_Q8_0: QuantKernel = QuantKernel {
+    activation: Q8Kind::Row,
+    ..crate::portable::Q8_0
+};
+
 /// A dense 3 x 32 matrix.
 fn dense_data() -> Vec<f32> {
     (0..96_u8).map(|v| f32::from(v % 5) - 2.0).collect()
@@ -270,8 +276,13 @@ fn batched_quantization_matches_per_token_quantization() {
         let inputs: Vec<f32> = (0..tokens * WIDTH)
             .map(|v| f32::from(u8::try_from(v * 7 % 23).unwrap()) / 5.0 - 2.0)
             .collect();
-        for (type_id, kind) in [(Q8_0, Q8Kind::Block), (Q4_K, Q8Kind::SuperBlock)] {
-            let weights = blocks(type_id, &[], 1);
+        for kernel in [kernel(Q8_0), kernel(Q4_K), &ROW_Q8_0] {
+            let kind = kernel.activation();
+            let weights = Weights::Blocks {
+                kernel,
+                data: &[],
+                row_bytes: 1,
+            };
             let activations = Activations::new(&inputs, tokens, [&weights].into_iter());
             let batched = activations.quantized(kind);
             assert_eq!(batched.len(), tokens);

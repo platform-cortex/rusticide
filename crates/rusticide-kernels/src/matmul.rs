@@ -113,6 +113,7 @@ struct Activations<'a> {
     dense: Vec<&'a [f32]>,
     block: Vec<Q8Input>,
     super_block: Vec<Q8Input>,
+    row: Vec<Q8Input>,
 }
 
 impl<'a> Activations<'a> {
@@ -154,6 +155,7 @@ impl<'a> Activations<'a> {
         match kind {
             Q8Kind::Block => &mut self.block,
             Q8Kind::SuperBlock => &mut self.super_block,
+            Q8Kind::Row => &mut self.row,
         }
     }
 
@@ -162,6 +164,7 @@ impl<'a> Activations<'a> {
         match kind {
             Q8Kind::Block => &self.block,
             Q8Kind::SuperBlock => &self.super_block,
+            Q8Kind::Row => &self.row,
         }
     }
 

@@ -32,10 +32,31 @@ fn signed_max(blocks: &[[f32; Q8_BLOCK]]) -> f32 {
         .unwrap_or(0.0)
 }
 
-/// Rounds `block * inverse` into `quants`, returning their sum.
-fn quantize_block(block: &[f32; Q8_BLOCK], inverse: f32, quants: &mut [i8; Q8_BLOCK]) -> i32 {
+/// bitnet.cpp's legacy `127 / max|x|`. The running max is updated as C's
+/// `MAX(a, b)` macro, `a > b ? a : b`, does: a NaN replaces it, and the
+/// next element replaces the NaN.
+fn row_divisor(values: &[f32]) -> f32 {
+    let max = values.iter().fold(1e-5_f64, |max, value| {
+        let magnitude = f64::from(value.abs());
+        if max > magnitude { max } else { magnitude }
+    });
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "the reference divides in f64 and rounds the divisor to f32"
+    )]
+    let divisor = (127.0 / max) as f32;
+    divisor
+}
+
+/// Rounds `block * inverse` into `quants` with `round`, returning their sum.
+fn quantize_block(
+    block: &[f32; Q8_BLOCK],
+    inverse: f32,
+    quants: &mut [i8; Q8_BLOCK],
+    round: fn(f32) -> i8,
+) -> i32 {
     for (quant, &value) in quants.iter_mut().zip(block) {
-        *quant = round_to_i8(value * inverse);
+        *quant = round(value * inverse);
     }
     quants.iter().map(|&q| i32::from(q)).sum()
 }
@@ -43,7 +64,7 @@ fn quantize_block(block: &[f32; Q8_BLOCK], inverse: f32, quants: &mut [i8; Q8_BL
 pub(crate) fn quantize(target: &mut Q8Input, values: &[f32], kind: Q8Kind) {
     let (blocks, _) = values.as_chunks::<Q8_BLOCK>();
     let blocks = match kind {
-        Q8Kind::Block => blocks,
+        Q8Kind::Block | Q8Kind::Row => blocks,
         Q8Kind::SuperBlock => &blocks[..blocks.len() / PER_SUPER_BLOCK * PER_SUPER_BLOCK],
     };
     target.quants.resize(blocks.len() * Q8_BLOCK, 0);
@@ -58,7 +79,7 @@ pub(crate) fn quantize(target: &mut Q8Input, values: &[f32], kind: Q8Kind) {
             for (block, (quants, (scale, sum))) in blocks.iter().zip(outputs) {
                 let step = abs_max(block) / 127.0;
                 let inverse = if step == 0.0 { 0.0 } else { 1.0 / step };
-                *sum = quantize_block(block, inverse, quants);
+                *sum = quantize_block(block, inverse, quants, round_to_i8);
                 *scale = f16::from_f32(step).to_f32();
             }
         }
@@ -70,9 +91,16 @@ pub(crate) fn quantize(target: &mut Q8Input, values: &[f32], kind: Q8Kind) {
                 let inverse = if max == 0.0 { 0.0 } else { -127.0 / max };
                 let step = if max == 0.0 { 0.0 } else { 1.0 / inverse };
                 for (block, (quants, (scale, sum))) in super_block.iter().zip(outputs.by_ref()) {
-                    *sum = quantize_block(block, inverse, quants);
+                    *sum = quantize_block(block, inverse, quants, round_to_i8);
                     *scale = step;
                 }
+            }
+        }
+        Q8Kind::Row => {
+            let divisor = row_divisor(blocks.as_flattened());
+            for (block, (quants, (scale, sum))) in blocks.iter().zip(outputs) {
+                *sum = quantize_block(block, divisor, quants, round_row_to_i8);
+                *scale = divisor;
             }
         }
     }
@@ -85,6 +113,15 @@ pub(crate) fn quantize(target: &mut Q8Input, values: &[f32], kind: Q8Kind) {
 )]
 const fn round_to_i8(value: f32) -> i8 {
     value.round_ties_even().clamp(-127.0, 127.0) as i8
+}
+
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "the saturating cast is the reference's clamp to [-128, 127], and \
+              takes NaN to 0 as ggml's nearest_int does"
+)]
+const fn round_row_to_i8(value: f32) -> i8 {
+    value.round_ties_even() as i8
 }
 
 #[cfg(test)]
