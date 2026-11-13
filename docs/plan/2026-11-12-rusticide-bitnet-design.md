@@ -158,10 +158,17 @@ file:line references.
 ## Architecture
 
 - **`rusticide-transformer`** depends on `rusticide-model` (the
-  `KvCache`) and `rusticide-kernels`. It holds the decoder building
-  blocks, parameterized by small config structs, and nothing that names a
-  family. `rusticide-llama` and `rusticide-bitnet` depend on it;
-  `rusticide-model` never does.
+  `KvCache`), `rusticide-kernels` and `rusticide-io` (the GGUF metadata
+  values). It holds the decoder building blocks, parameterized by small
+  config structs, and nothing that names a family. `rusticide-llama` and
+  `rusticide-bitnet` depend on it; `rusticide-model` never does.
+- **Families as data.** A family describes itself as a `Family` value
+  (architecture key prefix, RoPE style, activation, whether attention
+  biases are required, whether blocks carry sub-norms).
+  `DecoderConfig::from_source` reads and validates the shared
+  hyperparameters under that prefix and `DecoderWeights::from_source`
+  loads every weight by tensor name, so a family crate is its `Family`
+  plus a loader: no reader or loader is copied between families.
 - **Products behind one seam.** A block calls "project these activations
   through this weight". For `llama` the weight is a GGUF-block format; for
   BitNet it is `i2_s`, whose product first quantizes the activations to
