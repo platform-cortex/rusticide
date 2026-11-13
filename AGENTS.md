@@ -15,9 +15,12 @@ file; edit here, never there.
   torchgen-style operator schemas, a dispatch table routing ops to kernels).
   No C, C++, Python, BLAS or bindgen of vendored C.
 - Spec: `docs/plan/2026-08-21-rusticide-framework-design.md`. Current plan:
-  `docs/plan/2026-11-02-rusticide-runtime-adapters-plan.md` (design:
-  `docs/plan/2026-11-02-rusticide-runtime-adapters-design.md`). Consult the spec
-  for architecture decisions and update it when they change.
+  none. The last one, runtime adapters
+  (`docs/plan/2026-11-02-rusticide-runtime-adapters-design.md`), is done.
+  The spec's next step is milestone 3 of `rusticide run` (BitNet b1.58,
+  `docs/plan/2026-10-22-rusticide-run-design.md`), which has no plan yet.
+  Consult the spec for architecture decisions and update it when they
+  change.
 - Plans are executed task-by-task with `superpowers:subagent-driven-development`;
   progress lives in `.superpowers/sdd/<plan>/progress.md`.
 
@@ -98,10 +101,10 @@ mise run commit:config  # cc  regenerate committed.toml after editing commit-typ
 - `.github/workflows/cicd.yml` runs on every push and pull request: `version`
   (GitVersion, `version.yml`), then `gates` (`mise run ci:quick`, then on
   an x86_64 runner `rusticide version` must print `kernels: avx2`), `arm`
-  (the same gate on Linux arm64, adapters selected at run time, then
-  `rusticide version` must print `kernels: neon`), `miri` (`rusticide-simd`
-  for aarch64 and x86_64 on `nightly-2026-08-03`), SAST (`codeql.yml`), MSRV, a release build,
-  markdown/YAML/secrets/supply-chain.
+  (the same gate on Linux arm64 with no `+dotprod`: adapters are selected at
+  run time, then `rusticide version` must print `kernels: neon`), `miri`
+  (`rusticide-simd` for aarch64 and x86_64 on `nightly-2026-08-03`), SAST
+  (`codeql.yml`), MSRV, a release build, markdown/YAML/secrets/supply-chain.
   On a push to `main` it then runs `tag` and calls `publish.yml`.
 - `tag` creates `v<version>` only when `Cargo.toml` declares exactly the
   version GitVersion computes and that tag does not exist. Releasing is

@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Adaptadores de kernels escolhidos em tempo de execucao (Design)
 
-Status: rascunho, 2026-11-02. Segue o
+Status: concluido, 2026-11-12. Segue o
 [adaptador NEON](2026-11-01-rusticide-neon-adapter-design.pt-BR.md)
 (release 0.8.0). Branch `feat/runtime-adapters`.
 
@@ -227,4 +227,155 @@ razoes contra o llama.cpp.
 
 ## Resultados
 
-(Preenchido pela tarefa final.)
+Medido em 2026-11-12 na arvore final, as duas maquinas na tomada. Os
+numeros de kernel sao G/s (pesos, isto e multiplica-somas, por segundo em
+uma thread); prefill e decode sao tokens/s com o pool de threads padrao de
+cada maquina. A coluna SIMD e o baseline regravado (mediana dos melhores
+de tres sessoes); a coluna portavel e uma execucao do mesmo dia com
+`RUSTICIDE_KERNELS=portable`.
+
+### Apple M1 Pro (8 nucleos), `neon`
+
+Baseline `apple-m1-pro-8.json`, gravado com carga de 1 minuto 2.45; a
+execucao portavel com 2.47.
+
+- Q4_K: row 47.71 vs 29.69 (1.6x), rows8 91.86 vs 30.29 (3.0x).
+- Q6_K: row 28.74 vs 26.21 (1.1x), rows8 79.45 vs 27.21 (2.9x).
+- Q5_0: row 29.70 vs 20.46 (1.5x), rows8 80.73 vs 24.50 (3.3x).
+- Q8_0: row 59.60 vs 35.41 (1.7x), rows8 96.93 vs 35.71 (2.7x).
+- Qwen2.5 prefill 962.4 vs 416.4 (2.3x); decode 135.9 vs 124.9.
+- TinyLlama prefill 459.9 vs 166.1 (2.8x); decode 102.4 vs 90.7.
+- Contra o baseline anterior (gravado em `44ff283`) toda linha de kernel
+  fica dentro de 0.5%, e as linhas e2e ficam 2-7% abaixo: decode do
+  Qwen2.5 145.9 -> 135.9. Um A/B na mesma sessao de `44ff283` contra a
+  arvore final, tres execucoes alternadas de cada, da o mesmo decode
+  (melhor 140.1 vs 139.6), entao a queda e a carga de fundo deste desktop
+  naquele dia, nao o codigo. A selecao em tempo de execucao nao custa
+  nada mensuravel ao M1, como [Sequencia](#sequencia) pretendia.
+- O llama.cpp nao foi remedido no M1; vale a referencia do adaptador NEON
+  (`llama-bench -ngl 0 -t 6 -p 128,512 -n 0 -r 5`, BLAS e Metal
+  carregados): TinyLlama pp128 318.2, Qwen2.5 pp128 599.3 e pp512 722.8.
+  O prefill de hoje e 145% do pp128 do TinyLlama e 133% do pp512 do
+  Qwen2.5.
+
+### iMac Pro, Xeon W-2150B (10 nucleos / 20 threads), `avx2`
+
+Baseline `intel-r-xeon-r-w-2150b-cpu-3-00ghz-20.json`, gravado com carga
+de 1 minuto 1.98; a execucao portavel com 1.73.
+
+- Q4_K: row 39.53 vs 4.31 (9.2x), rows8 63.31 vs 9.41 (6.7x).
+- Q6_K: row 16.97 vs 3.54 (4.8x), rows8 43.41 vs 9.57 (4.5x).
+- Q5_0: row 21.75 vs 3.36 (6.5x), rows8 41.93 vs 8.20 (5.1x).
+- Q8_0: row 27.61 vs 6.95 (4.0x), rows8 45.57 vs 6.99 (6.5x).
+- Todo kernel rows8 passa o piso de 2x em [Objetivos](#objetivos).
+- Qwen2.5 prefill 561.0 vs 176.0 (3.2x); decode 56.9 vs 32.7 (1.7x).
+- TinyLlama prefill 367.7 vs 65.4 (5.6x); decode 43.0 vs 22.3 (1.9x).
+- Contra o baseline anterior (gravado em `f97c8c2`, antes dos produtos
+  escalares `f32` com FMA e do alinhamento de loops da Tarefa 8) o
+  prefill sobe 27% (Qwen2.5) e 64% (TinyLlama), o decode do Qwen2.5 sobe
+  10%, e toda linha de kernel fica dentro de 5% exceto duas que subiram:
+  Q4_K row (+6%) e Q8_0 rows8 (+9%).
+- Esta maquina e ruidosa de ponta a ponta: sessoes seguidas perdem ate
+  15% do prefill e do kernel portavel `Q4_0` para o calor, e o llama.cpp
+  mostra dois modos de velocidade (abaixo). As tentativas de baseline
+  daquele dia deram medianas de prefill de 557-632 (Qwen2.5) e 349-380
+  (TinyLlama). O baseline gravado usou os proprios comandos da tarefa
+  `bench:baseline` executados diretamente (tres sessoes de
+  `rusticide-bench run`, depois `rusticide-bench baseline`); as
+  tentativas via `mise run bench:baseline` mediram as mesmas linhas e2e,
+  mas uma linha portavel `Q4_0` 10-16% abaixo do baseline anterior,
+  enquanto execucoes avulsas do mesmo binario mediram 6.1-6.9 G/s, acima
+  dele. Nenhuma causa foi encontrada; `Q4_0` nao tem kernel SIMD e nenhum
+  modelo de referencia o usa.
+
+llama.cpp no iMac Pro, build `8642541b2` (llama.cpp 0.8.0, 20 threads,
+tamanhos de prompt iguais ao prompt do bench contados pelo
+`llama-tokenize`: 161 tokens para o TinyLlama, 142 para o Qwen2.5):
+
+- So o backend de CPU, a referencia do piso: um build so-CPU com AVX2 a
+  partir do fonte do Homebrew (`cmake -G Ninja -DCMAKE_BUILD_TYPE=Release
+  -DGGML_BLAS=OFF -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON
+  -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_METAL=OFF -DLLAMA_CURL=OFF`),
+  medido com `llama-bench -m <gguf> -t 20 -p <161|142> -n 0 -r 10
+  -o json`. No mesmo dia, carga 1.81-1.91: TinyLlama melhor 465 (as
+  amostras se dividem entre cerca de 220 e cerca de 450), Qwen2.5 melhor
+  560 (media 512).
+- Prefill contra ele, mediana do baseline sobre o melhor do llama.cpp:
+  TinyLlama 367.7 / 465 = **79%**, Qwen2.5 561.0 / 560 = **100%**. Melhor
+  contra melhor numa mesma sessao (Tarefa 8, depois da ultima mudanca):
+  414 / 466 = **89%** e 667 / 560 = **119%**. O piso de 65% vale nos dois
+  modelos de qualquer forma.
+- Decode contra o mesmo build (`-p 0 -n 64`, Tarefa 8): TinyLlama 43.0
+  vs 83.2 (52%), Qwen2.5 57.2 vs 86.0 (67%). Decode nao tem piso.
+- O build do Homebrew instalado, so como contexto: seu backend de CPU e
+  so SSE3 (nenhuma instrucao `ymm`) e seu backend BLAS (Accelerate) fica
+  com os produtos em lote. `llama-bench -m <gguf> -t 20 -p <161|142>
+  -n 64 -r 5`: TinyLlama pp161 167.3 e tg64 18.1, Qwen2.5 pp142 310.1 e
+  tg64 13.7. Com `-ub 31`, que mantem todo produto no backend de CPU
+  SSE3: 24.6 e 24.2.
+
+### Paridade com a referencia
+
+`mise run test:reference` passa 2/2 (tokens gulosos do TinyLlama e do
+Qwen2.5 contra o llama.cpp) nas duas maquinas com o adaptador padrao
+(`neon` no M1, `avx2` no iMac Pro, como `rusticide version` informa) e
+com `RUSTICIDE_KERNELS=portable`. Cobertura de 100% no M1
+(`mise run ci:quick`, 5276/5276 linhas) e, na Tarefa 8, no iMac Pro
+(5304/5304, com os modulos `avx2`).
+
+### AVX-512 (Tarefa 9)
+
+Decidido como trabalho futuro; nenhum adaptador foi construido (Tarefa 10
+pulada). Um spike adicionou um adaptador `avx512` acima do `avx2` com um
+kernel `Q4_K` de 512 bits (os outros formatos delegavam ao `avx2`). No
+W-2150B, melhor de quatro rodadas alternadas, cada uma iniciada com carga
+de 1 minuto abaixo de 2.5:
+
+- Kernel `Q4_K`: rows8 86.5 vs 65.5 G/s do `avx2` (1.32x), row 51.2 vs
+  41.0 (1.25x).
+- Prefill: Qwen2.5 612.5 vs 662.3 (-7.5%, `avx512` mais lento em 3 de 4
+  rodadas), TinyLlama 432.6 vs 404.0 (+7%). Decode: 58.3 vs 57.7 e 42.0
+  vs 42.8.
+
+A condicao de construcao em [Sequencia](#sequencia) pede ao menos 10% de
+prefill nos dois modelos; nenhum modelo chega la, e o AVX2 ja cumpre
+todos os pisos, entao a excecao nao se aplica. A causa provavel (nao
+provada): trabalho pesado de 512 bits baixa o clock do Skylake-SP para o
+trabalho AVX2 e `f32` ao redor, e o Qwen2.5 passa mais do prefill fora do
+`Q4_K`. A resposta de CI que o spike propos: um passo do Miri compilado
+com `-C target-feature=+avx512f,+avx512bw,+avx512vl` e um `cfg` para o
+Miri executar os corpos SIMD reais, mais um job isolado com Intel SDE
+(SHA-256 fixado, sem permissoes); os runners hospedados do GitHub nao
+garantem AVX-512, o QEMU nao tem, e um runner self-hosted e inseguro para
+um repositorio publico.
+
+**Achado sobre deteccao no macOS.** No iMac Pro, o
+`is_x86_feature_detected!` do std informa `avx512f`, `avx512bw` e
+`avx512vl` como ausentes, enquanto `sysctl hw.optional.avx512f` (e `bw`,
+`vl`) informam 1. O Darwin habilita o estado dos registradores AVX-512
+sob demanda, no primeiro uso, entao o XCR0 nao tem os bits de opmask e
+ZMM que a deteccao do std exige. Um adaptador AVX-512 detectado so pelo
+std nunca seria ativado no macOS; o spike precisou de um fallback com
+`sysctlbyname` no macOS.
+
+### Trabalho futuro
+
+- AVX-512: reabrir so com um fallback de deteccao via `sysctl` no macOS,
+  a resposta de CI acima, e uma medicao em Ice Lake ou posterior (sem
+  queda forte de clock). O spike fica fora da arvore como patch.
+- O binario de release Linux aarch64 ganhar `neon` e provado so pelo job
+  `arm` do CI; rodar o workflow da branch uma vez antes do merge (com o
+  job `Gates` x86_64, que prova a afirmacao `avx2` nos runners do
+  GitHub).
+- O ruido de ponta a ponta do iMac Pro (calor entre sessoes, dois modos
+  de velocidade) torna seu baseline uma guarda frouxa para o prefill; um
+  descanso maior entre sessoes no `bench:baseline` vale a tentativa la.
+- O job de MSRV do CI define `RUSTFLAGS` sem a flag de alinhamento de
+  loops x86_64, entao a aceitacao de `-align-loops=32` pela 1.98 e
+  provada so por builds locais.
+- Herdado das revisoes das tarefas: nenhum teste envia uma ativacao
+  `-128` pelos caminhos de entrada unica e na pilha; as checagens de
+  endereco impar nunca deslocam as ativacoes; `Q5_0` rows8 no NEON fica
+  cerca de 1% abaixo da 0.8.0.
+- Atencao e RoPE (`f32`) continuam sendo o proximo marco de desempenho,
+  como em [Nao-objetivos](#nao-objetivos).
