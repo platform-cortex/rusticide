@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-11-13
+
+### Features
+
+- **simd:** gate NEON on a detected token
+- **kernels:** select the adapter at run time
+- **kernels:** add the avx2 adapter shell
+- **simd:** run Q4_K on AVX2
+- **simd:** run Q6_K on AVX2
+- **simd:** run Q5_0 and Q8_0 on AVX2
+
+### Bug Fixes
+
+- **kernels:** expect avx2 under Miri, check it in CI
+
+### Refactor
+
+- **simd:** share the group views
+- **kernels:** share the per-format dot wrappers
+- **simd:** host the portable f32 dot kernels
+- **kernels:** one shape for the f32 wrappers
+- **kernels:** name the float module at its uses
+
+### Documentation
+
+- draft the runtime adapters design
+- plan the runtime adapters milestone
+- point AGENTS.md at the runtime adapters plan
+- **kernels:** state the group_kernel! contract
+- **unsafe:** rewrap the AVX2 kernel paragraph
+- **simd:** explain the Q5_0 unpack closure
+- **simd:** bound the f32 FMA claim to non-NaN
+- record the runtime adapters results
+- correct the runtime adapters results
+- record the quiet M1 baseline
+
+### Performance
+
+- **kernels:** scan activations once per product
+- **bench:** re-record the M1 baseline
+- **kernels:** hand kernels views in place
+- **bench:** re-record the M1 baseline
+- **bench:** record the iMac Pro baseline
+- **simd:** fuse the f32 dots with AVX2 FMA
+- **build:** align x86_64 loops to 32 bytes
+- **bench:** re-record the M1 baseline
+- **bench:** re-record the iMac Pro baseline
+- **bench:** re-record the M1 baseline quietly
+
 ## [0.8.0] - 2026-11-02
 
 ### Features
