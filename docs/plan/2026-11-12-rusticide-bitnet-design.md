@@ -265,11 +265,25 @@ portable kernel under every adapter.
   decode target is met (7.94 at the Task 10 checkpoint).
 - iMac Pro, Xeon W-2150B (`avx2`): BitNet decode 13.22, prefill
   26.81. An outside service on the iMac Pro (a launchd job restarting a
-  node process at up to 150% CPU) depressed some sessions: a first
-  back-to-back `bench:baseline` drifted 25-30% down from its first
-  session, so the baseline was recorded with `rusticide-bench baseline`
-  from three clean sessions (1-min load under 2.5 and no process above
-  50% CPU at start); one disturbed session was discarded.
+  node process at up to 150% CPU) disturbed many sessions, so the
+  baseline is not a plain `bench:baseline`. Nine sessions ran in three
+  attempts; the baseline is `rusticide-bench baseline` over three of
+  them, picked after looking at their results:
+  - session 1 of a back-to-back `bench:baseline` (1-min load 1.77 at
+    start, no CPU check); its sessions 2 and 3 drifted 25-30% down and
+    were dropped;
+  - sessions 2 and 3 of a third attempt, each started at 1-min load 2.19
+    but with node at 46.5% and 64.1% CPU (the second fails the attempt's
+    own "no process above 50%" check); its session 1 was dropped;
+  - all three sessions of a second attempt (load check only) were
+    dropped.
+  Six of nine sessions were dropped. Choosing by result biases the
+  baseline upward: TinyLlama prefill is 403.02, 13% above the Task 12
+  gate run (357.07) and 10% above the previous baseline (367.66), and
+  the `Q4_0`, `Q6_K` and `Q8_0` row kernels are 8-15% above the previous
+  baseline with no change to those kernels (in line with the gate run).
+  The values are a quiet-machine ceiling not yet shown reproducible; a
+  future iMac Pro gate may trip on those rows while the service runs.
 - bitnet.cpp on the iMac Pro (`1876a3e`, the fixture build, Apple clang
   17, CPU only, x86 `i2_s` mad kernel), 1-min load 1.91 at start:
   `llama-bench -m bitnet-b1.58-2b-4t-i2_s.gguf -p 143 -n 64 -t 10,20 -r 5`.
@@ -297,6 +311,8 @@ portable kernel under every adapter.
   next step (owner's ordering, 2026-11-12).
 - Align the near-tie threshold stated in the designs (0.1) with the
   harness (0.25), or tighten the harness.
+- Open (owner, at merge time): accept the iMac Pro baseline above or
+  re-record it after the openclaw service is stopped.
 - Deferred minors for the final review to triage (from the task ledger):
   - `Decoder::new` does not cross-check `DecoderWeights` shapes against
     the config (the loaders do).
