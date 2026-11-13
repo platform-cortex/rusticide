@@ -166,6 +166,33 @@ fn a_format_without_a_kernel_fails_to_load() {
     assert_eq!(error.to_string(), "no kernel for format Q4_K");
 }
 
+/// One `I2_S` block of +1 codes and a trailer of scale 2, shaped `shape`.
+fn i2_s_source(shape: &[usize]) -> InMemorySource {
+    let mut data = vec![0b1010_1010; 32];
+    data.extend(2.0_f32.to_le_bytes());
+    data.extend([0xA5; 28]);
+    InMemorySource::new(Metadata::default())
+        .with_quantized("b", block_format(36).unwrap(), data, shape)
+        .unwrap()
+}
+
+#[test]
+fn an_i2_s_matrix_has_no_kernel_yet() {
+    assert!(matches!(
+        Matrix::load(&i2_s_source(&[1, 128]), "b", 1, 128),
+        Err(ModelError::MissingKernel { format: "I2_S" })
+    ));
+}
+
+#[test]
+fn an_i2_s_matrix_whose_rows_split_blocks_is_widened_and_scaled() {
+    let matrix = Matrix::load(&i2_s_source(&[2, 64]), "b", 2, 64).unwrap();
+    assert!(!matrix.is_quantized());
+    let mut row = [0.0; 64];
+    assert!(matrix.copy_row(1, &mut row));
+    assert_eq!(row, [2.0; 64]);
+}
+
 #[test]
 fn copy_row_reads_a_prepared_matrix() {
     let matrix = Matrix::load_on(&q8_0_source(2, 32), "q", 2, 32, &PAIRED).unwrap();

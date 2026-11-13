@@ -12,6 +12,11 @@ fn kernel(format: &BlockFormat) -> &'static QuantKernel {
     active().quant_kernel(format.type_id()).unwrap()
 }
 
+/// Every format with a row kernel; `I2_S` has none until its product lands.
+fn kernel_formats() -> impl Iterator<Item = &'static BlockFormat> {
+    formats().iter().filter(|format| format.name() != "I2_S")
+}
+
 fn quantized(len: usize, seed: u32, kind: Q8Kind) -> Q8Input {
     let mut input = Q8Input::default();
     input.quantize(&pseudo_random_values(len, seed), kind);
@@ -23,22 +28,23 @@ fn reference_dot(values: &[f32], input: &[f32]) -> f32 {
 }
 
 #[test]
-fn portable_has_a_kernel_for_every_block_format() {
-    let found: Vec<(&str, u32, Q8Kind)> = formats()
+fn portable_has_a_kernel_for_every_block_format_but_i2_s() {
+    let found: Vec<(&str, Option<(u32, Q8Kind)>)> = formats()
         .iter()
         .map(|format| {
-            let kernel = kernel(format);
-            (format.name(), kernel.type_id(), kernel.activation())
+            let kernel = active().quant_kernel(format.type_id());
+            (format.name(), kernel.map(|k| (k.type_id(), k.activation())))
         })
         .collect();
     assert_eq!(
         found,
         [
-            ("Q4_0", 2, Q8Kind::Block),
-            ("Q5_0", 6, Q8Kind::Block),
-            ("Q4_K", 12, Q8Kind::SuperBlock),
-            ("Q6_K", 14, Q8Kind::SuperBlock),
-            ("Q8_0", 8, Q8Kind::Block),
+            ("Q4_0", Some((2, Q8Kind::Block))),
+            ("Q5_0", Some((6, Q8Kind::Block))),
+            ("Q4_K", Some((12, Q8Kind::SuperBlock))),
+            ("Q6_K", Some((14, Q8Kind::SuperBlock))),
+            ("Q8_0", Some((8, Q8Kind::Block))),
+            ("I2_S", None),
         ]
     );
 }
@@ -50,7 +56,7 @@ fn an_unknown_type_id_has_no_kernel() {
 
 #[test]
 fn dot_row_matches_the_dequantized_operands_for_every_format() {
-    for (seed, format) in (1..).zip(formats()) {
+    for (seed, format) in (1..).zip(kernel_formats()) {
         let kernel = kernel(format);
         let blocks = 2;
         let row = format.synthetic_blocks(blocks, seed).unwrap();
@@ -80,7 +86,7 @@ fn every_format_block_spans_whole_activation_blocks() {
 
 #[test]
 fn dot_rows_matches_one_dot_row_per_input_bit_for_bit() {
-    for (seed, format) in (1..).zip(formats()) {
+    for (seed, format) in (1..).zip(kernel_formats()) {
         let kernel = kernel(format);
         // Past one run of unpacked blocks for every format, ending mid-run.
         let blocks = 1280 / format.block_size() + 1;

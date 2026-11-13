@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use half::f16;
+use rusticide_quantize::QuantizeError;
 
 use super::GgufFile;
 use crate::error::GgufError;
@@ -80,5 +81,47 @@ fn quantized_tensor_of_an_unknown_type_is_unsupported() {
     assert!(matches!(
         file.quantized_tensor("odd"),
         Err(GgufError::UnsupportedTensorType { type_id: 99, .. })
+    ));
+}
+
+const I2_S: u32 = 36;
+
+/// One `I2_S` block of +1 codes, then the trailer: scale 0.5 and garbage.
+fn i2_s_tensor() -> Vec<u8> {
+    let mut data = vec![0b1010_1010; 32];
+    data.extend(0.5_f32.to_le_bytes());
+    data.extend([0xA5; 28]);
+    data
+}
+
+#[test]
+fn an_i2_s_tensor_loads_scaled_and_borrows_its_trailer() {
+    let file = file(GgufBuilder::new().tensor("t", &[128], I2_S, &i2_s_tensor()));
+    let values = file.tensor("t").unwrap().to_vec::<f32>().unwrap();
+    assert_eq!(values, [0.5; 128]);
+    let (format, bytes) = file.quantized_tensor("t").unwrap().unwrap();
+    assert_eq!((format.name(), bytes), ("I2_S", &i2_s_tensor()[..]));
+}
+
+#[test]
+fn an_i2_s_tensor_without_its_trailer_is_truncated() {
+    let file = file(GgufBuilder::new().tensor("t", &[128], I2_S, &[0; 32]));
+    assert!(matches!(file.tensor("t"), Err(GgufError::UnexpectedEof)));
+    assert!(matches!(
+        file.quantized_tensor("t"),
+        Err(GgufError::UnexpectedEof)
+    ));
+}
+
+#[test]
+fn an_i2_s_tensor_that_splits_a_block_is_unaligned() {
+    let file = file(GgufBuilder::new().tensor("t", &[100], I2_S, &i2_s_tensor()));
+    assert!(matches!(
+        file.tensor("t"),
+        Err(GgufError::Quantize(QuantizeError::UnalignedShape {
+            format: "I2_S",
+            numel: 100,
+            block: 128
+        }))
     ));
 }

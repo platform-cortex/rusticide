@@ -127,8 +127,8 @@ fn quantize_metric(kind: Q8Kind, plan: &Plan) -> Result<Sample, BenchError> {
     })
 }
 
-/// Single-thread kernel throughputs for every block format and both
-/// activation quantizers.
+/// Single-thread kernel throughputs for every block format with a kernel
+/// and both activation quantizers.
 ///
 /// # Errors
 ///
@@ -137,7 +137,11 @@ pub fn kernel_metrics(plan: &Plan) -> Result<BTreeMap<String, Sample>, BenchErro
     let mut metrics = BTreeMap::new();
     for format in formats() {
         let name = format.name();
-        metrics.insert(format!("kernel/{name}/row"), row_metric(format, plan)?);
+        let row = match row_metric(format, plan) {
+            Err(BenchError::MissingKernel { .. }) => continue,
+            row => row?,
+        };
+        metrics.insert(format!("kernel/{name}/row"), row);
         metrics.insert(format!("kernel/{name}/rows8"), rows8_metric(format, plan)?);
     }
     metrics.insert(

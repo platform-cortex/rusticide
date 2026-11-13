@@ -31,7 +31,7 @@ fn formats_lists_every_row_with_a_distinct_type_id() {
     let mut ids: Vec<u32> = formats().iter().map(|f| f.type_id).collect();
     ids.sort_unstable();
     ids.dedup();
-    assert_eq!(ids, [2, 6, 8, 12, 14]);
+    assert_eq!(ids, [2, 6, 8, 12, 14, 36]);
 }
 
 #[test]
@@ -68,11 +68,45 @@ const WIDER_THAN_ITS_BLOCK: BlockFormat = BlockFormat {
     block_bytes: 2,
     dequantize_block: |_, _| {},
     scale_offsets: &[0],
+    trailer_bytes: 0,
+    apply_trailer: None,
+};
+
+const TRAILER_PAST_THE_LAST_BYTE: BlockFormat = BlockFormat {
+    trailer_bytes: 1,
+    block_bytes: 1,
+    ..WIDER_THAN_ITS_BLOCK
 };
 
 #[test]
 fn byte_len_overflow_is_none() {
     assert_eq!(WIDER_THAN_ITS_BLOCK.byte_len(usize::MAX), None);
+    assert_eq!(
+        TRAILER_PAST_THE_LAST_BYTE.byte_len(usize::MAX - 1),
+        Some(usize::MAX)
+    );
+    assert_eq!(TRAILER_PAST_THE_LAST_BYTE.byte_len(usize::MAX), None);
+}
+
+#[test]
+fn only_i2_s_has_a_trailer() {
+    let trailers: Vec<(&str, usize)> = formats()
+        .iter()
+        .filter(|f| f.trailer_bytes() > 0)
+        .map(|f| (f.name(), f.trailer_bytes()))
+        .collect();
+    assert_eq!(trailers, [("I2_S", 32)]);
+}
+
+/// Whole blocks of `format`, with a unit-scale trailer when it has one.
+fn tensor_bytes(format: &BlockFormat, blocks: usize, seed: u32) -> Vec<u8> {
+    let mut data = format.synthetic_blocks(blocks, seed).unwrap();
+    let start = data.len();
+    data.resize(start + format.trailer_bytes(), 0);
+    if format.trailer_bytes() > 0 {
+        data[start..start + 4].copy_from_slice(&1.0_f32.to_le_bytes());
+    }
+    data
 }
 
 #[test]
@@ -126,7 +160,7 @@ fn dequantize_of_an_overflowing_byte_length_is_too_short() {
 #[test]
 fn dequantize_row_matches_dequantize_for_every_format() {
     for (seed, format) in (1..).zip(formats()) {
-        let row = format.synthetic_blocks(2, seed).unwrap();
+        let row = tensor_bytes(format, 2, seed);
         let numel = 2 * format.block_size;
         let expected = format
             .dequantize(&row, &[numel])
@@ -151,8 +185,13 @@ fn row_bytes_needs_whole_blocks() {
 fn synthetic_blocks_dequantize_to_finite_values() {
     for (seed, format) in (1..).zip(formats()) {
         let blocks = 4;
-        let data = format.synthetic_blocks(blocks, seed).unwrap();
-        assert_eq!(data.len(), blocks * format.block_bytes, "{}", format.name);
+        let data = tensor_bytes(format, blocks, seed);
+        assert_eq!(
+            Some(data.len()),
+            format.byte_len(blocks * format.block_size),
+            "{}",
+            format.name
+        );
         let values = format
             .dequantize(&data, &[blocks * format.block_size])
             .unwrap()

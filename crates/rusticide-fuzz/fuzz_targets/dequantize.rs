@@ -5,7 +5,9 @@
 //! Fuzz every block dequantizer against arbitrary block bytes.
 //!
 //! The first byte picks a registered format, the rest is block data sized to
-//! whole blocks. A dequantizer must never panic or read past a block.
+//! whole blocks plus the format's trailer (the `I2_S` scale), so a hostile
+//! scale reaches it too. A dequantizer must never panic or read past a block,
+//! whole tensor or single row.
 
 #![no_main]
 
@@ -18,6 +20,9 @@ fuzz_target!(|data: &[u8]| {
     };
     let table = formats();
     let format = &table[usize::from(selector) % table.len()];
-    let blocks = payload.len() / format.block_bytes();
-    let _ = format.dequantize(payload, &[blocks * format.block_size()]);
+    let blocks = payload.len().saturating_sub(format.trailer_bytes()) / format.block_bytes();
+    let numel = blocks * format.block_size();
+    let _ = format.dequantize(payload, &[numel]);
+    let mut row = vec![0.0; numel];
+    format.dequantize_row(payload, &mut row);
 });

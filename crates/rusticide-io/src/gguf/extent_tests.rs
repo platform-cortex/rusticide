@@ -91,6 +91,7 @@ fn byte_len_matches_each_storage_kind() {
     assert_eq!(byte_len(&info(vec![3], 0)).unwrap().1, 12);
     assert_eq!(byte_len(&info(vec![3], 1)).unwrap().1, 6);
     assert_eq!(byte_len(&info(vec![32], 8)).unwrap().1, 34);
+    assert_eq!(byte_len(&info(vec![256], 36)).unwrap().1, 96);
     assert!(matches!(
         byte_len(&info(vec![usize::MAX, 2], 0)),
         Err(GgufError::CastOverflow(_))
@@ -100,5 +101,13 @@ fn byte_len_matches_each_storage_kind() {
 #[test]
 fn an_empty_tensor_inside_another_is_accepted() {
     let bytes = two_tensors((&[16], F32, 0), (&[0], F32, 32));
+    assert_eq!(overlap(bytes), None);
+}
+
+#[test]
+fn the_i2_s_trailer_belongs_to_its_tensor() {
+    let bytes = two_tensors((&[128], 36, 0), (&[4], F32, 32));
+    assert_eq!(overlap(bytes), Some(("a".into(), "b".into())));
+    let bytes = two_tensors((&[128], 36, 0), (&[4], F32, 64));
     assert_eq!(overlap(bytes), None);
 }
